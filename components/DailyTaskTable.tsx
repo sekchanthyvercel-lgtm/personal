@@ -177,7 +177,7 @@ Provide the response as a JSON array where each object has:
 DO NOT wrap the response in markdown blocks like \`\`\`json. Just return the raw JSON array.`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
+        model: "gemini-3.1-pro-preview",
         contents: prompt,
       });
 

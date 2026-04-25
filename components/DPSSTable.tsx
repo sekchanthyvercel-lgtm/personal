@@ -211,7 +211,7 @@ const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate }) => {
     setIsAILoading(true);
     try {
         const result = await callNeuralEngine(
-            'gemini-1.5-flash',
+            'gemini-3-flash-preview',
             `Enhance this note. Improve structure, fix grammar, and expand slightly if it helps clarity. Return HTML formatted string only. Current content: ${selectedTopic.content}`,
             "You are a helpful note-taking assistant. Output ONLY valid HTML."
         );

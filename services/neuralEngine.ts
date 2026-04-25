@@ -176,7 +176,7 @@ export const generateNeuralOutline = async (
     try {
       const ai = new GoogleGenAI({ apiKey: availableKeys[i] });
       const response = await ai.models.generateContent({
-        model: 'gemini-1.5-flash', // Outline is light, always use flash
+        model: 'gemini-3-flash-preview', // Outline is light, always use flash
         contents: prompt,
         config: {
           responseMimeType: "application/json",
