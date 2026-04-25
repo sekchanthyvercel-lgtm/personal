@@ -5,7 +5,6 @@ import { Reflections } from './components/Reflections';
 import { ExpenseTracker } from './components/ExpenseTracker';
 import ReminderTable from './components/ReminderTable';
 import { AIStudio } from './components/AIStudio';
-import { LandingPage } from './components/LandingPage';
 import { AIModal } from './components/AIModal';
 import { Sidebar } from './components/Sidebar';
 import { SettingsModal } from './components/SettingsModal';
@@ -35,7 +34,7 @@ const DEFAULT_COLUMNS: ColumnConfig[] = [
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(() => {
     const stored = localStorage.getItem('dps_user');
-    return stored ? JSON.parse(stored) : null;
+    return stored ? JSON.parse(stored) : { name: 'Local User', role: 'Admin' };
   });
 
   useEffect(() => {
@@ -43,28 +42,41 @@ const App: React.FC = () => {
     import('./services/firebase').then(({ auth }) => {
       unsubscribeAuth = auth.onAuthStateChanged((user) => {
         if (user) {
-          const role = (localStorage.getItem('dps_user') ? JSON.parse(localStorage.getItem('dps_user')!).role : 'Teacher') || 'Teacher';
+          const role = (localStorage.getItem('dps_user') ? JSON.parse(localStorage.getItem('dps_user')!).role : 'Admin') || 'Admin';
           const newUser: CurrentUser = { name: user.displayName || 'User', role, uid: user.uid };
           setCurrentUser(newUser);
           localStorage.setItem('dps_user', JSON.stringify(newUser));
-        } else {
-          setCurrentUser(null);
-          localStorage.removeItem('dps_user');
         }
       });
     });
     return () => unsubscribeAuth();
   }, []);
 
-  const [data, setData] = useState<AppData>({ 
-    students: [], 
-    settings: { 
-      fontSize: 12, 
-      fontFamily: "'Inter', sans-serif", 
-      columns: DEFAULT_COLUMNS,
-      backgroundImage: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&q=80&w=2000'
-    },
-    attendance: {}
+  const [data, setData] = useState<AppData>(() => {
+    const stored = localStorage.getItem('dps_data');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (parsed && parsed.students) {
+          if (!parsed.settings?.columns) {
+            parsed.settings = { ...(parsed.settings || { fontSize: 12, fontFamily: "'Inter', sans-serif" }), columns: DEFAULT_COLUMNS };
+          }
+          return parsed;
+        }
+      } catch (e) {
+        console.error("Local data parse error", e);
+      }
+    }
+    return { 
+      students: [], 
+      settings: { 
+        fontSize: 12, 
+        fontFamily: "'Inter', sans-serif", 
+        columns: DEFAULT_COLUMNS,
+        backgroundImage: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&q=80&w=2000'
+      },
+      attendance: {}
+    };
   });
 
   const [history, setHistory] = useState<AppData[]>([]);
@@ -205,7 +217,11 @@ const App: React.FC = () => {
   }, [activeStudents]);
 
   useEffect(() => {
-    if (!currentUser?.uid) return;
+    if (!currentUser?.uid) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
     const unsubscribe = subscribeToData(currentUser.uid, (newData) => {
       // Ensure DEFAULT_COLUMNS are initialized
       if (!newData.settings?.columns) {
@@ -243,6 +259,7 @@ const App: React.FC = () => {
         setRedoStack([]);
       }
       setData(newData);
+      localStorage.setItem('dps_data', JSON.stringify(newData));
       if (currentUser?.uid) saveData(currentUser.uid, newData);
   };
 
@@ -252,6 +269,7 @@ const App: React.FC = () => {
     setRedoStack(prev => [...prev, data]);
     setHistory(prev => prev.slice(0, -1));
     setData(previous);
+    localStorage.setItem('dps_data', JSON.stringify(previous));
     if (currentUser?.uid) saveData(currentUser.uid, previous);
   };
 
@@ -261,6 +279,7 @@ const App: React.FC = () => {
     setHistory(prev => [...prev, data]);
     setRedoStack(prev => prev.slice(0, -1));
     setData(next);
+    localStorage.setItem('dps_data', JSON.stringify(next));
     if (currentUser?.uid) saveData(currentUser.uid, next);
   };
 
@@ -313,9 +332,9 @@ const App: React.FC = () => {
       const user: CurrentUser = { name: result?.displayName || 'User', role, uid: result?.uid };
       setCurrentUser(user);
       localStorage.setItem('dps_user', JSON.stringify(user));
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert("Google Sign-In is required to access the secure database.");
+      alert(`Google Sign-In failed: ${error.message || "Please check your network and configuration"}`);
     }
   };
 
@@ -363,8 +382,6 @@ const App: React.FC = () => {
       }
     }
   }, [loading, data.students.length]);
-
-  if (!currentUser?.uid) return <LandingPage onLogin={handleLogin} />;
 
   const isModuleLocked = (module: 'Hall' | 'Attendance' | 'Finance') => {
     return data.moduleLocks?.[module] || false;
@@ -422,6 +439,9 @@ const App: React.FC = () => {
         onClose={() => setIsContactsOpen(false)} 
         settings={data.settings} 
         onUpdate={(newSettings) => handleUpdate({...data, settings: newSettings})} 
+        currentUser={currentUser}
+        onLogin={handleLogin as any}
+        onLogout={handleLogout}
       />
 
       <SupermanAnimation students={data.students} />
