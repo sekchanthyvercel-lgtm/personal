@@ -19,6 +19,7 @@ export interface ColumnConfig {
 export interface CurrentUser {
   name: string;
   role: UserRole;
+  uid?: string;
 }
 
 export interface PhotoAdjust {

@@ -7,15 +7,10 @@ interface Props {
 }
 
 export const LandingPage: React.FC<Props> = ({ onLogin }) => {
-  const [name, setName] = useState('');
-  const [role, setRole] = useState<UserRole>('Teacher');
-  const [pin, setPin] = useState('');
+  const [role, setRole] = useState<UserRole>('Admin');
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (name.trim() && pin.trim()) {
-      onLogin(name, role, pin);
-    }
+  const handleGoogleLogin = () => {
+    onLogin('', role, ''); // PIN and Name not needed here
   };
 
   return (
@@ -30,10 +25,8 @@ export const LandingPage: React.FC<Props> = ({ onLogin }) => {
         </div>
         
         <div className="p-8">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            
             {/* Role Selection */}
-            <div>
+            <div className="mb-6">
               <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Select Your Role</label>
               <div className="grid grid-cols-1 gap-2">
                   <button
@@ -74,46 +67,13 @@ export const LandingPage: React.FC<Props> = ({ onLogin }) => {
                   </div>
               </div>
             </div>
-
-            {/* Name Input */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Your Name</label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <input 
-                  type="text" 
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Sok Heng"
-                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                  required
-                />
-              </div>
-            </div>
-
-            {/* PIN Input */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Security PIN</label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <input 
-                  type="password" 
-                  value={pin}
-                  onChange={(e) => setPin(e.target.value)}
-                  placeholder="Enter PIN"
-                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                  required
-                />
-              </div>
-            </div>
             
             <button 
-              type="submit"
-              className="w-full py-3 bg-primary-600 text-white font-bold rounded-lg hover:bg-primary-700 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-primary-500/30 mt-4"
+              onClick={handleGoogleLogin}
+              className="w-full py-3 bg-primary-600 text-white font-bold rounded-lg hover:bg-primary-700 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-primary-500/30 font-black tracking-wider"
             >
-              Login to Portal <ArrowRight size={18} />
+              Sign In with Google <ArrowRight size={18} />
             </button>
-          </form>
         </div>
       </div>
     </div>

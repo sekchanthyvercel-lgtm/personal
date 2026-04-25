@@ -35,8 +35,26 @@ const DEFAULT_COLUMNS: ColumnConfig[] = [
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(() => {
     const stored = localStorage.getItem('dps_user');
-    return stored ? JSON.parse(stored) : { name: 'Demo User', role: 'Admin' };
+    return stored ? JSON.parse(stored) : null;
   });
+
+  useEffect(() => {
+    let unsubscribeAuth: any = () => {};
+    import('./services/firebase').then(({ auth }) => {
+      unsubscribeAuth = auth.onAuthStateChanged((user) => {
+        if (user) {
+          const role = (localStorage.getItem('dps_user') ? JSON.parse(localStorage.getItem('dps_user')!).role : 'Teacher') || 'Teacher';
+          const newUser: CurrentUser = { name: user.displayName || 'User', role, uid: user.uid };
+          setCurrentUser(newUser);
+          localStorage.setItem('dps_user', JSON.stringify(newUser));
+        } else {
+          setCurrentUser(null);
+          localStorage.removeItem('dps_user');
+        }
+      });
+    });
+    return () => unsubscribeAuth();
+  }, []);
 
   const [data, setData] = useState<AppData>({ 
     students: [], 
@@ -187,8 +205,8 @@ const App: React.FC = () => {
   }, [activeStudents]);
 
   useEffect(() => {
-    if (!currentUser) return;
-    const unsubscribe = subscribeToData((newData) => {
+    if (!currentUser?.uid) return;
+    const unsubscribe = subscribeToData(currentUser.uid, (newData) => {
       // Ensure DEFAULT_COLUMNS are initialized
       if (!newData.settings?.columns) {
           newData.settings = { ...(newData.settings || { fontSize: 12, fontFamily: "'Inter', sans-serif" }), columns: DEFAULT_COLUMNS };
@@ -225,7 +243,7 @@ const App: React.FC = () => {
         setRedoStack([]);
       }
       setData(newData);
-      saveData(newData);
+      if (currentUser?.uid) saveData(currentUser.uid, newData);
   };
 
   const undo = () => {
@@ -234,7 +252,7 @@ const App: React.FC = () => {
     setRedoStack(prev => [...prev, data]);
     setHistory(prev => prev.slice(0, -1));
     setData(previous);
-    saveData(previous);
+    if (currentUser?.uid) saveData(currentUser.uid, previous);
   };
 
   const redo = () => {
@@ -243,7 +261,7 @@ const App: React.FC = () => {
     setHistory(prev => [...prev, data]);
     setRedoStack(prev => prev.slice(0, -1));
     setData(next);
-    saveData(next);
+    if (currentUser?.uid) saveData(currentUser.uid, next);
   };
 
   useEffect(() => {
@@ -288,21 +306,16 @@ const App: React.FC = () => {
     handleUpdate({ ...data, students: [...newStudents, ...data.students] });
   };
 
-  const handleLogin = async (name: string, role: UserRole, pin: string) => {
-    const pins: Record<UserRole, string> = { Admin: '888', Teacher: '1234', Finance: '555' };
-    if (pin === (pins as any)[role]) {
-      try {
-        const { signInWithGoogle } = await import('./services/firebase');
-        await signInWithGoogle();
-        const user: CurrentUser = { name, role };
-        setCurrentUser(user);
-        localStorage.setItem('dps_user', JSON.stringify(user));
-      } catch (error) {
-        console.error(error);
-        alert("Google Sign-In is required to access the secure database.");
-      }
-    } else {
-      alert("Invalid PIN.");
+  const handleLogin = async (_name: string, role: UserRole, _pin: string) => {
+    try {
+      const { signInWithGoogle } = await import('./services/firebase');
+      const result = await signInWithGoogle();
+      const user: CurrentUser = { name: result?.displayName || 'User', role, uid: result?.uid };
+      setCurrentUser(user);
+      localStorage.setItem('dps_user', JSON.stringify(user));
+    } catch (error) {
+      console.error(error);
+      alert("Google Sign-In is required to access the secure database.");
     }
   };
 
@@ -311,7 +324,7 @@ const App: React.FC = () => {
       const { logOut } = await import('./services/firebase');
       await logOut();
     } catch(e) {}
-    setCurrentUser({ name: 'Demo User', role: 'Admin' });
+    setCurrentUser(null);
     localStorage.removeItem('dps_user');
   };
 
@@ -351,7 +364,7 @@ const App: React.FC = () => {
     }
   }, [loading, data.students.length]);
 
-  // if (!currentUser) return <LandingPage onLogin={handleLogin} />;
+  if (!currentUser?.uid) return <LandingPage onLogin={handleLogin} />;
 
   const isModuleLocked = (module: 'Hall' | 'Attendance' | 'Finance') => {
     return data.moduleLocks?.[module] || false;

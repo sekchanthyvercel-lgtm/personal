@@ -94,10 +94,16 @@ testConnection();
 
 // 4. Real-time Subscription logic needed by App.tsx
 export const subscribeToData = (
+  userId: string,
   onData: (data: AppData) => void,
   onError: (error: any) => void
 ) => {
-  const docRef = doc(db, DOC_PATH);
+  if (!userId) {
+    onError(new Error("User not authenticated"));
+    return () => {};
+  }
+  
+  const docRef = doc(db, 'users', userId, 'appData', 'data');
   
   const unsubscribe = onSnapshot(docRef, (docSnap) => {
     if (docSnap.exists()) {
@@ -112,23 +118,24 @@ export const subscribeToData = (
     } else {
       // Document doesn't exist yet, initialize it
       const initialData: AppData = { students: [], attendance: {}, systemLocked: false };
-      setDoc(docRef, initialData).catch((err) => handleFirestoreError(err, OperationType.WRITE, DOC_PATH));
+      setDoc(docRef, initialData).catch((err) => handleFirestoreError(err, OperationType.WRITE, docRef.path));
       onData(initialData);
     }
   }, (error) => {
     isOffline = true;
-    handleFirestoreError(error, OperationType.GET, DOC_PATH);
+    handleFirestoreError(error, OperationType.GET, docRef.path);
   });
 
   return unsubscribe;
 };
 
-export const saveData = async (data: AppData) => {
-  const docRef = doc(db, DOC_PATH);
+export const saveData = async (userId: string, data: AppData) => {
+  if (!userId) return;
+  const docRef = doc(db, 'users', userId, 'appData', 'data');
   try {
     await setDoc(docRef, data, { merge: true });
   } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, DOC_PATH);
+    handleFirestoreError(error, OperationType.WRITE, docRef.path);
   }
 };
 

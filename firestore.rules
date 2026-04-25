@@ -1,37 +1,12 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 0. Global Safety Net
-    match /{document=**} { 
-      allow read, write: if false; 
+    match /{document=**} {
+      allow read, write: if false;
     }
-
-    // Primitive Helpers
-    function isSignedIn() { return request.auth != null; }
-    function isVerifiedUser() { return isSignedIn() && request.auth.token.email_verified == true; }
-    function incoming() { return request.resource.data; }
-    function existing() { return resource.data; }
-
-    function isValidAppData(data) {
-      return data.keys().hasAny(['students', 'attendance', 'systemLocked']) &&
-             ( !('students' in data.keys()) || (data.students is list && data.students.size() <= 8000) ) &&
-             ( !('systemLocked' in data.keys()) || data.systemLocked is bool ) &&
-             ( !('moduleLocks' in data.keys()) || data.moduleLocks is map );
-    }
-
-    // The shared app state document
-    match /portal/data {
-      allow read: if isVerifiedUser();
-      allow create: if isVerifiedUser() && isValidAppData(incoming());
-      
-      allow update: if isVerifiedUser() 
-                    && isValidAppData(incoming())
-                    && incoming().diff(existing()).affectedKeys().hasOnly(['students', 'settings', 'attendance', 'moduleLocks', 'staffDirectory', 'systemLocked', 'updatedAt', 'expenses', 'expenseCategories', 'dailyTasks', 'reflections', 'journalEntries', 'habits', 'habitCompletions', 'selfLearningTopics', 'dpssTopics', 'idCounters', 'schoolLogo']);
-    }
-
-    // Explicit test document for `testConnection()`
-    match /test/connection {
-      allow read: if true;
+    
+    match /users/{userId}/appData/data {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
   }
 }

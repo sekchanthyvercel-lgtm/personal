@@ -17,7 +17,8 @@ import {
   LayoutGrid,
   List,
   CalendarDays,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  MessageSquare
 } from 'lucide-react';
 import { 
   format, 
@@ -158,7 +159,10 @@ export const DailyTaskTable: React.FC<DailyTaskTableProps> = ({
     setIsSuggesting(true);
     try {
       const { GoogleGenAI } = await import('@google/genai');
-      const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || '' });
+      // @ts-ignore
+      const envKeys = import.meta.env.VITE_GEMINI_API_KEYS || import.meta.env.VITE_GEMINI_API_KEY || '';
+      const keys = envKeys.split(',').map(k => k.trim()).filter(Boolean);
+      const ai = new GoogleGenAI({ apiKey: keys[0] || '' });
       
       const prompt = `You are a high-performance productivity coach. Based on these existing personal development tasks:
 ${contextData}

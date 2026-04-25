@@ -2,34 +2,20 @@
   "entities": {
     "AppData": {
       "title": "AppData",
-      "description": "The main monolithic app data storage for collaboration.",
+      "description": "User's application data",
       "type": "object",
       "properties": {
         "students": { "type": "array" },
         "settings": { "type": "object" },
         "attendance": { "type": "object" },
-        "moduleLocks": { "type": "object" },
-        "staffDirectory": { "type": "object" },
-        "systemLocked": { "type": "boolean" },
-        "updatedAt": { "type": "string" },
-        "expenses": { "type": "array" },
-        "expenseCategories": { "type": "array" },
-        "dailyTasks": { "type": "object" },
-        "reflections": { "type": "object" },
-        "journalEntries": { "type": "object" },
-        "habits": { "type": "array" },
-        "habitCompletions": { "type": "object" },
-        "selfLearningTopics": { "type": "array" },
-        "dpssTopics": { "type": "array" },
-        "idCounters": { "type": "object" },
-        "schoolLogo": { "type": "string" }
+        "dailyTasks": { "type": "object" }
       }
     }
   },
   "firestore": {
-    "portal/data": {
-      "schema": { "$ref": "#/entities/AppData" },
-      "description": "Main document storing the entire application state."
+    "/users/{userId}/appData/data": {
+      "schema": "AppData",
+      "description": "User specific app data"
     }
   }
 }
