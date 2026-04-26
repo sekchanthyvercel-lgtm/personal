@@ -271,16 +271,6 @@ const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate }) => {
 
   return (
     <div className="flex flex-col md:flex-row h-full md:h-[90vh] p-2 gap-2 overflow-hidden relative">
-      {/* Mobile Toggle Button */}
-      {!isSidebarOpen && (
-        <button 
-          onClick={() => setIsSidebarOpen(true)}
-          className="md:hidden fixed bottom-6 left-6 z-[60] w-14 h-14 bg-orange-500 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-orange-500/40"
-        >
-          <Menu size={24} />
-        </button>
-      )}
-
       {/* Sidebar with Fonts - Mobile Slide-in Logic */}
       <div className={`
         fixed md:relative inset-y-0 left-0 z-50 md:z-30
@@ -318,10 +308,12 @@ const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate }) => {
       <div className={`flex-1 bg-white/10 backdrop-blur-md rounded-3xl p-4 md:p-6 border border-white/20 relative overflow-hidden flex flex-col ${!isSidebarOpen ? 'w-full' : 'hidden md:flex'}`}>
         {selectedTopic ? (
             <div className="space-y-4 h-full flex flex-col">
-                <div className="flex items-center gap-4">
-                  <button onClick={() => setIsSidebarOpen(true)} className="md:hidden p-2 bg-white/20 rounded-lg">
-                    <Menu size={20} />
-                  </button>
+                <div className="flex items-center gap-2 md:gap-4">
+                  {!isSidebarOpen && (
+                    <button onClick={() => setIsSidebarOpen(true)} className="md:hidden p-2 bg-orange-500 text-white rounded-xl shadow-lg shadow-orange-200">
+                      <Menu size={20} />
+                    </button>
+                  )}
                   <input 
                       value={selectedTopic.title} 
                       onChange={(e) => updateTopic(selectedTopic.id, { title: e.target.value })}

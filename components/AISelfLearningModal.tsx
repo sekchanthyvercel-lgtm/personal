@@ -46,7 +46,7 @@ Content snippet: ${topic && topic.content ? topic.content.substring(0, 1000) : '
 User's query: ${userMsg}
 `;
       const response = await ai.models.generateContent({
-        model: "gemini-3.1-pro-preview",
+        model: "gemini-1.5-flash",
         contents: prompt,
       });
 
