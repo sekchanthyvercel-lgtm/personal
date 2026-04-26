@@ -61,7 +61,7 @@ export const DailyJournal: React.FC<DailyJournalProps> = ({ data, onUpdate }) =>
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white/[0.01] backdrop-blur-3xl p-4 md:p-8 overflow-hidden font-sans text-slate-900">
+    <div className="flex-1 flex flex-col h-full bg-white/[0.01] backdrop-blur-3xl p-3 md:p-8 overflow-y-auto md:overflow-hidden font-sans text-slate-900">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4 px-4 md:px-8 pt-8">
         <div>
           <div className="flex items-center gap-2">

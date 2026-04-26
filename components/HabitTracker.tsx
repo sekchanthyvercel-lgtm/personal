@@ -93,47 +93,47 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate }) =>
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white/[0.02] backdrop-blur-3xl p-8 overflow-hidden font-sans">
-      <div className="flex items-center justify-between mb-8">
+    <div className="flex-1 flex flex-col h-full bg-white/[0.02] backdrop-blur-3xl p-4 md:p-8 overflow-y-auto md:overflow-hidden font-sans">
+      <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tighter uppercase italic drop-shadow-sm">
+          <h1 className="text-xl md:text-3xl font-black text-slate-900 tracking-tighter uppercase italic drop-shadow-sm">
             Performance Mastery Hub
           </h1>
-          <p className="text-orange-600 font-bold mt-1 text-xs tracking-widest uppercase opacity-80">
-            {format(currentDate, 'EEEE, MMMM do, yyyy')} | Mastery Tracker
+          <p className="text-orange-600 font-bold mt-1 text-[10px] md:text-xs tracking-widest uppercase opacity-80 text-center md:text-left">
+            {format(currentDate, 'EEEE, MMM do, yyyy')}
           </p>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 md:gap-4 flex-wrap justify-center">
           <div className="flex bg-white/20 backdrop-blur-xl rounded-2xl p-1 border border-white/40 shadow-sm">
             <button 
               onClick={() => setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
-              className="p-3 hover:bg-white/40 rounded-xl transition-all text-slate-900"
+              className="p-2 md:p-3 hover:bg-white/40 rounded-xl transition-all text-slate-900"
             >
-              <ChevronLeft size={20} />
+              <ChevronLeft size={16} />
             </button>
-            <div className="px-6 flex items-center font-black text-[10px] tracking-[0.2em] text-slate-900 uppercase">
-              {format(currentDate, 'MMMM yyyy')}
+            <div className="px-3 md:px-6 flex items-center font-black text-[9px] md:text-[10px] tracking-[0.2em] text-slate-900 uppercase">
+              {format(currentDate, 'MMM yyyy')}
             </div>
             <button 
               onClick={() => setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
-              className="p-3 hover:bg-white/40 rounded-xl transition-all text-slate-900"
+              className="p-2 md:p-3 hover:bg-white/40 rounded-xl transition-all text-slate-900"
             >
-              <ChevronRight size={20} />
+              <ChevronRight size={16} />
             </button>
           </div>
           
           <button 
             onClick={() => setIsAddingHabit(true)}
-            className="flex items-center gap-2 bg-orange-600 text-white px-6 py-3 rounded-2xl font-black text-xs tracking-widest hover:bg-orange-500 hover:scale-105 active:scale-95 transition-all shadow-2xl shadow-orange-600/20 uppercase"
+            className="flex items-center gap-2 bg-orange-600 text-white px-4 md:px-6 py-2.5 md:py-3 rounded-2xl font-black text-[10px] md:text-xs tracking-widest hover:bg-orange-500 hover:scale-105 active:scale-95 transition-all shadow-2xl shadow-orange-600/20 uppercase"
           >
-            <Plus size={18} /> Add Mastery
+            <Plus size={16} /> Add Mastery
           </button>
         </div>
       </div>
 
       {/* Reflections linked to data - Moved to Top */}
-      <div className="mb-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="mb-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           <motion.div 
             whileHover={{ y: -5 }}
             className="bg-black/40 backdrop-blur-2xl border border-orange-500/20 rounded-[28px] p-6 text-white group transition-all"

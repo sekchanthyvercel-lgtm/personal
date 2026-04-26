@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Plus, Trash2, Calendar, AlignLeft, AlignCenter, AlignRight, Highlighter, Type, Settings2, MousePointer2, Minus, Layout, Square, Quote, FileUp, Loader2, Wand2 } from 'lucide-react';
+import { Plus, Trash2, Calendar, AlignLeft, AlignCenter, AlignRight, Highlighter, Type, Settings2, MousePointer2, Minus, Layout, Square, Quote, FileUp, Loader2, Wand2, Menu, ChevronLeft } from 'lucide-react';
 import { AppData, DPSSTopic } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { callNeuralEngine } from '../services/neuralEngine';
@@ -14,6 +14,7 @@ const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate }) => {
   const [pickerPos, setPickerPos] = useState<{ x: number, y: number } | null>(null);
   const [activeColor, setActiveColor] = useState<string | null>(null);
   const [isAILoading, setIsAILoading] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 768);
   const editorRef = useRef<HTMLDivElement>(null);
   const savedRange = useRef<Range | null>(null);
   
@@ -251,7 +252,13 @@ const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate }) => {
 
   const renderTopic = (topic: DPSSTopic, depth = 0) => (
     <div key={topic.id} style={{ marginLeft: `${depth * 15}px` }}>
-      <div onClick={() => setSelectedTopicId(topic.id)} className={`p-2 my-1 rounded-lg cursor-pointer flex items-center justify-between ${selectedTopicId === topic.id ? 'bg-orange-100/50' : 'bg-white/5 hover:bg-white/10'}`}>
+      <div 
+        onClick={() => {
+          setSelectedTopicId(topic.id);
+          if (window.innerWidth < 768) setIsSidebarOpen(false);
+        }} 
+        className={`p-2 my-1 rounded-lg cursor-pointer flex items-center justify-between ${selectedTopicId === topic.id ? 'bg-orange-100/50' : 'bg-white/5 hover:bg-white/10'}`}
+      >
         <span className="font-bold text-[13px] text-slate-700 truncate max-w-[180px]">{topic.title}</span>
         <div className='flex gap-1 shrink-0'>
             <button onClick={(e) => { e.stopPropagation(); addTopic(topic.id); }}><Plus size={14} className="text-slate-400 hover:text-green-500"/></button>
@@ -263,9 +270,17 @@ const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate }) => {
   );
 
   return (
-    <div className="flex h-[90vh] p-2 gap-2">
+    <div className="flex flex-col md:flex-row h-full md:h-[90vh] p-2 gap-2 overflow-hidden relative">
+      {/* Mobile Toggle Button */}
+      <button 
+        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+        className="md:hidden fixed bottom-6 right-6 z-50 w-14 h-14 bg-orange-500 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all"
+      >
+        {isSidebarOpen ? <ChevronLeft size={24} /> : <Menu size={24} />}
+      </button>
+
       {/* Sidebar with Fonts */}
-      <div className="w-[300px] bg-white/10 backdrop-blur-md rounded-3xl p-4 border border-white/20 flex flex-col gap-4 overflow-hidden">
+      <div className={`${isSidebarOpen ? 'flex' : 'hidden'} md:flex w-full md:w-[300px] bg-white/10 backdrop-blur-md rounded-3xl p-4 border border-white/20 flex-col gap-4 overflow-hidden z-30`}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-black text-slate-800 tracking-tight">DPSS & Note-taking</h2>
         </div>
@@ -280,18 +295,23 @@ const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate }) => {
       </div>
       
       {/* Editor Area */}
-      <div className="flex-1 bg-white/10 backdrop-blur-md rounded-3xl p-6 border border-white/20 relative overflow-hidden flex flex-col">
+      <div className={`flex-1 bg-white/10 backdrop-blur-md rounded-3xl p-4 md:p-6 border border-white/20 relative overflow-hidden flex flex-col ${!isSidebarOpen ? 'w-full' : 'hidden md:flex'}`}>
         {selectedTopic ? (
             <div className="space-y-4 h-full flex flex-col">
-                <input 
-                    value={selectedTopic.title} 
-                    onChange={(e) => updateTopic(selectedTopic.id, { title: e.target.value })}
-                    className="w-full text-4xl font-black text-slate-900 bg-transparent outline-none p-2 border-b-2 border-orange-500/20 focus:border-orange-500 transition-all"
-                    placeholder="Topic Title..."
-                />
+                <div className="flex items-center gap-4">
+                  <button onClick={() => setIsSidebarOpen(true)} className="md:hidden p-2 bg-white/20 rounded-lg">
+                    <Menu size={20} />
+                  </button>
+                  <input 
+                      value={selectedTopic.title} 
+                      onChange={(e) => updateTopic(selectedTopic.id, { title: e.target.value })}
+                      className="flex-1 text-2xl md:text-4xl font-black text-slate-900 bg-transparent outline-none p-2 border-b-2 border-orange-500/20 focus:border-orange-500 transition-all"
+                      placeholder="Topic Title..."
+                  />
+                </div>
                 
-                <div className='flex flex-wrap gap-3 p-2 border-b border-white/20 items-center sticky top-0 bg-white/30 backdrop-blur-xl z-20 rounded-xl'>
-                    <div className="flex gap-1 bg-white/40 p-1 rounded-lg">
+                <div className='flex flex-wrap gap-2 p-2 border-b border-white/20 items-center sticky top-0 bg-white/30 backdrop-blur-xl z-20 rounded-xl overflow-x-auto no-scrollbar'>
+                    <div className="flex gap-1 bg-white/40 p-1 rounded-lg shrink-0">
                       <button className="p-1.5 hover:bg-white rounded transition-colors" title="Align Left" onClick={() => updateTopic(selectedTopic.id, { alignment: 'left' })}><AlignLeft size={16} /></button>
                       <button className="p-1.5 hover:bg-white rounded transition-colors" title="Align Center" onClick={() => updateTopic(selectedTopic.id, { alignment: 'center' })}><AlignCenter size={16} /></button>
                       <button className="p-1.5 hover:bg-white rounded transition-colors" title="Align Right" onClick={() => updateTopic(selectedTopic.id, { alignment: 'right' })}><AlignRight size={16} /></button>

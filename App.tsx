@@ -83,7 +83,7 @@ const App: React.FC = () => {
   const [redoStack, setRedoStack] = useState<AppData[]>([]);
 
   const [activeTab, setActiveTab] = useState<Tab>(Tab.HabitTracker);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 768);
   const [isAiOpen, setIsAiOpen] = useState(false);
   const [isContactsOpen, setIsContactsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -389,7 +389,7 @@ const App: React.FC = () => {
 
   return (
     <div 
-      className="h-screen bg-cover bg-center bg-no-repeat flex font-sans overflow-hidden transition-all duration-700 bg-transparent" 
+      className="h-screen bg-cover bg-center bg-no-repeat flex font-sans overflow-hidden md:overflow-hidden transition-all duration-700 bg-transparent" 
       style={{ 
         fontFamily: data.settings?.fontFamily || "'Inter', sans-serif",
         backgroundImage: data.settings?.backgroundImage ? `url(${data.settings.backgroundImage})` : 'none',
@@ -447,10 +447,10 @@ const App: React.FC = () => {
       <SupermanAnimation students={data.students} />
 
       <main 
-        className="flex-1 flex flex-col overflow-hidden transition-transform duration-300 origin-top-left bg-white/[0.01] backdrop-blur-md"
+        className="flex-1 flex flex-col overflow-y-auto md:overflow-hidden transition-transform duration-300 origin-top-left bg-white/[0.01] backdrop-blur-md"
         style={{ transform: `scale(${globalScale})`, width: `${100/globalScale}%`, height: `${100/globalScale}%` }}
       >
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-visible md:overflow-hidden">
           <>
             {activeTab === Tab.HabitTracker && (
               <HabitTracker data={data} onUpdate={handleUpdate} />

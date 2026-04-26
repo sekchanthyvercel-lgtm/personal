@@ -339,7 +339,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate }
   }, [filteredByView, searchTerm, viewMode, currencyMode]);
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white/[0.005] backdrop-blur-3xl p-4 md:p-6 overflow-hidden font-sans">
+    <div className="flex-1 flex flex-col h-full bg-white/[0.005] backdrop-blur-3xl p-3 md:p-6 overflow-y-auto md:overflow-hidden font-sans">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-4 gap-4">
         <div>
           <h1 className="text-3xl font-black text-slate-900 tracking-tighter uppercase italic flex items-center gap-3 drop-shadow-sm">
@@ -449,9 +449,9 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate }
         </motion.div>
       </div>
 
-      <div className="flex-1 overflow-hidden flex flex-col md:flex-row gap-8">
+      <div className="flex-1 flex flex-col md:flex-row gap-8 overflow-visible md:overflow-hidden">
         {/* Structured Category List */}
-        <div className="w-full lg:w-[750px] xl:w-[850px] bg-white/[0.005] backdrop-blur-3xl border border-white/10 rounded-[40px] shadow-sm flex flex-col overflow-hidden text-left">
+        <div className="w-full md:w-[350px] lg:w-[450px] xl:w-[550px] bg-white/[0.005] backdrop-blur-3xl border border-white/10 rounded-[40px] shadow-sm flex flex-col overflow-hidden text-left shrink-0">
             <div className="p-4 border-b border-white/10 flex flex-col gap-3 bg-amber-500/5">
                 <div className="flex items-center justify-between">
                     <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-900">Category Summary</h3>
@@ -530,7 +530,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate }
         </div>
 
         {/* Detailed Transactions */}
-        <div className="flex-1 bg-white/[0.005] backdrop-blur-3xl border border-white/10 rounded-[40px] shadow-sm overflow-hidden flex flex-col">
+        <div className="flex-1 bg-white/[0.005] backdrop-blur-3xl border border-white/10 rounded-[40px] shadow-sm overflow-visible md:overflow-hidden flex flex-col">
             <div className="p-6 border-b border-slate-100 flex items-center justify-between gap-4">
                 <div className="relative flex-1 max-w-md w-full">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
@@ -562,7 +562,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate }
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto custom-scrollbar-amber px-6 py-2">
+            <div className="flex-1 overflow-visible md:overflow-y-auto custom-scrollbar-amber px-6 py-2">
                 <div className="space-y-3">
                     {filteredExpenses.map((expense) => (
                         <motion.div 

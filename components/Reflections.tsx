@@ -28,7 +28,7 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
   <motion.div 
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
-    className={`relative overflow-hidden rounded-[36px] p-8 bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-xl group transition-all hover:bg-white/[0.05]`}
+    className={`relative overflow-hidden rounded-[36px] p-6 md:p-8 bg-white/[0.02] backdrop-blur-3xl border border-white/10 shadow-xl group transition-all hover:bg-white/[0.05]`}
   >
     <div className={`absolute top-0 right-0 w-48 h-48 -mr-24 -mt-24 rounded-full ${colorClass} opacity-10 blur-3xl group-hover:opacity-20 transition-all`}></div>
     <div className="flex items-start justify-between mb-6">
@@ -99,10 +99,10 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white/[0.01] backdrop-blur-3xl p-8 overflow-y-auto custom-scrollbar font-sans text-slate-900">
-      <div className="mb-10 flex items-end justify-between">
+    <div className="flex-1 flex flex-col h-full bg-white/[0.01] backdrop-blur-3xl p-4 md:p-8 overflow-y-auto custom-scrollbar font-sans text-slate-900">
+      <div className="mb-10 flex flex-col md:flex-row items-start md:items-end justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-black text-slate-900 tracking-tight uppercase italic drop-shadow-sm">
+          <h1 className="text-2xl md:text-4xl font-black text-slate-900 tracking-tight uppercase italic drop-shadow-sm">
             Growth Mastery Plan
           </h1>
           <p className="text-orange-600 font-bold tracking-widest text-[10px] mt-2 uppercase opacity-80">
@@ -112,14 +112,14 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
         
         <button 
           onClick={() => setShowHistory(!showHistory)}
-          className="px-6 py-3 bg-white/40 hover:bg-white/60 rounded-2xl text-slate-900 font-black text-[10px] uppercase tracking-widest transition-all border border-white/40 shadow-sm"
+          className="w-full md:w-auto px-6 py-3 bg-white/40 hover:bg-white/60 rounded-2xl text-slate-900 font-black text-[10px] uppercase tracking-widest transition-all border border-white/40 shadow-sm"
         >
           {showHistory ? 'View Master Plan' : 'View Motivation Archives'}
         </button>
       </div>
 
       {!showHistory ? (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 pb-16">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 pb-16">
           <ReflectionCard 
             title="Weekly Review" 
             subtitle="Wins & Adjustments"
