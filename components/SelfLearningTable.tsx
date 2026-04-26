@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Plus, Trash2, Calendar, AlignLeft, AlignCenter, AlignRight, Highlighter, MousePointer2, Minus, Layout, Square, Quote, Settings2, FileUp, Image as ImageIcon, Video, Music, FileText, Loader2, Wand2, Menu, ChevronLeft } from 'lucide-react';
+import { Plus, Trash2, Calendar, AlignLeft, AlignCenter, AlignRight, Highlighter, MousePointer2, Minus, Layout, Square, Quote, Settings2, FileUp, Image as ImageIcon, Video, Music, FileText, Loader2, Wand2, Menu, ChevronLeft, GraduationCap } from 'lucide-react';
 import { AppData, DPSSTopic } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { callNeuralEngine } from '../services/neuralEngine';
@@ -8,9 +8,10 @@ import { AISelfLearningModal } from './AISelfLearningModal';
 interface SelfLearningTableProps {
   data: AppData;
   onUpdate: (data: AppData) => void;
+  onOpenSidebar?: () => void;
 }
 
-const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUpdate }) => {
+export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUpdate, onOpenSidebar }) => {
   const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
   const [pickerPos, setPickerPos] = useState<{ x: number, y: number } | null>(null);
   const [activeColor, setActiveColor] = useState<string | null>(null);
@@ -37,7 +38,9 @@ const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUpdate })
     { name: 'Handwritten', value: 'cursive' }
   ];
   
-  const dpssSettings = data.settings || { fontSize: 18, fontFamily: 'Inter' };
+  const dpssSettings = data.settings || { fontSize: 12, fontFamily: "'Inter', sans-serif" };
+  const textFontFamily = dpssSettings.textFontFamily || dpssSettings.fontFamily;
+  const textFontSize = dpssSettings.textFontSize || dpssSettings.fontSize;
 
   const topics = (data.selfLearningTopics || []).map(t => ({
     ...t,
@@ -209,7 +212,7 @@ const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUpdate })
     setIsAILoading(true);
     try {
         const result = await callNeuralEngine(
-            'gemini-3-flash-preview',
+            'gemini-1.5-flash',
             `Enhance this note. Improve structure, fix grammar, and expand slightly if it helps clarity. Return HTML formatted string only. Current content: ${selectedTopic.content}`,
             "You are a helpful note-taking assistant. Output ONLY valid HTML."
         );
@@ -466,18 +469,27 @@ const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUpdate })
                     style={{ 
                       textAlign: selectedTopic.alignment, 
                       minHeight: '300px',
-                      fontSize: `${dpssSettings.fontSize}px`,
-                      fontFamily: dpssSettings.fontFamily
+                      fontSize: `${textFontSize}px`,
+                      fontFamily: textFontFamily
                     }}
                     className="w-full flex-1 bg-white/5 outline-none p-8 rounded-3xl text-slate-800 leading-relaxed font-medium transition-all focus:bg-white/20"
                 />
             </div>
         ) : (
-            <div className="h-full flex flex-col items-center justify-center gap-4 text-slate-400">
-              <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center">
-                <MousePointer2 size={32} />
-              </div>
-              <p className="font-bold text-lg">Select a learning topic</p>
+            <div className="h-full flex flex-col items-center justify-center gap-6 text-slate-400 p-8 text-center bg-white/5 backdrop-blur-sm rounded-[40px] m-4">
+                <div className="w-24 h-24 bg-white/40 backdrop-blur-md rounded-[32px] border border-white/60 flex items-center justify-center animate-pulse shadow-xl shadow-slate-200/50">
+                    <GraduationCap size={40} className="text-slate-300" />
+                </div>
+                <div className="space-y-2">
+                    <p className="text-sm font-black uppercase tracking-[3px] text-slate-500">Curriculum Empty</p>
+                    <p className="text-[10px] font-bold text-slate-400 max-w-[240px] leading-relaxed uppercase mx-auto">Select a learning module from the side catalog to begin your mastery advancement</p>
+                </div>
+                <button 
+                  onClick={onOpenSidebar}
+                  className="px-8 py-3 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-[3px] shadow-2xl shadow-emerald-500/20 hover:scale-105 active:scale-95 transition-all md:hidden animate-bounce"
+                >
+                  Open Learning Catalog
+                </button>
             </div>
         )}
       </div>

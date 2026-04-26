@@ -1,9 +1,11 @@
 import React, { useState, useMemo } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   ClipboardList, 
   Search, 
   ChevronLeft, 
   ChevronRight, 
+  ChevronDown,
   Calendar,
   FilterX,
   Plus,
@@ -18,7 +20,10 @@ import {
   List,
   CalendarDays,
   Calendar as CalendarIcon,
-  MessageSquare
+  MessageSquare,
+  TrendingUp,
+  Target,
+  Trophy
 } from 'lucide-react';
 import { 
   format, 
@@ -97,6 +102,7 @@ export const DailyTaskTable: React.FC<DailyTaskTableProps> = ({
 }) => {
   const [viewDate, setViewDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'daily' | 'weekly' | 'calendar'>('weekly');
+  const [isHeaderHidden, setIsHeaderHidden] = useState(false);
   const [sortBy, setSortBy] = useState<'Priority' | 'Deadline'>('Priority');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [showAIChat, setShowAIChat] = useState(false);
@@ -177,7 +183,7 @@ Provide the response as a JSON array where each object has:
 DO NOT wrap the response in markdown blocks like \`\`\`json. Just return the raw JSON array.`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3.1-pro-preview",
+        model: "gemini-1.5-flash",
         contents: prompt,
       });
 
@@ -307,129 +313,185 @@ DO NOT wrap the response in markdown blocks like \`\`\`json. Just return the raw
 
   const filterSelectStyle = "bg-white/80 border border-slate-300/30 rounded-xl pl-8 pr-3 py-1.5 text-[10px] font-black uppercase text-slate-800 outline-none shadow-sm transition-all focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500/50 hover:bg-white cursor-pointer h-9 appearance-none";
 
+  const dpssSettings = data.settings || { fontSize: 12, fontFamily: "'Inter', sans-serif" };
+  const textFontFamily = dpssSettings.textFontFamily || dpssSettings.fontFamily;
+  const textFontSize = dpssSettings.textFontSize || 16;
+
+  // Task Statistics
+  const stats = useMemo(() => {
+    const todayKey = format(new Date(), 'yyyy-MM-dd');
+    let total = 0;
+    let completed = 0;
+    
+    filteredStudents.forEach(s => {
+      const s1 = data.dailyTasks?.[s.id]?.[`${todayKey}_1`];
+      const s2 = data.dailyTasks?.[s.id]?.[`${todayKey}_2`];
+      if (s1) total++;
+      if (s2) total++;
+      if (s1 === 'Done') completed++;
+      if (s2 === 'Done') completed++;
+    });
+    
+    const percentage = total === 0 ? 0 : Math.round((completed / total) * 100);
+    return { total, completed, percentage };
+  }, [filteredStudents, data.dailyTasks]);
+
   return (
-    <div className="flex-1 flex flex-col bg-transparent overflow-hidden p-2 md:p-4 lg:p-6">
-      <div className="bg-white/[0.01] backdrop-blur-[1px] rounded-[32px] p-6 mb-6 shadow-2xl shadow-indigo-900/10 border border-white/5 flex flex-wrap items-center justify-between gap-4 transition-all hover:bg-white/5">
-        <div className="flex items-center gap-3 shrink-0">
-          <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-orange-500/20">
-            <ClipboardList size={20} strokeWidth={3} />
-          </div>
-          <div>
-            <h2 className="text-base font-black text-slate-950 uppercase tracking-tighter leading-none">Daily Task</h2>
-            <p className="text-[9px] font-black text-slate-900 uppercase mt-1 tracking-[2px]">Task Tracker</p>
-          </div>
-        </div>
+    <div className="flex-1 flex flex-col bg-transparent overflow-hidden p-2 md:p-4 lg:p-6" style={{ fontFamily: textFontFamily }}>
+      <div className={`bg-white/40 backdrop-blur-xl rounded-[40px] shadow-2xl shadow-indigo-900/10 border border-white/60 transition-all relative overflow-hidden flex flex-col ${isHeaderHidden ? 'p-4 mb-2' : 'p-6 md:p-8 mb-6'}`}>
+        
+        {/* Header Toggle for Mobile */}
+        <button 
+           onClick={() => setIsHeaderHidden(!isHeaderHidden)}
+           className="absolute top-4 right-4 z-20 w-10 h-10 rounded-full bg-white/40 backdrop-blur-md flex items-center justify-center text-slate-500 hover:text-orange-600 border border-slate-200/50 transition-all md:hidden shadow-lg"
+        >
+           {isHeaderHidden ? <ChevronDown size={22} /> : <ChevronLeft size={22} className="rotate-90" />}
+        </button>
 
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="flex bg-white/[0.05] rounded-xl border border-white/10 p-1 backdrop-blur-md mr-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-            <button onClick={() => setViewMode('daily')} className={`px-3 py-1.5 rounded-lg transition-all ${viewMode === 'daily' ? 'bg-white text-orange-600 shadow-sm' : 'hover:text-slate-800 hover:bg-white/50'}`}>Daily</button>
-            <button onClick={() => setViewMode('weekly')} className={`px-3 py-1.5 rounded-lg transition-all ${viewMode === 'weekly' ? 'bg-white text-orange-600 shadow-sm' : 'hover:text-slate-800 hover:bg-white/50'}`}>Weekly</button>
-            <button onClick={() => setViewMode('calendar')} className={`px-3 py-1.5 rounded-lg transition-all ${viewMode === 'calendar' ? 'bg-white text-orange-600 shadow-sm' : 'hover:text-slate-800 hover:bg-white/50'}`}>Calendar</button>
-          </div>
+        {!isHeaderHidden && (
+          <>
+            {/* Decorative elements */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 rounded-full blur-3xl -mr-32 -mt-32"></div>
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl -ml-32 -mb-32"></div>
 
-          <div className="flex items-center bg-white/[0.05] p-1 rounded-xl border border-white/10 backdrop-blur-[4px]">
-             <button onClick={() => {
-                if (viewMode === 'calendar') setViewDate(subMonths(viewDate, 1));
-                else if (viewMode === 'weekly') setViewDate(subWeeks(viewDate, 1));
-                else setViewDate(addDays(viewDate, -1));
-             }} className="p-1.5 text-slate-600 hover:text-orange-600 transition-colors">
-               <ChevronLeft size={16} />
-             </button>
-             <div className="px-4 text-center min-w-[140px]">
-               <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest">
-                 {viewMode === 'daily' ? format(viewDate, 'MMM d, yyyy') : viewMode === 'calendar' ? format(viewDate, 'MMMM yyyy') : `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d')}`}
-               </p>
-             </div>
-             <button onClick={() => {
-                if (viewMode === 'calendar') setViewDate(addMonths(viewDate, 1));
-                else if (viewMode === 'weekly') setViewDate(addWeeks(viewDate, 1));
-                else setViewDate(addDays(viewDate, 1));
-             }} className="p-1.5 text-slate-600 hover:text-orange-600 transition-colors">
-               <ChevronRight size={16} />
-             </button>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 flex-1 justify-end shrink-0">
-          <button 
-            onClick={suggestTasks}
-            disabled={isSuggesting}
-            className="h-9 px-4 bg-purple-50 text-purple-600 border border-purple-100 rounded-xl flex items-center gap-2 hover:bg-purple-600 hover:text-white transition-all shadow-sm font-black text-[10px] uppercase tracking-widest disabled:opacity-50"
-          >
-            <Zap size={14} /> {isSuggesting ? 'Thinking...' : 'AI Suggest'}
-          </button>
-          <button 
-            onClick={() => setShowAIChat(true)}
-            className="h-9 px-4 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-xl flex items-center gap-2 hover:bg-indigo-600 hover:text-white transition-all shadow-sm font-black text-[10px] uppercase tracking-widest"
-          >
-            <MessageSquare size={14} /> AI Chat
-          </button>
-          
-          {role === 'Admin' && (
-            <button 
-              onClick={() => onClearCategory?.(['DailyTask'])}
-              className="w-9 h-9 bg-orange-50 text-orange-500 border border-orange-100 rounded-xl flex items-center justify-center hover:bg-orange-500 hover:text-white transition-all shadow-sm"
-              title="Clear All Tasks"
-            >
-              <Trash2 size={16} />
-            </button>
-          )}
-
-          <button 
-            onClick={() => onAddStudent({ category: 'DailyTask', shift: 'Morning' })}
-            className="flex items-center gap-2 h-9 px-4 bg-orange-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-orange-500/20 hover:bg-orange-600 transition-all"
-          >
-            <Plus size={14} strokeWidth={4} /> Add Task
-          </button>
-        </div>
-
-        {/* Filter Bar */}
-        <div className="w-full basis-full flex flex-wrap items-center gap-3 pt-4 border-t border-slate-300/30 overflow-x-auto no-scrollbar pointer-events-auto shrink-0 relative">
-              <div className="relative w-64 shrink-0">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input 
-                      type="text" 
-                      placeholder="Search tasks..." 
-                      className="w-full h-9 pl-9 pr-3 bg-white border border-slate-300/30 rounded-xl shadow-sm text-[11px] font-bold text-slate-700 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all placeholder:text-slate-400"
-                      value={filters.searchQuery || ''}
-                      onChange={e => setFilters?.({...filters, searchQuery: e.target.value})}
-                  />
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-6">
+              <div className="flex items-center gap-6 shrink-0 relative z-10 w-full lg:w-auto">
+                <div className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-br from-orange-400 to-orange-600 rounded-[20px] md:rounded-[24px] flex items-center justify-center text-white shadow-2xl shadow-orange-500/40 transform -rotate-3 hover:rotate-0 transition-transform duration-500">
+                  <ClipboardList size={window.innerWidth < 768 ? 24 : 32} strokeWidth={2.5} />
+                </div>
+                <div>
+                  <h2 className="text-lg md:text-2xl font-black text-slate-900 uppercase tracking-tighter leading-none mb-1 md:mb-2">Executive Mission</h2>
+                  <div className="flex items-center gap-3">
+                    <span className="px-2 py-0.5 md:px-3 md:py-1 bg-orange-100 text-orange-600 rounded-full text-[8px] md:text-[10px] font-black uppercase tracking-widest border border-orange-200">System Ready</span>
+                    <span className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-[4px] hidden sm:inline">Strategy Hub</span>
+                  </div>
+                </div>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0 border-l border-slate-300/30 pl-4">
-                  <div className="relative group">
-                      <LayoutGrid size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                      <select value={filters.teacher || ''} onChange={e => setFilters?.({...filters, teacher: e.target.value})} className={filterSelectStyle}>
-                          <option value="">Categories</option>
-                          {Array.from(new Set(students.filter(s => s.category === 'DailyTask').map(s => s.teachers?.split('&')?.[0]?.trim()).filter(Boolean))).sort().map(t => <option key={t as string} value={t as string}>{t as React.ReactNode}</option>)}
-                      </select>
+              <div className="flex flex-wrap items-center gap-3 lg:gap-6 relative z-10 w-full lg:w-auto justify-between lg:justify-end">
+                {/* Professional Stats Summary - visible on large screens or inline for medium */}
+                <div className="hidden sm:flex items-center gap-4 md:gap-8 bg-white/20 px-4 md:px-6 py-2 md:py-3 rounded-[20px] md:rounded-[30px] border border-white/40 shadow-sm">
+                  <div className="flex flex-col items-center">
+                      <span className="text-[7px] md:text-[9px] font-black uppercase tracking-widest text-slate-400">Efficiency</span>
+                      <p className="text-sm md:text-lg font-black text-slate-900">{stats.percentage}%</p>
                   </div>
-                  <div className="relative group">
-                      <LayoutGrid size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                      <select value={filters.assistant || ''} onChange={e => setFilters?.({...filters, assistant: e.target.value})} className={filterSelectStyle}>
-                          <option value="">Sub-Categories</option>
-                          {Array.from(new Set(students.filter(s => s.category === 'DailyTask').map(s => s.assistant?.trim()).filter(Boolean))).sort().map(a => <option key={a as string} value={a as string}>{a as React.ReactNode}</option>)}
-                      </select>
+                  <div className="w-[1px] h-6 md:h-8 bg-slate-200"></div>
+                  <div className="flex flex-col items-center">
+                      <span className="text-[7px] md:text-[9px] font-black uppercase tracking-widest text-slate-400">Velocity</span>
+                      <p className="text-sm md:text-lg font-black text-slate-900">{stats.completed}/{stats.total}</p>
                   </div>
-                  <div className="relative group">
-                      <LayoutGrid size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                      <select value={filters.level || ''} onChange={e => setFilters?.({...filters, level: e.target.value})} className={filterSelectStyle}>
-                          <option value="">All Energy Levels</option>
-                          {Array.from(new Set(students.filter(s => s.category === 'DailyTask').map(s => s.level?.trim()).filter(Boolean))).sort().map(l => <option key={l as string} value={l as string}>{l as React.ReactNode}</option>)}
-                      </select>
-                  </div>
-                  <div className="relative group">
-                      <LayoutGrid size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                      <select value={filters.time || ''} onChange={e => setFilters?.({...filters, time: e.target.value})} className={filterSelectStyle}>
-                          <option value="">All Times</option>
-                          {Array.from(new Set(students.filter(s => s.category === 'DailyTask').map(s => s.shift?.trim()).filter(Boolean))).sort().map(tm => <option key={tm as string} value={tm as string}>{tm as React.ReactNode}</option>)}
-                      </select>
-                  </div>
+                </div>
 
-                  <button onClick={() => setFilters?.({...filters, searchQuery: '', level: '', time: '', teacher: '', assistant: ''})} className="p-2 ml-1 bg-white/50 border border-slate-300/30 text-slate-800 hover:bg-white rounded-xl transition-all shadow-sm" title="Clear Filters">
-                      <Trash2 size={16} />
+                <div className="flex items-center gap-2 md:gap-3 flex-1 lg:flex-none justify-end">
+                  <button 
+                    onClick={suggestTasks}
+                    disabled={isSuggesting}
+                    className="h-10 md:h-12 px-3 md:px-6 bg-purple-600 text-white rounded-xl md:rounded-2xl flex items-center gap-2 md:gap-3 hover:bg-purple-700 transition-all shadow-xl shadow-purple-500/20 font-black text-[9px] md:text-[11px] uppercase tracking-widest disabled:opacity-50"
+                  >
+                    <Zap size={14} fill="currentColor" /> <span className="hidden sm:inline">{isSuggesting ? 'Optimizing...' : 'Strategic Plan'}</span><span className="sm:hidden">Plan</span>
                   </button>
+                  
+                  <button 
+                    onClick={() => onAddStudent({ category: 'DailyTask', status: 'Pending' })}
+                    className="flex items-center gap-2 md:gap-3 h-10 md:h-12 px-3 md:px-6 bg-gradient-to-br from-emerald-500 via-purple-600 to-orange-500 text-white rounded-xl md:rounded-2xl text-[9px] md:text-[11px] font-black uppercase tracking-widest shadow-xl shadow-orange-500/20 hover:scale-105 transition-all"
+                  >
+                    <Plus size={16} strokeWidth={4} /> <span className="hidden sm:inline">New Objective</span><span className="sm:hidden">Add</span>
+                  </button>
+                </div>
               </div>
+            </div>
+
+
+            {/* Filter Bar Integrated */}
+            <div className="w-full flex flex-wrap items-center gap-3 py-4 border-t border-slate-300/30 shrink-0 relative z-10">
+                  <div className="relative w-full sm:w-64 shrink-0">
+                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input 
+                          type="text" 
+                          placeholder="Search tasks..." 
+                          className="w-full h-10 pl-9 pr-3 bg-white border border-slate-200 rounded-xl shadow-sm text-[11px] font-bold text-slate-700 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all placeholder:text-slate-400"
+                          value={filters.searchQuery || ''}
+                          onChange={e => setFilters?.({...filters, searchQuery: e.target.value})}
+                      />
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 shrink-0 sm:border-l sm:border-slate-300/30 sm:pl-4 w-full sm:w-auto">
+                      <div className="relative group flex-1 sm:flex-none min-w-[120px]">
+                          <select value={filters.teacher || ''} onChange={e => setFilters?.({...filters, teacher: e.target.value})} className={filterSelectStyle + " w-full"}>
+                              <option value="">Categories</option>
+                              {Array.from(new Set(students.filter(s => s.category === 'DailyTask').map(s => s.teachers?.split('&')?.[0]?.trim()).filter(Boolean))).sort().map(t => <option key={t as string} value={t as string}>{t as React.ReactNode}</option>)}
+                          </select>
+                      </div>
+                      <div className="relative group flex-1 sm:flex-none min-w-[120px]">
+                          <select value={filters.assistant || ''} onChange={e => setFilters?.({...filters, assistant: e.target.value})} className={filterSelectStyle + " w-full"}>
+                              <option value="">Sub-Categories</option>
+                              {Array.from(new Set(students.filter(s => s.category === 'DailyTask').map(s => s.assistant?.trim()).filter(Boolean))).sort().map(a => <option key={a as string} value={a as string}>{a as React.ReactNode}</option>)}
+                          </select>
+                      </div>
+                      <div className="relative group flex-1 sm:flex-none min-w-[120px]">
+                          <select value={filters.level || ''} onChange={e => setFilters?.({...filters, level: e.target.value})} className={filterSelectStyle + " w-full"}>
+                              <option value="">Energy Levels</option>
+                              {Array.from(new Set(students.filter(s => s.category === 'DailyTask').map(s => s.level?.trim()).filter(Boolean))).sort().map(l => <option key={l as string} value={l as string}>{l as React.ReactNode}</option>)}
+                          </select>
+                      </div>
+                      
+                      <button onClick={() => setFilters?.({...filters, searchQuery: '', level: '', time: '', teacher: '', assistant: ''})} className="p-2.5 bg-white border border-slate-200 text-slate-800 hover:bg-rose-50 hover:text-rose-600 rounded-xl transition-all shadow-sm" title="Clear Filters">
+                          <FilterX size={16} />
+                      </button>
+                  </div>
+            </div>
+          </>
+        )}
+
+        {/* View Switcher Overlay */}
+        <div className={`w-full flex flex-col md:flex-row items-center justify-between gap-4 ${!isHeaderHidden ? 'pt-6 border-t border-white/40' : ''}`}>
+           <div className="flex bg-white/40 rounded-xl md:rounded-2xl border border-white/60 p-1 backdrop-blur-md text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-500 w-full md:w-auto overflow-x-auto no-scrollbar">
+              <button onClick={() => setViewMode('daily')} className={`flex-1 md:flex-none px-4 md:px-5 py-2 md:py-2.5 rounded-lg md:rounded-xl transition-all ${viewMode === 'daily' ? 'bg-white text-orange-600 shadow-lg' : 'hover:text-slate-800 hover:bg-white/20'}`}>Daily</button>
+              <button onClick={() => setViewMode('weekly')} className={`flex-1 md:flex-none px-4 md:px-5 py-2 md:py-2.5 rounded-lg md:rounded-xl transition-all ${viewMode === 'weekly' ? 'bg-white text-orange-600 shadow-lg' : 'hover:text-slate-800 hover:bg-white/20'}`}>Weekly</button>
+              <button onClick={() => setViewMode('calendar')} className={`flex-1 md:flex-none px-4 md:px-5 py-2 md:py-2.5 rounded-lg md:rounded-xl transition-all ${viewMode === 'calendar' ? 'bg-white text-orange-600 shadow-lg' : 'hover:text-slate-800 hover:bg-white/20'}`}>Calendar</button>
+           </div>
+
+           <div className="flex items-center gap-2 w-full md:w-auto justify-center">
+              <div className="flex items-center bg-white/40 p-1 rounded-xl md:rounded-2xl border border-white/60 backdrop-blur-md">
+                <button onClick={() => {
+                    if (viewMode === 'calendar') setViewDate(subMonths(viewDate, 1));
+                    else if (viewMode === 'weekly') setViewDate(subWeeks(viewDate, 1));
+                    else setViewDate(addDays(viewDate, -1));
+                }} className="w-8 h-8 md:w-9 md:h-9 flex items-center justify-center text-slate-600 hover:text-orange-600 hover:bg-white/40 rounded-lg md:rounded-xl transition-all">
+                  <ChevronLeft size={18} />
+                </button>
+                <div className="px-3 md:px-6 text-center min-w-[140px] md:min-w-[200px]">
+                  <p className="text-[10px] md:text-[12px] font-black text-slate-900 uppercase tracking-[2px] md:tracking-[3px]">
+                    {viewMode === 'daily' ? format(viewDate, 'EEEE, d MMM') : viewMode === 'calendar' ? format(viewDate, 'MMMM yyyy') : `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d')}`}
+                  </p>
+                </div>
+                <button onClick={() => {
+                    if (viewMode === 'calendar') setViewDate(addMonths(viewDate, 1));
+                    else if (viewMode === 'weekly') setViewDate(addWeeks(viewDate, 1));
+                    else setViewDate(addDays(viewDate, 1));
+                }} className="w-8 h-8 md:w-9 md:h-9 flex items-center justify-center text-slate-600 hover:text-orange-600 hover:bg-white/40 rounded-lg md:rounded-xl transition-all">
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+           </div>
+
+           <div className="hidden md:flex items-center gap-3">
+              <button 
+                onClick={() => setShowAIChat(true)}
+                className="w-9 h-9 md:w-12 md:h-12 flex items-center justify-center bg-white/40 text-slate-700 border border-white/60 rounded-xl md:rounded-2xl hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
+              >
+                <MessageSquare size={18} />
+              </button>
+              {role === 'Admin' && (
+                <button 
+                  onClick={() => onClearCategory?.(['DailyTask'])}
+                  className="w-9 h-9 md:w-12 md:h-12 flex items-center justify-center bg-white/40 text-slate-400 border border-white/60 rounded-xl md:rounded-2xl hover:bg-orange-500 hover:text-white transition-all shadow-sm"
+                  title="Clear All Tasks"
+                >
+                  <Trash2 size={18} />
+                </button>
+              )}
+           </div>
         </div>
       </div>
 
@@ -496,166 +558,114 @@ DO NOT wrap the response in markdown blocks like \`\`\`json. Just return the raw
         <div className="overflow-auto flex-1 custom-scrollbar">
           <table className="w-full border-collapse table-fixed min-w-[1000px]">
             <thead className="sticky top-0 z-40 bg-white/[0.01] backdrop-blur-[1px]">
-              <tr className="border-b border-white/5">
-                <th className="w-10 px-2 py-4 text-center text-[9px] font-black uppercase text-slate-900 border-r border-white/5 sticky left-0 z-50 bg-white/[0.01] backdrop-blur-[1px]">#</th>
-                <th className="w-48 px-4 py-4 text-left text-[9px] font-black uppercase text-slate-900 border-r border-white/5 sticky left-10 z-50 bg-white/[0.01] backdrop-blur-[1px]">Task Name</th>
-                <th 
-                  className="w-24 px-2 py-4 text-center text-[9px] font-black uppercase text-slate-900 border-r border-white/5 backdrop-blur-[1px] cursor-pointer hover:bg-white/10 transition-colors"
-                  onClick={() => {
-                      if (sortBy === 'Priority') setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-                      else { setSortBy('Priority'); setSortDir('desc'); }
-                  }}
-                  title="Sort by Priority"
-                >
-                  Priority {sortBy === 'Priority' ? (sortDir === 'desc' ? '↓' : '↑') : ''}
-                </th>
-                <th className="w-24 px-2 py-4 text-center text-[9px] font-black uppercase text-slate-900 border-r border-white/5 backdrop-blur-[1px]">Energy Level</th>
-                <th className="w-24 px-2 py-4 text-center text-[9px] font-black uppercase text-slate-900 border-r border-white/5 backdrop-blur-[1px]">Time</th>
-                <th className="w-24 px-2 py-4 text-center text-[9px] font-black uppercase text-slate-900 border-r border-white/5 backdrop-blur-[1px]">Category</th>
-                <th className="w-24 px-2 py-4 text-center text-[9px] font-black uppercase text-slate-900 border-r border-white/5 backdrop-blur-[1px]">Sub-Cat.</th>
-                <th 
-                  className="w-28 px-2 py-4 text-center text-[9px] font-black uppercase text-slate-900 border-r border-white/5 backdrop-blur-[1px] cursor-pointer hover:bg-white/10 transition-colors"
-                  onClick={() => {
-                      if (sortBy === 'Deadline') setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-                      else { setSortBy('Deadline'); setSortDir('asc'); }
-                  }}
-                  title="Sort by Deadline"
-                >
-                  Deadline {sortBy === 'Deadline' ? (sortDir === 'desc' ? '↓' : '↑') : ''}
-                </th>
+              <tr className="border-b border-slate-100/30">
+                <th className="w-12 px-2 py-4 text-center text-[9px] font-black uppercase text-slate-400 border-r border-slate-100/30 sticky left-0 z-50 bg-white/50 backdrop-blur-md">#</th>
+                <th className="w-auto px-4 py-4 text-left text-[9px] font-black uppercase text-slate-900 border-r border-slate-100/30 sticky left-12 z-50 bg-white/50 backdrop-blur-md">Mission Objective</th>
+                <th className="w-32 px-2 py-4 text-center text-[9px] font-black uppercase text-slate-900 border-r border-slate-100/30 backdrop-blur-sm">Priority</th>
+                <th className="w-40 px-2 py-4 text-center text-[9px] font-black uppercase text-slate-900 border-r border-slate-100/30 backdrop-blur-sm">Energy Selection</th>
                 
                 {days.map(day => (
-                  <th key={day.toString()} className="w-36 border-r border-white/5 p-0 overflow-hidden">
-                    <div className="text-center py-1.5 border-b border-white/5 bg-emerald-400/5">
-                      <p className="text-[9px] font-black text-emerald-700">{format(day, 'EEE').toUpperCase()}</p>
-                      <p className="text-[8px] font-bold text-slate-500">{format(day, 'MMM d')}</p>
-                    </div>
-                    <div className="flex divide-x divide-white/5 h-8">
-                      <div className="flex-1 text-[7px] font-black text-slate-400 uppercase flex items-center justify-center tracking-tighter">T1</div>
-                      <div className="flex-1 text-[7px] font-black text-slate-400 uppercase flex items-center justify-center tracking-tighter">T2</div>
+                  <th key={day.toString()} className="w-32 border-r border-slate-100/30 p-0 overflow-hidden">
+                    <div className={`text-center py-2.5 border-b border-slate-100/30 transition-colors ${isToday(day) ? 'bg-orange-500/10' : 'bg-slate-50/50'}`}>
+                      <p className={`text-[10px] font-black ${isToday(day) ? 'text-orange-600' : 'text-slate-700'}`}>{format(day, 'EEE').toUpperCase()}</p>
+                      <p className="text-[9px] font-bold text-slate-400">{format(day, 'MMM d')}</p>
                     </div>
                   </th>
                 ))}
                 
-                <th className="w-12 px-2 py-4 text-center text-[9px] font-black uppercase text-slate-500">X</th>
+                <th className="w-14 px-2 py-4 text-center text-[9px] font-black uppercase text-slate-500">X</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
-              {filteredStudents.length === 0 ? (
-                <tr>
-                  <td colSpan={12} className="py-20 text-center">
-                    <div className="flex flex-col items-center gap-3 text-slate-300">
-                      <ClipboardList size={40} className="opacity-20" />
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">No tasks assigned</p>
-                    </div>
-                  </td>
-                </tr>
-              ) : filteredStudents.map((s, idx) => (
-                <tr key={s.id} className={`transition-colors group h-12 ${getRowBg(idx)} hover:brightness-95`}>
-                  <td className="text-center text-[9px] font-black text-slate-500 border-r border-slate-100 sticky left-0 z-30 bg-inherit">{idx + 1}</td>
-                  <td className={`px-2 border-r border-slate-100 sticky left-10 z-30 group-hover:opacity-90 transition-opacity border-l-[4px] ${getLevelBorderColor(s.level)} bg-inherit`}>
-                    <MultilineInput 
-                      value={s.name} 
-                      onChange={val => updateField(s.id, 'name', val)}
-                      placeholder="Task Name"
-                      className="w-full h-full px-2 py-2 bg-transparent text-slate-900 text-[11px] font-black outline-none placeholder:text-slate-400"
-                    />
-                  </td>
-                  <td className="border-r border-slate-100">
-                    <select 
-                      value={s.priority || 'Medium'} 
-                      onChange={e => updateField(s.id, 'priority', e.target.value)}
-                      className={`w-full h-full px-1 bg-transparent text-[9px] font-black outline-none text-center appearance-none uppercase ${s.priority === 'High' ? 'text-rose-600' : s.priority === 'Low' ? 'text-slate-500' : 'text-amber-500'}`}
-                    >
-                      <option value="High" className="text-rose-600">High</option>
-                      <option value="Medium" className="text-amber-500">Medium</option>
-                      <option value="Low" className="text-slate-500">Low</option>
-                    </select>
-                  </td>
-                  <td className="border-r border-slate-100">
-                    <MultilineInput 
-                      value={s.level || ''} 
-                      onChange={val => updateField(s.id, 'level', val)}
-                      placeholder="Energy (e.g. High)"
-                      className="w-full h-full px-2 py-2 bg-transparent text-slate-900 text-[10px] font-black outline-none text-center placeholder:text-slate-400"
-                    />
-                  </td>
-                  <td className="border-r border-slate-100">
-                    <select 
-                      value={s.shift || 'Morning'} 
-                      onChange={e => updateField(s.id, 'shift', e.target.value)}
-                      className="w-full h-full px-1 bg-transparent text-[9px] font-black text-emerald-600 outline-none text-center appearance-none uppercase"
-                    >
-                      <option value="Morning">Morning</option>
-                      <option value="Afternoon">Afternoon</option>
-                      <option value="Evening">Evening</option>
-                    </select>
-                  </td>
-                  <td className="border-r border-slate-100">
-                    <MultilineInput 
-                      value={s.teachers || ''} 
-                      onChange={val => updateField(s.id, 'teachers', val)}
-                      placeholder="Category"
-                      className="w-full h-full px-2 py-2 bg-transparent text-slate-900 text-[10px] font-black outline-none text-center placeholder:text-slate-400"
-                    />
-                  </td>
-                  <td className="border-r border-slate-100">
-                    <MultilineInput 
-                      value={s.assistant || ''} 
-                      onChange={val => updateField(s.id, 'assistant', val)}
-                      placeholder="Sub-Category"
-                      className="w-full h-full px-2 py-2 bg-transparent text-slate-900 text-[10px] font-black outline-none text-center placeholder:text-slate-400"
-                    />
-                  </td>
-                  <td className="border-r border-slate-100 px-2">
-                    <input 
-                      type="date"
-                      value={displayToIso(s.deadline || '')} 
-                      onChange={e => updateField(s.id, 'deadline', isoToDisplay(e.target.value))}
-                      className="w-full bg-transparent text-[10px] font-black text-orange-600 outline-none text-center cursor-pointer"
-                    />
-                  </td>
+            <tbody className="divide-y divide-slate-100/50">
+              <AnimatePresence>
+                {filteredStudents.length === 0 ? (
+                  <tr>
+                    <td colSpan={days.length + 5} className="py-20 text-center">
+                      <div className="flex flex-col items-center gap-3 text-slate-300">
+                        <ClipboardList size={40} className="opacity-20" />
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">No active objectives</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : filteredStudents.map((s, idx) => (
+                  <motion.tr 
+                    key={s.id} 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.03 }}
+                    className={`transition-colors group h-14 bg-white/40 hover:bg-white/60`}
+                  >
+                    <td className="text-center text-[10px] font-black text-slate-400 border-r border-slate-100/30 sticky left-0 z-30 bg-white/80 backdrop-blur-md">{idx + 1}</td>
+                    <td className={`px-2 border-r border-slate-100/30 sticky left-12 z-30 group-hover:opacity-90 transition-opacity bg-white/80 backdrop-blur-md shadow-sm`}>
+                      <MultilineInput 
+                        value={s.name} 
+                        onChange={val => updateField(s.id, 'name', val)}
+                        placeholder="Mission Objective..."
+                        className="w-full h-full px-3 py-4 bg-transparent text-slate-900 text-[13px] font-black outline-none placeholder:text-slate-200"
+                        style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }}
+                      />
+                    </td>
+                    <td className="border-r border-slate-100/30">
+                      <div className="flex justify-center p-2">
+                        <select 
+                          value={s.priority || 'Medium'} 
+                          onChange={e => updateField(s.id, 'priority', e.target.value)}
+                          className={`w-full px-3 py-2 rounded-xl bg-white/40 border border-slate-200 text-[10px] font-black outline-none appearance-none uppercase transition-all hover:bg-white text-center ${s.priority === 'High' ? 'text-rose-600 bg-rose-50' : s.priority === 'Low' ? 'text-slate-500' : 'text-amber-500 bg-amber-50'}`}
+                        >
+                          <option value="High">High</option>
+                          <option value="Medium">Medium</option>
+                          <option value="Low">Low</option>
+                        </select>
+                      </div>
+                    </td>
+                    <td className="border-r border-slate-100/30 px-2">
+                      <div className="flex justify-center">
+                        <select 
+                          value={s.level || ''} 
+                          onChange={e => updateField(s.id, 'level', e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl bg-white/40 border border-slate-200 text-[10px] font-black text-slate-600 outline-none appearance-none uppercase text-center hover:bg-white"
+                        >
+                          <option value="">Select Energy</option>
+                          <option value="Positive">Positive</option>
+                          <option value="Negative">Negative</option>
+                          <option value="Enthusiastic">Enthusiastic</option>
+                          <option value="Inspired">Inspired</option>
+                          <option value="Grateful">Grateful</option>
+                        </select>
+                      </div>
+                    </td>
 
-                  {days.map(day => {
-                    const status1 = data.dailyTasks?.[s.id]?.[`${format(day, 'yyyy-MM-dd')}_1`];
-                    const status2 = data.dailyTasks?.[s.id]?.[`${format(day, 'yyyy-MM-dd')}_2`];
-                    
-                    return (
-                      <td key={day.toString()} className="border-r border-slate-100 p-0 overflow-hidden">
-                        <div className="flex h-full min-h-[48px]">
-                          <button 
-                            onClick={() => toggleTask(s.id, day, 1)}
-                            className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-all group/btn ${getStatusColor(status1)}`}
-                          >
-                            {getStatusIcon(status1)}
-                            <span className="text-[7px] font-black uppercase tracking-tighter opacity-80">
-                              {status1 || '···'}
-                            </span>
-                          </button>
-                          <div className="w-[1px] bg-slate-100/50"></div>
-                          <button 
-                            onClick={() => toggleTask(s.id, day, 2)}
-                            className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-all group/btn ${getStatusColor(status2)}`}
-                          >
-                            {getStatusIcon(status2)}
-                            <span className="text-[7px] font-black uppercase tracking-tighter opacity-80">
-                              {status2 || '···'}
-                            </span>
-                          </button>
-                        </div>
-                      </td>
-                    );
-                  })}
+                    {days.map(day => {
+                      const status = data.dailyTasks?.[s.id]?.[`${format(day, 'yyyy-MM-dd')}_1`];
+                      
+                      return (
+                        <td key={day.toString()} className="border-r border-slate-100/30 p-0 overflow-hidden">
+                          <div className="flex h-full min-h-[64px] p-2">
+                            <button 
+                              onClick={() => toggleTask(s.id, day, 1)}
+                              className={`flex-1 flex flex-col items-center justify-center gap-1 rounded-xl transition-all shadow-sm ${status === 'Done' ? 'bg-emerald-500 text-white shadow-emerald-500/20' : 'bg-slate-50 text-slate-300 hover:bg-emerald-50 border border-slate-100'}`}
+                            >
+                              {status === 'Done' ? <CheckCircle2 size={12} strokeWidth={3} /> : <div className="w-2 h-2 rounded-full bg-slate-300"></div>}
+                              <span className="text-[8px] font-black uppercase tracking-tighter opacity-70">
+                                {status || 'Pending'}
+                              </span>
+                            </button>
+                          </div>
+                        </td>
+                      );
+                    })}
 
-                  <td className="text-center">
-                    <button onClick={() => removeEntry(s.id)} className="p-1.5 text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100">
-                      <Trash size={12} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                    <td className="text-center px-4">
+                      <button onClick={() => removeEntry(s.id)} className="w-10 h-10 flex items-center justify-center bg-rose-50 text-rose-300 border border-rose-100 rounded-xl hover:bg-rose-500 hover:text-white transition-all opacity-0 group-hover:opacity-100">
+                        <Trash size={18} />
+                      </button>
+                    </td>
+                  </motion.tr>
+                ))}
+              </AnimatePresence>
             </tbody>
           </table>
+          <div className="h-20"></div> {/* Bottom spacing for scroll */}
         </div>
       </div>
       )}

@@ -46,6 +46,8 @@ export interface Student {
 export interface AppSettings {
   fontSize: number;
   fontFamily: string;
+  textFontFamily?: string;
+  textFontSize?: number;
   columns?: ColumnConfig[];
   backgroundImage?: string;
   currency?: 'USD' | 'KHR';
@@ -137,6 +139,7 @@ export interface AppData {
   expenses?: ExpenseEntry[];
   expenseCategories?: string[];
   selfLearningTopics?: DPSSTopic[];
+  dailyNotes?: Record<string, string>;
 }
 
 export interface ExpenseEntry {
@@ -177,6 +180,12 @@ export interface JournalEntry {
   learning: string;
   discipline: string;
   isCompleted: boolean;
+  energyRating?: number;
+  focusRating?: number;
+  productivityRating?: number;
+  stressRating?: number;
+  gratitudeRating?: number;
+  vitalityRating?: number;
 }
 
 export interface BackupEntry {
@@ -194,7 +203,6 @@ export enum Tab {
   Reminder = 'Reminder',
   DPSS = 'DPSS',
   SelfLearning = 'SelfLearning',
-  AIStudio = 'AIStudio',
   ExpenseTracker = 'ExpenseTracker',
   RecycleBin = 'RecycleBin'
 }

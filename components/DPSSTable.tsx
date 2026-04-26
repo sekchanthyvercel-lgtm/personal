@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Plus, Trash2, Calendar, AlignLeft, AlignCenter, AlignRight, Highlighter, Type, Settings2, MousePointer2, Minus, Layout, Square, Quote, FileUp, Loader2, Wand2, Menu, ChevronLeft } from 'lucide-react';
+import { Plus, Trash2, Calendar, AlignLeft, AlignCenter, AlignRight, Highlighter, Type, Settings2, MousePointer2, Minus, Layout, Square, Quote, FileUp, Loader2, Wand2, Menu, ChevronLeft, FileText, ChevronDown } from 'lucide-react';
 import { AppData, DPSSTopic } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { callNeuralEngine } from '../services/neuralEngine';
@@ -7,9 +7,10 @@ import { callNeuralEngine } from '../services/neuralEngine';
 interface DPSSTableProps {
   data: AppData;
   onUpdate: (data: AppData) => void;
+  onOpenSidebar?: () => void;
 }
 
-const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate }) => {
+export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onOpenSidebar }) => {
   const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
   const [pickerPos, setPickerPos] = useState<{ x: number, y: number } | null>(null);
   const [activeColor, setActiveColor] = useState<string | null>(null);
@@ -35,7 +36,9 @@ const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate }) => {
     { name: 'Handwritten', value: 'cursive' }
   ];
   
-  const dpssSettings = data.settings || { fontSize: 18, fontFamily: 'Inter' };
+  const dpssSettings = data.settings || { fontSize: 12, fontFamily: "'Inter', sans-serif" };
+  const textFontFamily = dpssSettings.textFontFamily || dpssSettings.fontFamily;
+  const textFontSize = dpssSettings.textFontSize || dpssSettings.fontSize;
 
   const topics = (data.dpssTopics || []).map(t => ({
     ...t,
@@ -212,7 +215,7 @@ const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate }) => {
     setIsAILoading(true);
     try {
         const result = await callNeuralEngine(
-            'gemini-3-flash-preview',
+            'gemini-1.5-flash',
             `Enhance this note. Improve structure, fix grammar, and expand slightly if it helps clarity. Return HTML formatted string only. Current content: ${selectedTopic.content}`,
             "You are a helpful note-taking assistant. Output ONLY valid HTML."
         );
@@ -468,18 +471,27 @@ const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate }) => {
                     style={{ 
                       textAlign: selectedTopic.alignment, 
                       minHeight: '300px',
-                      fontSize: `${dpssSettings.fontSize}px`,
-                      fontFamily: dpssSettings.fontFamily
+                      fontSize: `${textFontSize}px`,
+                      fontFamily: textFontFamily
                     }}
                     className="w-full flex-1 bg-white/5 outline-none p-8 rounded-3xl text-slate-800 leading-relaxed font-medium transition-all focus:bg-white/20"
                 />
             </div>
         ) : (
-            <div className="h-full flex flex-col items-center justify-center gap-4 text-slate-400">
-              <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center">
-                <MousePointer2 size={32} />
-              </div>
-              <p className="font-bold text-lg">Select a topic to start editing</p>
+            <div className="h-full flex flex-col items-center justify-center gap-6 text-slate-400 p-8 text-center bg-white/5 backdrop-blur-sm rounded-[40px] m-4">
+                <div className="w-24 h-24 bg-white/40 backdrop-blur-md rounded-[32px] border border-white/60 flex items-center justify-center animate-pulse shadow-xl shadow-slate-200/50">
+                    <FileText size={40} className="text-slate-300" />
+                </div>
+                <div className="space-y-2">
+                    <p className="text-sm font-black uppercase tracking-[3px] text-slate-500">Mission Hub Empty</p>
+                    <p className="text-[10px] font-bold text-slate-400 max-w-[240px] leading-relaxed uppercase mx-auto">Select a dossier from the local library or initialize a new record via the sidebar menu</p>
+                </div>
+                <button 
+                  onClick={onOpenSidebar}
+                  className="px-8 py-3 bg-orange-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-[3px] shadow-2xl shadow-orange-500/20 hover:scale-105 active:scale-95 transition-all md:hidden animate-bounce"
+                >
+                  Open Mission dossier
+                </button>
             </div>
         )}
       </div>

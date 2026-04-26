@@ -4,7 +4,6 @@ import { DailyJournal } from './components/DailyJournal';
 import { Reflections } from './components/Reflections';
 import { ExpenseTracker } from './components/ExpenseTracker';
 import ReminderTable from './components/ReminderTable';
-import { AIStudio } from './components/AIStudio';
 import { AIModal } from './components/AIModal';
 import { Sidebar } from './components/Sidebar';
 import { SettingsModal } from './components/SettingsModal';
@@ -59,7 +58,12 @@ const App: React.FC = () => {
         const parsed = JSON.parse(stored);
         if (parsed && parsed.students) {
           if (!parsed.settings?.columns) {
-            parsed.settings = { ...(parsed.settings || { fontSize: 12, fontFamily: "'Inter', sans-serif" }), columns: DEFAULT_COLUMNS };
+            parsed.settings = { 
+              ...(parsed.settings || { fontSize: 12, fontFamily: "'Inter', sans-serif" }), 
+              columns: DEFAULT_COLUMNS,
+              textFontFamily: parsed.settings?.textFontFamily || parsed.settings?.fontFamily || "'Inter', sans-serif",
+              textFontSize: parsed.settings?.textFontSize || parsed.settings?.fontSize || 16
+            };
           }
           return parsed;
         }
@@ -72,6 +76,8 @@ const App: React.FC = () => {
       settings: { 
         fontSize: 12, 
         fontFamily: "'Inter', sans-serif", 
+        textFontFamily: "'Inter', sans-serif",
+        textFontSize: 16,
         columns: DEFAULT_COLUMNS,
         backgroundImage: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&q=80&w=2000'
       },
@@ -103,68 +109,12 @@ const App: React.FC = () => {
     attendanceClass: ''
   });
 
-  const OFFICIAL_DAILY_TASKS = useMemo(() => [
-    { name: "Souyean & Sreythea", level: "1A + (5.1)", shift: "Morning", category: "DailyTask" as StudentCategory },
-    { name: "Sreythea & Vilya", level: "1A + (5.1)", shift: "Afternoon", category: "DailyTask" as StudentCategory },
-    { name: "Chhenglay & Nita", level: "1B-(16.10)", shift: "Morning", category: "DailyTask" as StudentCategory },
-    { name: "Chhenglay & Derith", level: "1B-", shift: "Afternoon", category: "DailyTask" as StudentCategory },
-    { name: "Meymey & Naza", level: "1B- (1.9)", shift: "Morning", category: "DailyTask" as StudentCategory },
-    { name: "Naza & Pulvatey", level: "1B-", shift: "Afternoon", category: "DailyTask" as StudentCategory },
-    { name: "Mengthou & Meymey", level: "Pre-2A(I)-", shift: "Morning", category: "DailyTask" as StudentCategory },
-    { name: "Chanpanha & Sonita", level: "Pre-2A(I)-", shift: "Afternoon", category: "DailyTask" as StudentCategory },
-    { name: "Derith & Mengthou", level: "Pre-2A(I)+", shift: "Morning", category: "DailyTask" as StudentCategory },
-    { name: "Lina & Davina", level: "Pre-2A(I)+", shift: "Afternoon", category: "DailyTask" as StudentCategory },
-    { name: "Pha & Saravottey", level: "Pre-2A(II)-", shift: "Morning", category: "DailyTask" as StudentCategory },
-    { name: "Virak & Chhenglay", level: "Pre-2A(II)-", shift: "Afternoon", category: "DailyTask" as StudentCategory },
-    { name: "Sreypov & Chhorvornn", level: "2A-", shift: "Morning", category: "DailyTask" as StudentCategory },
-    { name: "Pha & Liza", level: "2A-", shift: "Afternoon", category: "DailyTask" as StudentCategory },
-    { name: "Sreyleap & Chhengly", level: "2B-", shift: "Morning", category: "DailyTask" as StudentCategory },
-    { name: "Chhorvornn & Sreyren", level: "2B-", shift: "Afternoon", category: "DailyTask" as StudentCategory },
-    { name: "S.Vottey & Soklim", level: "2B+", shift: "Morning", category: "DailyTask" as StudentCategory },
-    { name: "Davina & Virak", level: "2B+", shift: "Afternoon", category: "DailyTask" as StudentCategory },
-    { name: "Piseth & Kimheang", level: "3A-", shift: "Afternoon", category: "DailyTask" as StudentCategory },
-    { name: "Nita & Thida", level: "3A-", shift: "Morning", category: "DailyTask" as StudentCategory },
-    { name: "Sathyaboth & Thida", level: "3A-", shift: "Afternoon", category: "DailyTask" as StudentCategory },
-    { name: "Chhengly & Pisey", level: "3A+", shift: "Morning", category: "DailyTask" as StudentCategory },
-    { name: "Chhengly & Naza", level: "3A+", shift: "Afternoon", category: "DailyTask" as StudentCategory },
-    { name: "Souyean & Soklim", level: "3B +", shift: "Morning", category: "DailyTask" as StudentCategory },
-    { name: "Soklim & Chanpanha", level: "3B +", shift: "Afternoon", category: "DailyTask" as StudentCategory },
-    { name: "Lina & Bormey", level: "4A-", shift: "Morning", category: "DailyTask" as StudentCategory },
-    { name: "Sreyren & Both", level: "4A-", shift: "Afternoon", category: "DailyTask" as StudentCategory },
-    { name: "Pisey & Chhenglay", level: "4A+", shift: "Morning", category: "DailyTask" as StudentCategory },
-    { name: "Sonita & Chhorvornn", level: "4A+", shift: "Afternoon", category: "DailyTask" as StudentCategory },
-    { name: "Virak & Socheata", level: "4A+", shift: "Morning", category: "DailyTask" as StudentCategory },
-    { name: "Derith & Socheata", level: "4A+", shift: "Afternoon", category: "DailyTask" as StudentCategory },
-    { name: "Bormey & Chomnan", level: "4B+", shift: "Morning", category: "DailyTask" as StudentCategory },
-    { name: "Socheata & Dalin", level: "4B+", shift: "Afternoon", category: "DailyTask" as StudentCategory },
-    { name: "Seavninh & Derith", level: "5A-", shift: "Morning", category: "DailyTask" as StudentCategory },
-    { name: "Dalin & Piseth", level: "5A-", shift: "Afternoon", category: "DailyTask" as StudentCategory },
-    { name: "Thida & Sreypov", level: "5B-", shift: "Morning", category: "DailyTask" as StudentCategory },
-    { name: "Pulvatey & Pha", level: "5B-", shift: "Afternoon", category: "DailyTask" as StudentCategory }
-  ], []);
+  const OFFICIAL_DAILY_TASKS = useMemo(() => [], []);
 
-  // One-time seed for Daily Tasks
+  // No auto-seeding of named tasks per user request for a blank/clean start
   useEffect(() => {
-    if (!loading) {
-        const hasTasks = data.students.some(s => s.category === 'DailyTask');
-        if (!hasTasks) {
-            const newTasks: Student[] = OFFICIAL_DAILY_TASKS.map(t => ({
-                ...t,
-                id: uuidv4(),
-                teachers: '',
-                behavior: '',
-                time: '',
-                duration: '',
-                startDate: '',
-                deadline: format(new Date(), 'dd/MM/yy'),
-                assistant: '',
-                order: 0,
-                isHidden: false
-            }));
-            handleUpdate({ ...data, students: [...data.students, ...newTasks] });
-        }
-    }
-  }, [loading, data.students.length === 0]);
+    // Left empty intentionally to prevent auto-seeding of named tasks
+  }, [loading]);
 
   const activeStudents = useMemo(() => data.students.filter(s => !s.deletedAt), [data.students]);
 
@@ -491,13 +441,10 @@ const App: React.FC = () => {
               />
             )}
             {activeTab === Tab.DPSS && (
-                <DPSSTable data={data} onUpdate={handleUpdate} />
+                <DPSSTable data={data} onUpdate={handleUpdate} onOpenSidebar={() => setIsSidebarOpen(true)} />
             )}
             {activeTab === Tab.SelfLearning && (
-                <SelfLearningTable data={data} onUpdate={handleUpdate} />
-            )}
-            {activeTab === Tab.AIStudio && (
-                <AIStudio />
+                <SelfLearningTable data={data} onUpdate={handleUpdate} onOpenSidebar={() => setIsSidebarOpen(true)} />
             )}
             {activeTab === Tab.ExpenseTracker && (
               <ExpenseTracker data={data} onUpdate={handleUpdate} />

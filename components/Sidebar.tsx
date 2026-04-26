@@ -63,26 +63,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setIsOpen,
   activeTab, 
   setActiveTab, 
-  onLogout, 
   role,
   onSettingsOpen,
-  filters,
-  setFilters,
-  uniqueTeachers,
-  uniqueAssistants,
-  uniqueLevels = [],
-  settings,
-  onUpdateSettings,
   canUndo,
   canRedo,
   onUndo,
   onRedo
 }) => {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const updateFilter = (key: string, value: any) => {
-    setFilters({ ...filters, [key]: value });
-  };
 
   const handleTabSelect = (tab: Tab) => {
     setActiveTab(tab);
@@ -91,51 +78,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
-  const handleBackgroundUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && onUpdateSettings) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        onUpdateSettings({
-          ...(settings || { fontSize: 12, fontFamily: "'Inter', sans-serif" }),
-          backgroundImage: event.target?.result as string
-        });
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const removeBackground = () => {
-    if (onUpdateSettings) {
-      onUpdateSettings({
-        ...(settings || { fontSize: 12, fontFamily: "'Inter', sans-serif" }),
-        backgroundImage: undefined
-      });
-    }
-  };
-
-  const resetFilters = () => {
-    setFilters({
-      ...filters,
-      teacher: '',
-      assistant: '',
-      time: '',
-      level: '',
-      behavior: '',
-      searchQuery: '',
-      deadline: '',
-      showHidden: false
-    });
-  };
-
   const navItems = [
     { id: Tab.HabitTracker, icon: Zap, label: 'Habit Tracker', roles: ['Admin', 'Teacher', 'Finance'] },
     { id: Tab.Reflections, icon: LayoutGrid, label: 'Growth Plan', roles: ['Admin', 'Teacher', 'Finance'] },
     { id: Tab.DailyJournal, icon: BookOpen, label: 'Daily Journal', roles: ['Admin', 'Teacher', 'Finance'] },
+    { id: Tab.DailyTask, icon: ClipboardList, label: 'Daily Task', roles: ['Admin', 'Teacher', 'Finance'] },
     { id: Tab.Reminder, icon: Bell, label: 'Reminder Hub', roles: ['Admin', 'Teacher', 'Finance'] },
     { id: Tab.DPSS, icon: FileText, label: 'DPSS & Note-taking', roles: ['Admin', 'Teacher', 'Finance'] },
     { id: Tab.SelfLearning, icon: GraduationCap, label: 'Self-Learning', roles: ['Admin', 'Teacher', 'Finance'] },
-    { id: Tab.AIStudio, icon: Sparkles, label: 'AI Studio', roles: ['Admin', 'Teacher', 'Finance'] },
     { id: Tab.ExpenseTracker, icon: Wallet, label: 'Daily Expenses', roles: ['Admin', 'Teacher', 'Finance'] },
     { id: Tab.RecycleBin, icon: Trash2, label: 'Recycle Bin', roles: ['Admin', 'Teacher'] },
   ];
@@ -158,7 +108,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Mobile Backdrop */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black/20 z-40 md:hidden backdrop-blur-sm transition-opacity"
+          className="fixed inset-0 bg-black/5 z-40 md:hidden backdrop-blur-[2px] transition-opacity"
           onClick={() => setIsOpen(false)}
         />
       )}
@@ -228,25 +178,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Footer Area */}
-        <div className="p-4 bg-white/5 border-t border-white/5 space-y-2 no-print shrink-0 backdrop-blur-md">
-          <div className="px-2 pb-2">
-            <p className="text-[9px] font-black text-slate-900 uppercase tracking-widest mb-3">Customization</p>
-            <div className="flex gap-2">
-              <button 
-                onClick={() => fileInputRef.current?.click()}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-white/20 border border-white/30 rounded-xl text-slate-900 hover:text-orange-600 hover:border-orange-400/50 transition-all text-[9px] font-black uppercase shadow-sm"
-              >
-                <ImageIcon size={14} /> Background
-              </button>
-              <input type="file" ref={fileInputRef} onChange={handleBackgroundUpload} className="hidden" accept="image/*" />
-              {settings?.backgroundImage && (
-                <button onClick={removeBackground} className="w-10 h-10 flex items-center justify-center bg-rose-500/10 text-rose-600 border border-rose-500/20 rounded-xl hover:bg-rose-500 hover:text-white transition-all shadow-sm">
-                  <Trash2 size={16} />
-                </button>
-              )}
-            </div>
-          </div>
-
+        <div className="p-4 bg-white/5 border-t border-white/5 no-print shrink-0 backdrop-blur-md">
           <button 
             onClick={onSettingsOpen}
             className="flex items-center gap-3 px-5 py-3 rounded-xl text-slate-900 hover:text-orange-600 hover:bg-white/20 transition-all w-full font-black uppercase tracking-widest text-[10px]"
