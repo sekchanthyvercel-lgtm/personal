@@ -67,7 +67,7 @@ export const AIStudio: React.FC = () => {
             
             const fileContext: QuickSource = { data: base64Data, mimeType };
             const response = await callNeuralEngine(
-              'gemini-3.1-pro-preview', 
+              'gemini-3-flash-preview', 
               currentInput || "Analyze this image in detail.", 
               "You are a highly professional personal development AI assistant, combining the energizing, transformational style of Tony Robbins with the structured, high-performance coaching of Brendon Burchard. Your tone should be empowering, highly structured, professional, and actionable. You should structure your responses using markdown, with tables when appropriate.",
               fileContext
@@ -75,7 +75,7 @@ export const AIStudio: React.FC = () => {
             setMessages(prev => [...prev, { role: 'model', text: response.text || 'Could not analyze image.' }]);
         } else {
             const response = await callNeuralEngine(
-                'gemini-3.1-pro-preview',
+                'gemini-3-flash-preview',
                 currentInput,
                 "You are a highly professional personal development AI assistant, combining the energizing, transformational style of Tony Robbins with the structured, high-performance coaching of Brendon Burchard. Your tone should be empowering, highly structured, professional, and actionable. You should structure your responses using markdown, with tables when appropriate."
             );

@@ -269,21 +269,41 @@ const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUpdate })
   return (
     <div className="flex flex-col md:flex-row h-full md:h-[90vh] p-2 gap-2 overflow-hidden relative">
       {/* Mobile Toggle Button */}
-      <button 
-        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        className="md:hidden fixed bottom-6 right-6 z-50 w-14 h-14 bg-emerald-500 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all"
-      >
-        {isSidebarOpen ? <ChevronLeft size={24} /> : <Menu size={24} />}
-      </button>
+      {!isSidebarOpen && (
+        <button 
+          onClick={() => setIsSidebarOpen(true)}
+          className="md:hidden fixed bottom-6 left-6 z-[60] w-14 h-14 bg-emerald-500 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-emerald-500/40"
+        >
+          <Menu size={24} />
+        </button>
+      )}
 
-      <div className={`${isSidebarOpen ? 'flex' : 'hidden'} md:flex w-full md:w-[300px] shrink-0 bg-white/10 backdrop-blur-md rounded-3xl p-4 border border-white/20 flex-col gap-4 overflow-hidden z-30`}>
+      {/* Sidebar Panel - Mobile Slide-in Overlay */}
+      <div className={`
+        fixed md:relative inset-y-0 left-0 z-50 md:z-30
+        w-[280px] md:w-[300px] bg-white/95 md:bg-white/10 backdrop-blur-3xl md:backdrop-blur-md 
+        rounded-r-3xl md:rounded-3xl p-4 md:p-6 border-r md:border border-white/20 
+        flex flex-col gap-4 overflow-hidden shrink-0 transition-transform duration-300 transform
+        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+      `}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-black text-slate-800 tracking-tight">Self-Learning</h2>
-          <span className="text-[10px] bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full font-bold uppercase">Personal Growth</span>
+          <button 
+            onClick={() => setIsSidebarOpen(false)} 
+            className="md:hidden p-2 text-slate-500 hover:bg-slate-100 rounded-full"
+          >
+            <ChevronLeft size={24} />
+          </button>
         </div>
 
-        <button onClick={() => addTopic()} className="w-full py-3 bg-gradient-to-r from-emerald-500 to-orange-500 text-white rounded-xl text-xs font-black flex items-center justify-center gap-2 hover:from-emerald-600 hover:to-orange-600 shadow-lg shadow-emerald-200 transition-all">
-          <Plus size={16} /> Add New Topic
+        <button 
+          onClick={() => {
+            addTopic();
+            if (window.innerWidth < 768) setIsSidebarOpen(false);
+          }} 
+          className="w-full py-4 bg-gradient-to-r from-emerald-500 to-orange-500 text-white rounded-2xl text-xs font-black flex items-center justify-center gap-3 hover:from-emerald-600 hover:to-orange-600 shadow-xl shadow-emerald-500/20 active:scale-95 transition-all"
+        >
+          <Plus size={20} /> Add New Topic
         </button>
 
         <div className="flex-1 overflow-y-auto pr-2 space-y-1 custom-scrollbar">
@@ -291,6 +311,7 @@ const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUpdate })
         </div>
       </div>
       
+      {/* Editor Area */}
       <div className={`flex-1 bg-white/10 backdrop-blur-md rounded-3xl p-4 md:p-6 border border-white/20 relative overflow-hidden flex flex-col ${!isSidebarOpen ? 'w-full' : 'hidden md:flex'}`}>
         {selectedTopic ? (
             <div className="space-y-4 h-full flex flex-col">
