@@ -17,15 +17,18 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate }) =>
   const [newHabitName, setNewHabitName] = useState('');
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [planningNote, setPlanningNote] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
 
   const habits = data.habits || [];
   const completions = data.habitCompletions || {};
-  const notes = data.dailyNotes || {}; // We'll need to add this to types or just handle it locally
+  const notes = data.dailyNotes || {}; 
 
   useEffect(() => {
-    const dateKey = format(selectedPlanningDate, 'yyyy-MM-dd');
-    setPlanningNote(notes[dateKey] || '');
-  }, [selectedPlanningDate, notes]);
+    if (!isTyping) {
+      const dateKey = format(selectedPlanningDate, 'yyyy-MM-dd');
+      setPlanningNote(notes[dateKey] || '');
+    }
+  }, [selectedPlanningDate, notes, isTyping]);
 
   const savePlanningNote = () => {
     const dateKey = format(selectedPlanningDate, 'yyyy-MM-dd');
@@ -150,8 +153,12 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate }) =>
                     </div>
                     <textarea 
                         value={planningNote}
+                        onFocus={() => setIsTyping(true)}
                         onChange={(e) => setPlanningNote(e.target.value)}
-                        onBlur={savePlanningNote}
+                        onBlur={() => {
+                          setIsTyping(false);
+                          savePlanningNote();
+                        }}
                         className="w-full h-24 bg-white/5 rounded-2xl p-4 text-slate-800 font-bold text-lg outline-none border border-white/10 focus:border-orange-500 transition-all placeholder:text-slate-400 resize-none shadow-inner"
                         placeholder="Define your focus..."
                     />
@@ -267,8 +274,12 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate }) =>
               </div>
               <textarea 
                  value={planningNote}
+                 onFocus={() => setIsTyping(true)}
                  onChange={(e) => setPlanningNote(e.target.value)}
-                 onBlur={savePlanningNote}
+                 onBlur={() => {
+                   setIsTyping(false);
+                   savePlanningNote();
+                 }}
                  placeholder={`Mission goals for tomorrow...`}
                  className="w-full h-20 bg-white/5 rounded-xl p-4 text-slate-800 font-bold text-sm outline-none border border-transparent focus:border-orange-500/30 transition-all placeholder:text-slate-400 resize-none"
               />

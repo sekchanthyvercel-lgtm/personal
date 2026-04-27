@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Plus, Trash2, Calendar, AlignLeft, AlignCenter, AlignRight, Highlighter, MousePointer2, Minus, Layout, Square, Quote, Settings2, FileUp, Image as ImageIcon, Video, Music, FileText, Loader2, Wand2, Menu, ChevronLeft, GraduationCap } from 'lucide-react';
+import { Plus, Trash2, Calendar, AlignLeft, AlignCenter, AlignRight, Highlighter, MousePointer2, Minus, Layout, Square, Quote, Settings2, FileUp, Image as ImageIcon, Video, Music, FileText, Loader2, Wand2, Menu, ChevronLeft, GraduationCap, ChevronRight } from 'lucide-react';
 import { AppData, DPSSTopic } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { callNeuralEngine } from '../services/neuralEngine';
@@ -17,8 +17,28 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
   const [activeColor, setActiveColor] = useState<string | null>(null);
   const [isAILoading, setIsAILoading] = useState(false);
   const [showAIModal, setShowAIModal] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 768);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [sidebarWidth, setSidebarWidth] = useState(window.innerWidth < 768 ? 200 : 300);
+  const isResizing = useRef(false);
   const editorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing.current) return;
+      const newWidth = Math.max(150, Math.min(e.clientX - 10, 500));
+      setSidebarWidth(newWidth);
+    };
+    const handleMouseUp = () => {
+      isResizing.current = false;
+      document.body.style.cursor = 'default';
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
   const savedRange = useRef<Range | null>(null);
   
   const colors = [
@@ -270,20 +290,23 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
   );
 
   return (
-    <div className="flex flex-col md:flex-row h-full md:h-[90vh] p-2 gap-2 overflow-hidden relative">
+    <div className="flex flex-col md:flex-row h-full md:h-[90vh] p-2 gap-0 overflow-hidden relative">
       {/* Sidebar Panel - Mobile Slide-in Overlay */}
-      <div className={`
-        fixed md:relative inset-y-0 left-0 z-50 md:z-30
-        w-[280px] md:w-[300px] bg-white/95 md:bg-white/10 backdrop-blur-3xl md:backdrop-blur-md 
-        rounded-r-3xl md:rounded-3xl p-4 md:p-6 border-r md:border border-white/20 
-        flex flex-col gap-4 overflow-hidden shrink-0 transition-transform duration-300 transform
-        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-      `}>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-black text-slate-800 tracking-tight">Self-Learning</h2>
+      <div 
+        style={{ width: isSidebarOpen ? `${sidebarWidth}px` : '0px' }}
+        className={`
+          fixed md:relative inset-y-0 left-0 z-50 md:z-30
+          bg-white/95 md:bg-white/10 backdrop-blur-3xl md:backdrop-blur-md 
+          rounded-r-3xl md:rounded-3xl p-4 md:p-6 border-r md:border border-white/20 
+          flex flex-col gap-4 overflow-hidden shrink-0 transition-[width,transform] duration-300 transform
+          ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+        `}
+      >
+        <div className="flex items-center justify-between mb-4 shrink-0">
+          <h2 className="text-xl font-black text-slate-800 tracking-tight whitespace-nowrap">Self-Learning</h2>
           <button 
             onClick={() => setIsSidebarOpen(false)} 
-            className="md:hidden p-2 text-slate-500 hover:bg-slate-100 rounded-full"
+            className="p-2 text-slate-500 hover:bg-slate-100 rounded-full"
           >
             <ChevronLeft size={24} />
           </button>
@@ -292,28 +315,42 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
         <button 
           onClick={() => {
             addTopic();
-            if (window.innerWidth < 768) setIsSidebarOpen(false);
           }} 
-          className="w-full py-4 bg-gradient-to-r from-emerald-500 to-orange-500 text-white rounded-2xl text-xs font-black flex items-center justify-center gap-3 hover:from-emerald-600 hover:to-orange-600 shadow-xl shadow-emerald-500/20 active:scale-95 transition-all"
+          className="w-full py-4 bg-gradient-to-r from-emerald-500 to-orange-500 text-white rounded-2xl text-[10px] font-black flex items-center justify-center gap-2 hover:from-emerald-600 hover:to-orange-600 shadow-xl shadow-emerald-500/20 active:scale-95 transition-all shrink-0 whitespace-nowrap"
         >
-          <Plus size={20} /> Add New Topic
+          <Plus size={18} /> Add New Topic
         </button>
 
         <div className="flex-1 overflow-y-auto pr-2 space-y-1 custom-scrollbar">
             {topics.map(t => renderTopic(t))}
         </div>
       </div>
+
+      {/* Resize Handle */}
+      {isSidebarOpen && (
+        <div 
+          className="hidden md:block w-1 hover:w-2 bg-transparent hover:bg-emerald-500/20 cursor-col-resize z-40 transition-all shrink-0"
+          onMouseDown={() => {
+            isResizing.current = true;
+            document.body.style.cursor = 'col-resize';
+          }}
+        />
+      )}
       
       {/* Editor Area */}
       <div className={`flex-1 bg-white/10 backdrop-blur-md rounded-3xl p-4 md:p-6 border border-white/20 relative overflow-hidden flex flex-col ${!isSidebarOpen ? 'w-full' : 'hidden md:flex'}`}>
+        {!isSidebarOpen && (
+          <button 
+            onClick={() => setIsSidebarOpen(true)}
+            className="absolute left-4 top-4 z-[100] p-3 bg-emerald-500 text-white rounded-xl shadow-lg hover:bg-emerald-600 transition-all active:scale-95 flex items-center justify-center"
+          >
+            <Menu size={24} />
+          </button>
+        )}
         {selectedTopic ? (
             <div className="space-y-4 h-full flex flex-col">
-                <div className="flex items-center gap-2 md:gap-4">
-                  {!isSidebarOpen && (
-                    <button onClick={() => setIsSidebarOpen(true)} className="md:hidden p-2 bg-emerald-500 text-white rounded-xl shadow-lg shadow-emerald-200">
-                      <Menu size={20} />
-                    </button>
-                  )}
+                <div className="flex items-center gap-2 md:gap-4 px-2">
+                  {!isSidebarOpen && <div className="w-12 md:hidden shrink-0" />} {/* Spacer for the absolute menu button */}
                   <input 
                       value={selectedTopic.title} 
                       onChange={(e) => updateTopic(selectedTopic.id, { title: e.target.value })}

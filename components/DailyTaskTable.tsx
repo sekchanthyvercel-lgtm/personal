@@ -52,6 +52,11 @@ const MultilineInput: React.FC<{
   placeholder?: string;
 }> = ({ value, onChange, className, style, placeholder }) => {
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+  const [localValue, setLocalValue] = React.useState(value);
+
+  React.useEffect(() => {
+    setLocalValue(value);
+  }, [value]);
 
   React.useEffect(() => {
     if (textareaRef.current) {
@@ -59,14 +64,15 @@ const MultilineInput: React.FC<{
       const scrollHeight = textareaRef.current.scrollHeight;
       textareaRef.current.style.height = Math.max(36, scrollHeight) + 'px';
     }
-  }, [value]);
+  }, [localValue]);
 
   return (
     <textarea
       ref={textareaRef}
-      value={value}
+      value={localValue}
       placeholder={placeholder}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={(e) => setLocalValue(e.target.value)}
+      onBlur={() => onChange(localValue)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault();
@@ -337,8 +343,8 @@ DO NOT wrap the response in markdown blocks like \`\`\`json. Just return the raw
   }, [filteredStudents, data.dailyTasks]);
 
   return (
-    <div className="flex-1 flex flex-col bg-transparent overflow-hidden p-2 md:p-4 lg:p-6" style={{ fontFamily: textFontFamily }}>
-      <div className={`bg-white/40 backdrop-blur-xl rounded-[40px] shadow-2xl shadow-indigo-900/10 border border-white/60 transition-all relative overflow-hidden flex flex-col ${isHeaderHidden ? 'p-4 mb-2' : 'p-6 md:p-8 mb-6'}`}>
+    <div className="flex-1 flex flex-col bg-transparent overflow-y-auto md:overflow-hidden p-2 md:p-4 lg:p-6" style={{ fontFamily: textFontFamily }}>
+      <div className={`bg-white/40 backdrop-blur-xl rounded-[30px] md:rounded-[40px] shadow-2xl shadow-indigo-900/10 border border-white/60 transition-all relative overflow-hidden flex flex-col shrink-0 ${isHeaderHidden ? 'p-3 mb-2' : 'p-4 md:p-8 mb-6'}`}>
         
         {/* Header Toggle for Mobile */}
         <button 
@@ -554,15 +560,15 @@ DO NOT wrap the response in markdown blocks like \`\`\`json. Just return the raw
           </div>
         </div>
       ) : (
-      <div className="flex-1 bg-white/[0.01] backdrop-blur-[1px] rounded-[40px] shadow-2xl shadow-indigo-900/10 border border-white/5 overflow-hidden flex flex-col transition-all">
-        <div className="overflow-auto flex-1 custom-scrollbar">
-          <table className="w-full border-collapse table-fixed min-w-[1000px]">
-            <thead className="sticky top-0 z-40 bg-white/[0.01] backdrop-blur-[1px]">
+      <div className="flex-none md:flex-1 bg-white/[0.01] backdrop-blur-[1px] rounded-[30px] md:rounded-[40px] shadow-2xl shadow-indigo-900/10 border border-white/5 overflow-visible md:overflow-hidden flex flex-col transition-all">
+        <div className="overflow-x-auto md:overflow-auto md:flex-1 custom-scrollbar">
+          <table className="w-full border-separate border-spacing-0 min-w-[1000px]">
+            <thead className="md:sticky top-0 z-40 bg-white shadow-sm">
               <tr className="border-b border-slate-100/30">
-                <th className="w-12 px-2 py-4 text-center text-[9px] font-black uppercase text-slate-400 border-r border-slate-100/30 sticky left-0 z-50 bg-white/50 backdrop-blur-md">#</th>
-                <th className="w-auto px-4 py-4 text-left text-[9px] font-black uppercase text-slate-900 border-r border-slate-100/30 sticky left-12 z-50 bg-white/50 backdrop-blur-md">Mission Objective</th>
-                <th className="w-32 px-2 py-4 text-center text-[9px] font-black uppercase text-slate-900 border-r border-slate-100/30 backdrop-blur-sm">Priority</th>
-                <th className="w-40 px-2 py-4 text-center text-[9px] font-black uppercase text-slate-900 border-r border-slate-100/30 backdrop-blur-sm">Energy Selection</th>
+                <th className="w-12 px-2 py-4 text-center text-[9px] font-black uppercase text-slate-400 border-r border-slate-100/30 md:sticky left-0 z-50 bg-white">#</th>
+                <th className="w-72 px-4 py-4 text-left text-[9px] font-black uppercase text-slate-900 border-r border-slate-100/30 md:sticky left-12 z-50 bg-white">Mission Objective</th>
+                <th className="w-32 px-2 py-4 text-center text-[9px] font-black uppercase text-slate-900 border-r border-slate-100/30 bg-white">Priority</th>
+                <th className="w-40 px-2 py-4 text-center text-[9px] font-black uppercase text-slate-900 border-r border-slate-100/30 bg-white">Energy Selection</th>
                 
                 {days.map(day => (
                   <th key={day.toString()} className="w-32 border-r border-slate-100/30 p-0 overflow-hidden">
@@ -595,8 +601,8 @@ DO NOT wrap the response in markdown blocks like \`\`\`json. Just return the raw
                     transition={{ delay: idx * 0.03 }}
                     className={`transition-colors group h-14 bg-white/40 hover:bg-white/60`}
                   >
-                    <td className="text-center text-[10px] font-black text-slate-400 border-r border-slate-100/30 sticky left-0 z-30 bg-white/80 backdrop-blur-md">{idx + 1}</td>
-                    <td className={`px-2 border-r border-slate-100/30 sticky left-12 z-30 group-hover:opacity-90 transition-opacity bg-white/80 backdrop-blur-md shadow-sm`}>
+                    <td className="text-center text-[10px] font-black text-slate-400 border-r border-slate-100/30 md:sticky left-0 z-30 bg-white/80 backdrop-blur-md">{idx + 1}</td>
+                    <td className={`px-2 border-r border-slate-100/30 md:sticky left-12 z-30 group-hover:opacity-90 transition-opacity bg-white/80 backdrop-blur-md shadow-sm`}>
                       <MultilineInput 
                         value={s.name} 
                         onChange={val => updateField(s.id, 'name', val)}
