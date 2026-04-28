@@ -74,12 +74,6 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onOpenSide
       
       // Ensure the selection is within our editor
       if (editorRef.current && editorRef.current.contains(range.commonAncestorContainer)) {
-        // AUTO-APPLY if a color is picked first from toolbar
-        if (activeColor) {
-           applyColor(activeColor, true);
-           return;
-        }
-
         savedRange.current = range.cloneRange();
         const rect = range.getBoundingClientRect();
         setPickerPos({
@@ -291,6 +285,12 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onOpenSide
       {topic.children?.map(child => renderTopic(child, depth + 1))}
     </div>
   );
+
+  useEffect(() => {
+    if (editorRef.current && selectedTopic) {
+      editorRef.current.innerHTML = selectedTopic.content;
+    }
+  }, [selectedTopic?.id]);
 
   return (
     <div className="flex flex-col md:flex-row h-full md:h-[90vh] p-2 gap-0 overflow-hidden relative">
@@ -504,15 +504,14 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onOpenSide
                     onBlur={(e) => {
                       updateTopic(selectedTopic.id, { content: e.currentTarget.innerHTML });
                     }}
-                    dangerouslySetInnerHTML={{ __html: selectedTopic.content }}
                     style={{ 
                       textAlign: selectedTopic.alignment, 
                       minHeight: '300px',
                       fontSize: `${textFontSize}px`,
                       fontFamily: textFontFamily
                     }}
-                    className="w-full flex-1 bg-white/5 outline-none p-8 rounded-3xl text-slate-800 leading-relaxed font-medium transition-all focus:bg-white/20"
-                />
+                    className="w-full flex-1 bg-white/5 outline-none p-8 rounded-3xl text-slate-800 leading-relaxed font-medium transition-all focus:bg-white/20 overflow-y-auto"
+                ></div>
             </div>
         ) : (
             <div className="h-full flex flex-col items-center justify-center gap-6 text-slate-400 p-8 text-center bg-white/5 backdrop-blur-sm rounded-[40px] m-4">
