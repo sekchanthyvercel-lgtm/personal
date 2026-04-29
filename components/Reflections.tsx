@@ -53,7 +53,7 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
     <textarea
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      placeholder={`Type your goals and ${title.toLowerCase()} here...`}
+      placeholder={`Type your goals and vision here...`}
       className="w-full bg-white/10 border border-white/20 rounded-[24px] p-6 text-slate-900 text-base font-bold focus:outline-none focus:ring-2 focus:ring-orange-500/20 min-h-[180px] resize-none transition-all placeholder:text-slate-900/20 custom-scrollbar leading-relaxed"
     />
   </motion.div>

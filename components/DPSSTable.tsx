@@ -65,7 +65,7 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onOpenSide
     content: typeof t.content === 'string' ? t.content : '',
     alignment: t.alignment || 'left',
     children: t.children || []
-  }));
+  })).filter(t => !t.deletedAt);
 
   const handleSelection = () => {
     const selection = window.getSelection();
@@ -148,14 +148,15 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onOpenSide
   };
 
   const deleteTopic = (id: string) => {
-    if (confirm('Are you sure you want to delete this topic?')) {
-      const filterTopics = (items: DPSSTopic[]): DPSSTopic[] => {
-        return items.filter(item => item.id !== id).map(item => ({
-          ...item,
-          children: item.children ? filterTopics(item.children) : undefined
-        }));
+    if (confirm('Move this topic to Recycle Bin?')) {
+      const markDeleted = (items: DPSSTopic[]): DPSSTopic[] => {
+        return items.map(item => {
+          if (item.id === id) return { ...item, deletedAt: new Date().toISOString() };
+          if (item.children) return { ...item, children: markDeleted(item.children) };
+          return item;
+        });
       };
-      onUpdate({ ...data, dpssTopics: filterTopics(topics) });
+      onUpdate({ ...data, dpssTopics: markDeleted(data.dpssTopics || []) });
       setSelectedTopicId(null);
     }
   };

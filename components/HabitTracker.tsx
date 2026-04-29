@@ -217,17 +217,43 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate }) =>
 
       {/* Main View Header */}
       <div className={`flex flex-col md:flex-row items-center justify-between mb-6 gap-6 shrink-0 ${isFullScreen ? 'hidden' : ''}`}>
-        <div className="relative group">
+        <div className="relative group flex items-center gap-6">
           <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tighter uppercase italic drop-shadow-sm flex items-center gap-3">
             <Target className="text-orange-600" size={28} />
             Performance Mastery Hub
           </h1>
+          
+          <div className="flex items-center gap-1 bg-white/10 backdrop-blur-3xl rounded-full p-1 border border-white/20">
+            <button 
+              onClick={() => setCurrentDate(prev => subMonths(prev, 1))}
+              className="p-2 hover:bg-white/20 rounded-full transition-all text-slate-900"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <div className="px-4 text-center group/year cursor-pointer relative" onClick={() => {
+              const year = prompt('Enter Year:', format(currentDate, 'yyyy'));
+              if (year && !isNaN(parseInt(year))) {
+                const newDate = new Date(currentDate);
+                newDate.setFullYear(parseInt(year));
+                setCurrentDate(newDate);
+              }
+            }}>
+               <span className="block text-[8px] font-black uppercase text-orange-600 leading-none mb-1 tracking-widest group-hover/year:scale-110 transition-transform">{format(currentDate, 'yyyy')}</span>
+               <span className="block text-sm font-black text-slate-800 leading-none">{format(currentDate, 'MMMM')}</span>
+            </div>
+            <button 
+              onClick={() => setCurrentDate(prev => addMonths(prev, 1))}
+              className="p-2 hover:bg-white/20 rounded-full transition-all text-slate-900"
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
         </div>
 
         <div className="flex items-center gap-2 md:gap-4 flex-wrap justify-center">
           <button 
             onClick={() => setIsFullScreen(true)}
-            className="flex items-center gap-2 bg-slate-900 text-white px-5 md:px-7 py-3 md:py-4 rounded-2xl font-black text-[10px] md:text-xs tracking-widest hover:bg-orange-600 transition-all shadow-xl uppercase"
+            className="flex items-center gap-2 bg-emerald-600 text-white px-5 md:px-7 py-3 md:py-4 rounded-2xl font-black text-[10px] md:text-xs tracking-widest hover:bg-emerald-700 transition-all shadow-xl uppercase"
           >
             <Maximize2 size={16} strokeWidth={3} /> Monthly Planner
           </button>
@@ -294,12 +320,6 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate }) =>
                   {data.reflections?.weeklyReview?.content || "Synchronize your objectives for peak efficiency."}
                 </p>
               </div>
-              <button 
-                onClick={() => setIsFullScreen(true)}
-                className="mt-4 w-full py-3 bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-orange-600 transition-all flex items-center justify-center gap-2"
-              >
-                <Maximize2 size={12} /> Open Full Month Grid
-              </button>
           </div>
         </div>
       </div>

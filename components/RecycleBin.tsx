@@ -11,50 +11,118 @@ interface Props {
 export const RecycleBin: React.FC<Props> = ({ data, onUpdate }) => {
   const [search, setSearch] = React.useState('');
 
-  const deletedStudents = React.useMemo(() => {
-    return data.students
-      .filter(s => s.deletedAt)
-      .sort((a, b) => new Date(b.deletedAt!).getTime() - new Date(a.deletedAt!).getTime());
-  }, [data.students]);
+  const deletedItems = React.useMemo(() => {
+    const items: any[] = [];
+    
+    // Students/Reminders/Tasks
+    data.students.filter(s => s.deletedAt).forEach(s => items.push({ ...s, type: 'Student' }));
+    
+    const findDeletedTopics = (topics: any[], type: string) => {
+      topics.forEach(t => {
+        if (t.deletedAt) items.push({ ...t, type });
+        if (t.children) findDeletedTopics(t.children, type);
+      });
+    };
+    
+    findDeletedTopics(data.dpssTopics || [], 'DPSS');
+    findDeletedTopics(data.selfLearningTopics || [], 'SelfLearning');
+    
+    return items.sort((a, b) => new Date(b.deletedAt!).getTime() - new Date(a.deletedAt!).getTime());
+  }, [data.students, data.dpssTopics, data.selfLearningTopics]);
 
-  const filtered = deletedStudents.filter(s => 
-    s.name.toLowerCase().includes(search.toLowerCase()) ||
-    s.category.toLowerCase().includes(search.toLowerCase())
+  const filtered = deletedItems.filter(s => 
+    (s.name || s.title || '').toLowerCase().includes(search.toLowerCase()) ||
+    (s.category || s.type).toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleRestore = (id: string) => {
-    const newStudents = data.students.map(s => {
-      if (s.id === id) {
-        const { deletedAt, ...rest } = s;
-        return rest;
-      }
-      return s;
-    });
-    onUpdate({ ...data, students: newStudents as Student[] });
-  };
-
-  const handlePermanentDelete = (id: string) => {
-    if (window.confirm('This will permanently delete the student data. Continue?')) {
-      onUpdate({ ...data, students: data.students.filter(s => s.id !== id) });
-    }
-  };
-
-  const handleRestoreAll = () => {
-    if (window.confirm(`Restore all ${deletedStudents.length} items?`)) {
+  const handleRestore = (id: string, type: string) => {
+    if (type === 'Student') {
       const newStudents = data.students.map(s => {
-        if (s.deletedAt) {
+        if (s.id === id) {
           const { deletedAt, ...rest } = s;
           return rest;
         }
         return s;
       });
       onUpdate({ ...data, students: newStudents as Student[] });
+    } else {
+      const field = type === 'DPSS' ? 'dpssTopics' : 'selfLearningTopics';
+      const restoreInTopics = (items: any[]): any[] => {
+        return items.map(item => {
+          if (item.id === id) {
+            const { deletedAt, ...rest } = item;
+            return rest;
+          }
+          if (item.children) return { ...item, children: restoreInTopics(item.children) };
+          return item;
+        });
+      };
+      onUpdate({ ...data, [field]: restoreInTopics(data[field as keyof AppData] as any[]) });
+    }
+  };
+
+  const handlePermanentDelete = (id: string, type: string) => {
+    if (window.confirm(`This will permanently delete this ${type} item. Continue?`)) {
+      if (type === 'Student') {
+        onUpdate({ ...data, students: data.students.filter(s => s.id !== id) });
+      } else {
+        const field = type === 'DPSS' ? 'dpssTopics' : 'selfLearningTopics';
+        const deleteFromTopics = (items: any[]): any[] => {
+          return items.filter(item => item.id !== id).map(item => ({
+            ...item,
+            children: item.children ? deleteFromTopics(item.children) : undefined
+          }));
+        };
+        onUpdate({ ...data, [field]: deleteFromTopics(data[field as keyof AppData] as any[]) });
+      }
+    }
+  };
+
+  const handleRestoreAll = () => {
+    if (window.confirm(`Restore all ${deletedItems.length} items?`)) {
+      let newData = { ...data };
+      
+      // Restore Students
+      newData.students = (data.students || []).map(s => {
+        if (s.deletedAt) {
+          const { deletedAt, ...rest } = s;
+          return rest as Student;
+        }
+        return s;
+      });
+      
+      const restoreAllInTopics = (items: any[]): any[] => {
+        return items.map(item => {
+          let newItem = { ...item };
+          if (newItem.deletedAt) delete newItem.deletedAt;
+          if (newItem.children) newItem.children = restoreAllInTopics(newItem.children);
+          return newItem;
+        });
+      };
+      
+      newData.dpssTopics = restoreAllInTopics(data.dpssTopics || []);
+      newData.selfLearningTopics = restoreAllInTopics(data.selfLearningTopics || []);
+      
+      onUpdate(newData);
     }
   };
 
   const handleEmptyBin = () => {
     if (window.confirm('PERMANENTLY delete ALL items in the recycle bin? This cannot be undone.')) {
-      onUpdate({ ...data, students: data.students.filter(s => !s.deletedAt) });
+      let newData = { ...data };
+      newData.students = data.students.filter(s => !s.deletedAt);
+      
+      const permanentDeleteTopics = (items: any[]): any[] => {
+        return items.filter(item => !item.deletedAt).map(item => ({
+          ...item,
+          children: item.children ? permanentDeleteTopics(item.children) : undefined
+        }));
+      };
+      
+      newData.dpssTopics = permanentDeleteTopics(data.dpssTopics || []);
+      newData.selfLearningTopics = permanentDeleteTopics(data.selfLearningTopics || []);
+      
+      onUpdate(newData);
     }
   };
 
@@ -83,7 +151,7 @@ export const RecycleBin: React.FC<Props> = ({ data, onUpdate }) => {
           </div>
           
           <div className="flex gap-3">
-             {deletedStudents.length > 0 && (
+             {deletedItems.length > 0 && (
                <>
                  <button 
                    onClick={handleRestoreAll}
@@ -106,7 +174,7 @@ export const RecycleBin: React.FC<Props> = ({ data, onUpdate }) => {
            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
            <input 
              type="text"
-             placeholder="Search deleted students or categories..."
+             placeholder="Search deleted items..."
              value={search}
              onChange={e => setSearch(e.target.value)}
              className="w-full pl-12 pr-4 py-3 bg-slate-100 border-none rounded-2xl text-slate-900 font-bold focus:ring-2 focus:ring-indigo-500 transition-all"
@@ -130,24 +198,27 @@ export const RecycleBin: React.FC<Props> = ({ data, onUpdate }) => {
                       </div>
                    </div>
                    
-                   <div className="mb-4">
+                   <div className="mb-4 flex items-center justify-between">
                       <span className="px-3 py-1 bg-slate-100 text-slate-500 rounded-full text-[10px] font-black uppercase tracking-widest border border-slate-200">
-                        {s.category}
+                        {s.category || s.type}
+                      </span>
+                      <span className="text-[8px] font-black uppercase text-slate-400 tracking-widest bg-slate-50 px-2 py-0.5 rounded border border-slate-100">
+                        {s.type === 'Student' ? 'Entity' : 'Note/Topic'}
                       </span>
                    </div>
                    
-                   <h3 className="text-xl font-black text-slate-900 mb-1 leading-tight">{s.name || 'Untitled Student'}</h3>
+                   <h3 className="text-xl font-black text-slate-900 mb-1 leading-tight">{s.name || s.title || 'Untitled'}</h3>
                    <p className="text-slate-400 text-xs font-bold mb-6">Deleted on {format(parseISO(s.deletedAt!), 'MMM dd, yyyy HH:mm')}</p>
                    
                    <div className="flex gap-2">
                        <button 
-                         onClick={() => handleRestore(s.id)}
+                         onClick={() => handleRestore(s.id, s.type)}
                          className="flex-1 flex items-center justify-center gap-2 py-3 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
                        >
                          <RotateCcw size={14} /> Restore
                        </button>
                        <button 
-                         onClick={() => handlePermanentDelete(s.id)}
+                         onClick={() => handlePermanentDelete(s.id, s.type)}
                          className="w-12 h-12 flex items-center justify-center bg-slate-50 text-slate-400 rounded-2xl hover:bg-red-50 hover:text-red-500 transition-all border border-slate-100"
                        >
                          <Trash2 size={18} />

@@ -106,6 +106,7 @@ export interface DPSSTopic {
   title: string;
   content: string;
   alignment: 'left' | 'center' | 'right';
+  deletedAt?: string; // Soft delete support
   children?: DPSSTopic[];
   attachments?: { id: string; name: string; url: string; type: string }[];
 }
