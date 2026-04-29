@@ -3,6 +3,7 @@ import { Plus, Trash2, Calendar, AlignLeft, AlignCenter, AlignRight, Highlighter
 import { AppData, DPSSTopic } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { callNeuralEngine } from '../services/neuralEngine';
+import { PAPER_STYLES } from '../src/styles/paperStyles';
 
 interface DPSSTableProps {
   data: AppData;
@@ -59,6 +60,8 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onOpenSide
   const dpssSettings = data.settings || { fontSize: 12, fontFamily: "'Inter', sans-serif" };
   const textFontFamily = dpssSettings.textFontFamily || dpssSettings.fontFamily;
   const textFontSize = dpssSettings.textFontSize || dpssSettings.fontSize;
+  const paperStyle = dpssSettings.paperStyle || 'none';
+  const selectedPaper = PAPER_STYLES.find(s => s.id === paperStyle) || PAPER_STYLES[0];
 
   const topics = (data.dpssTopics || []).map(t => ({
     ...t,
@@ -342,7 +345,7 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onOpenSide
       )}
       
       {/* Editor Area */}
-      <div className={`flex-1 bg-white/10 backdrop-blur-md rounded-3xl p-4 md:p-6 border border-white/20 relative overflow-hidden flex flex-col ${!isSidebarOpen ? 'w-full' : 'hidden md:flex'}`}>
+      <div className={`flex-1 bg-transparent rounded-3xl p-4 md:p-6 border border-white/20 relative overflow-hidden flex flex-col ${!isSidebarOpen ? 'w-full' : 'hidden md:flex'}`}>
         {!isSidebarOpen && (
           <button 
             onClick={() => setIsSidebarOpen(true)}
@@ -511,7 +514,7 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onOpenSide
                       fontSize: `${textFontSize}px`,
                       fontFamily: textFontFamily
                     }}
-                    className="w-full flex-1 bg-white/5 outline-none p-8 rounded-3xl text-slate-800 leading-relaxed font-medium transition-all focus:bg-white/20 overflow-y-auto"
+                    className={`w-full flex-1 outline-none p-8 rounded-3xl text-slate-800 leading-relaxed font-medium transition-all focus:ring-4 focus:ring-orange-500/10 overflow-y-auto shadow-md ${selectedPaper.className}`}
                 ></div>
             </div>
         ) : (

@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { AppSettings, CurrentUser } from '../types';
-import { X, Save, Settings2, Type, Baseline, Paintbrush, Check, Cloud, LogIn, LogOut, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { X, Save, Settings2, Type, Baseline, Paintbrush, Check, Cloud, LogIn, LogOut, Image as ImageIcon, Trash2, FileText } from 'lucide-react';
+import { PAPER_STYLES } from '../src/styles/paperStyles';
 
 interface Props {
   isOpen: boolean;
@@ -40,7 +41,8 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onUp
     fontColor: settings?.fontColor || '#0f172a',
     currency: settings?.currency || 'USD',
     exchangeRate: settings?.exchangeRate || 4000,
-    backgroundImage: settings?.backgroundImage
+    backgroundImage: settings?.backgroundImage,
+    paperStyle: settings?.paperStyle || 'none'
   });
 
   const handleSave = () => {
@@ -219,6 +221,39 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onUp
                                 title={c.name}
                             >
                                 {localSettings.fontColor === c.value && <Check size={16} className="text-white mix-blend-overlay" />}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* Paper Selection */}
+            <div className="space-y-4">
+                <div className="flex items-center gap-2 text-slate-800 font-black mb-2">
+                    <FileText size={18} className="text-indigo-500" />
+                    <h3 className="tracking-wide">Note Paper Style</h3>
+                </div>
+
+                <div className="bg-white/50 border border-white/60 p-4 rounded-2xl shadow-sm">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 pl-1">Select Canvas Texture (20 Styles)</p>
+                    <div className="grid grid-cols-4 gap-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                        {PAPER_STYLES.map(style => (
+                            <button
+                                key={style.id}
+                                onClick={() => setLocalSettings(prev => ({...prev, paperStyle: style.id}))}
+                                className={`group relative h-16 rounded-xl border-2 transition-all hover:-translate-y-1 shadow-sm overflow-hidden ${localSettings.paperStyle === style.id ? 'border-indigo-500 ring-2 ring-indigo-500/20' : 'border-slate-200 hover:border-indigo-300'}`}
+                                title={style.name}
+                            >
+                                <div className={`absolute inset-0 ${style.className} flex items-center justify-center`}>
+                                    {localSettings.paperStyle === style.id && (
+                                        <div className="bg-indigo-600 text-white rounded-full p-1 shadow-lg">
+                                            <Check size={12} />
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="absolute bottom-0 left-0 right-0 bg-black/40 backdrop-blur-sm py-0.5 text-[7px] font-black uppercase text-white tracking-widest text-center">
+                                    {style.name}
+                                </div>
                             </button>
                         ))}
                     </div>

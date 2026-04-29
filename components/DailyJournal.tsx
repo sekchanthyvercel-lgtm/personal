@@ -3,6 +3,7 @@ import { AppData, JournalEntry } from '../types';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, addDays, subMonths, addMonths } from 'date-fns';
 import { CheckCircle2, ChevronLeft, ChevronRight, Calendar as CalendarIcon, BookOpen, Clock, X, Target, Quote, Heart, Sparkles, Footprints, Zap, ShieldCheck, Lightbulb, Activity, Circle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { PAPER_STYLES } from '../src/styles/paperStyles';
 
 interface DailyJournalProps {
   data: AppData;
@@ -17,7 +18,7 @@ interface JournalBlockProps {
 }
 
 const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgColor = "bg-white/[0.03]" }) => (
-  <motion.div initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className={`${bgColor} rounded-[28px] p-6 shadow-sm border border-white/10 backdrop-blur-3xl relative overflow-hidden`}>
+  <motion.div initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className={`${bgColor} rounded-[28px] p-6 shadow-sm border border-white/10 relative overflow-hidden`}>
     <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-500/40"></div>
     <div className="flex items-center gap-3 mb-4">
       {icon}
@@ -36,6 +37,8 @@ export const DailyJournal: React.FC<DailyJournalProps> = ({ data, onUpdate }) =>
   const journalSettings = data.settings || { fontSize: 12, fontFamily: "'Inter', sans-serif" };
   const textFontFamily = journalSettings.textFontFamily || journalSettings.fontFamily;
   const textFontSize = journalSettings.textFontSize || 16;
+  const paperStyle = journalSettings.paperStyle || 'none';
+  const selectedPaper = PAPER_STYLES.find(s => s.id === paperStyle) || PAPER_STYLES[0];
   const dateKey = format(selectedDate, 'yyyy-MM-dd');
 
   const entries = data.journalEntries || {};
@@ -144,7 +147,7 @@ export const DailyJournal: React.FC<DailyJournalProps> = ({ data, onUpdate }) =>
           <AnimatePresence mode="wait">
             {reflectionMode === 'Daily' ? (
               <motion.div key="daily" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
-                <JournalBlock title="What are my Today's priorities?" icon={<CheckCircle2 className="text-emerald-600" size={20} />} bgColor="bg-white/10 border-white/20">
+                <JournalBlock title="What are my Today's priorities?" icon={<CheckCircle2 className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
                   <div className="space-y-4">
                     {currentEntry.achievements.map((ach, idx) => (
                       <div key={idx} className="flex items-center gap-4">
@@ -165,7 +168,7 @@ export const DailyJournal: React.FC<DailyJournalProps> = ({ data, onUpdate }) =>
                   </div>
                 </JournalBlock>
 
-                <JournalBlock title="Today's Positive Affirmation - What truth sets the tone for your day?" icon={<Quote className="text-cyan-600" size={20} />} bgColor="bg-white/10 border-white/20">
+                <JournalBlock title="Today's Positive Affirmation - What truth sets the tone for your day?" icon={<Quote className="text-cyan-600" size={20} />} bgColor={selectedPaper.className}>
                   <textarea 
                     value={currentEntry.affirmation} 
                     onChange={(e) => updateEntry('affirmation', e.target.value)} 
@@ -175,7 +178,7 @@ export const DailyJournal: React.FC<DailyJournalProps> = ({ data, onUpdate }) =>
                   />
                 </JournalBlock>
 
-                <JournalBlock title="What am I grateful for today?" icon={<Heart className="text-rose-600" size={20} />} bgColor="bg-white/10 border-white/20">
+                <JournalBlock title="What am I grateful for today?" icon={<Heart className="text-rose-600" size={20} />} bgColor={selectedPaper.className}>
                   <textarea 
                     value={currentEntry.gratitude} 
                     onChange={(e) => updateEntry('gratitude', e.target.value)} 
@@ -186,7 +189,7 @@ export const DailyJournal: React.FC<DailyJournalProps> = ({ data, onUpdate }) =>
                 </JournalBlock>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  < JournalBlock title="How do I choose to feel today?" icon={<Sparkles className="text-amber-600" size={20} />} bgColor="bg-white/10 border-white/20">
+                  < JournalBlock title="How do I choose to feel today?" icon={<Sparkles className="text-amber-600" size={20} />} bgColor={selectedPaper.className}>
                       <input 
                         type="text" 
                         value={currentEntry.feeling} 
@@ -197,7 +200,7 @@ export const DailyJournal: React.FC<DailyJournalProps> = ({ data, onUpdate }) =>
                       />
                   </JournalBlock>
 
-                  < JournalBlock title="Who am I surprising with appreciation today?" icon={<Footprints className="text-indigo-600" size={20} />} bgColor="bg-white/10 border-white/20">
+                  < JournalBlock title="Who am I surprising with appreciation today?" icon={<Footprints className="text-indigo-600" size={20} />} bgColor={selectedPaper.className}>
                       <input 
                         type="text" 
                         value={currentEntry.appreciation} 
@@ -209,7 +212,7 @@ export const DailyJournal: React.FC<DailyJournalProps> = ({ data, onUpdate }) =>
                   </JournalBlock>
                 </div>
 
-                <JournalBlock title="Performance Metrics (1-10)" icon={<Zap className="text-orange-600" size={20} />} bgColor="bg-white/10 border-white/20">
+                <JournalBlock title="Performance Metrics (1-10)" icon={<Zap className="text-orange-600" size={20} />} bgColor={selectedPaper.className}>
                   <div className="space-y-2">
                       <RatingScale 
                         label="Energy Level (Physical/Mental)" 
@@ -256,7 +259,7 @@ export const DailyJournal: React.FC<DailyJournalProps> = ({ data, onUpdate }) =>
                   </div>
                 </JournalBlock>
 
-                <JournalBlock title="What are the great things that happened today?" icon={<Quote className="text-emerald-600" size={20} />} bgColor="bg-white/10 border-white/20">
+                <JournalBlock title="What are the great things that happened today?" icon={<Quote className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
                   <textarea 
                     value={currentEntry.inspiration} 
                     onChange={(e) => updateEntry('inspiration', e.target.value)} 
@@ -266,7 +269,7 @@ export const DailyJournal: React.FC<DailyJournalProps> = ({ data, onUpdate }) =>
                   />
                 </JournalBlock>
 
-                <JournalBlock title="What is one thing I learned today?" icon={<Lightbulb className="text-emerald-600" size={20} />} bgColor="bg-white/10 border-white/20">
+                <JournalBlock title="What is one thing I learned today?" icon={<Lightbulb className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
                   <textarea 
                     value={currentEntry.learning} 
                     onChange={(e) => updateEntry('learning', e.target.value)} 
@@ -278,21 +281,21 @@ export const DailyJournal: React.FC<DailyJournalProps> = ({ data, onUpdate }) =>
               </motion.div>
             ) : reflectionMode === 'Weekly' ? (
               <motion.div key="weekly" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
-                  <JournalBlock title="Weekly Review - Did I work on my goals?" icon={<Target className="text-emerald-600" size={20} />} bgColor="bg-white/10 border-white/20">
+                  <JournalBlock title="Weekly Review - Did I work on my goals?" icon={<Target className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
                     <textarea 
                       placeholder="Review your goals and progress this week..." 
                       className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" 
                       style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }}
                     />
                   </JournalBlock>
-                  <JournalBlock title="What needs adjustment for next week?" icon={<Zap className="text-orange-600" size={20} />} bgColor="bg-white/10 border-white/20">
+                  <JournalBlock title="What needs adjustment for next week?" icon={<Zap className="text-orange-600" size={20} />} bgColor={selectedPaper.className}>
                     <textarea 
                       placeholder="Identify changes to stay on track..." 
                       className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" 
                       style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }}
                     />
                   </JournalBlock>
-                  <JournalBlock title="Key Successes & Learnings this week" icon={<Lightbulb className="text-emerald-600" size={20} />} bgColor="bg-white/10 border-white/20">
+                  <JournalBlock title="Key Successes & Learnings this week" icon={<Lightbulb className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
                     <textarea 
                       placeholder="What was your biggest win?" 
                       className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" 
@@ -302,14 +305,14 @@ export const DailyJournal: React.FC<DailyJournalProps> = ({ data, onUpdate }) =>
               </motion.div>
             ) : reflectionMode === 'Monthly' ? (
               <motion.div key="monthly" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
-                <JournalBlock title="Monthly Master - Key Achievements" icon={<ShieldCheck className="text-emerald-600" size={20} />} bgColor="bg-white/10 border-white/20">
+                <JournalBlock title="Monthly Master - Key Achievements" icon={<ShieldCheck className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
                   <textarea 
                     placeholder="Reflect on your biggest wins this month..." 
                     className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" 
                     style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }}
                   />
                 </JournalBlock>
-                <JournalBlock title="Core Growth Area & Major Learnings" icon={<Lightbulb className="text-amber-600" size={20} />} bgColor="bg-white/10 border-white/20">
+                <JournalBlock title="Core Growth Area & Major Learnings" icon={<Lightbulb className="text-amber-600" size={20} />} bgColor={selectedPaper.className}>
                   <textarea 
                     placeholder="What was the most significant area of maturity this month?" 
                     className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" 
@@ -319,14 +322,14 @@ export const DailyJournal: React.FC<DailyJournalProps> = ({ data, onUpdate }) =>
               </motion.div>
             ) : (
               <motion.div key="3month" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
-                <JournalBlock title="90-Day Vision Evolution" icon={<Sparkles className="text-purple-600" size={20} />} bgColor="bg-white/10 border-white/20">
+                <JournalBlock title="90-Day Vision Evolution" icon={<Sparkles className="text-purple-600" size={20} />} bgColor={selectedPaper.className}>
                   <textarea 
                     placeholder="How has your 3-month vision shifted since the start?" 
                     className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" 
                     style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }}
                   />
                 </JournalBlock>
-                <JournalBlock title="The Next Plateau for Peak Performance" icon={<Target className="text-rose-600" size={20} />} bgColor="bg-white/10 border-white/20">
+                <JournalBlock title="The Next Plateau for Peak Performance" icon={<Target className="text-rose-600" size={20} />} bgColor={selectedPaper.className}>
                   <textarea 
                     placeholder="What is the next major milestone for the upcoming quarter?" 
                     className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" 

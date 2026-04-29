@@ -2,6 +2,7 @@ import React from 'react';
 import { AppData, ReflectionData, ReflectionEntry } from '../types';
 import { motion } from 'motion/react';
 import { Calendar, Target, Compass, Award, Flag } from 'lucide-react';
+import { PAPER_STYLES } from '../src/styles/paperStyles';
 
 interface ReflectionsProps {
   data: AppData;
@@ -15,6 +16,7 @@ interface ReflectionCardProps {
   onChange: (val: string) => void;
   colorClass: string;
   subtitle: string;
+  paperClassName: string;
 }
 
 const ReflectionCard: React.FC<ReflectionCardProps> = ({ 
@@ -23,7 +25,8 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
   value, 
   onChange, 
   colorClass, 
-  subtitle 
+  subtitle,
+  paperClassName
 }) => (
   <motion.div 
     initial={{ opacity: 0, y: 20 }}
@@ -54,13 +57,16 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={`Type your goals and vision here...`}
-      className="w-full bg-white/10 border border-white/20 rounded-[24px] p-6 text-slate-900 text-base font-bold focus:outline-none focus:ring-2 focus:ring-orange-500/20 min-h-[180px] resize-none transition-all placeholder:text-slate-900/20 custom-scrollbar leading-relaxed"
+      className={`w-full border border-white/20 rounded-[24px] p-6 text-slate-900 text-base font-bold focus:outline-none focus:ring-2 focus:ring-orange-500/20 min-h-[180px] resize-none transition-all placeholder:text-slate-900/20 custom-scrollbar leading-relaxed ${paperClassName}`}
     />
   </motion.div>
 );
 
  export const Reflections: React.FC<ReflectionsProps> = ({ data, onUpdate }) => {
   const [showHistory, setShowHistory] = React.useState(false);
+  const settings = data.settings || { fontSize: 12, fontFamily: "'Inter', sans-serif" };
+  const paperStyle = settings.paperStyle || 'none';
+  const selectedPaper = PAPER_STYLES.find(s => s.id === paperStyle) || PAPER_STYLES[0];
   
   const reflections = data.reflections || {
     weeklyReview: { id: 'weekly', title: 'Weekly Review', content: '' },
@@ -127,6 +133,7 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
             value={reflections.weeklyReview.content}
             onChange={(val) => handleUpdateReflection('weeklyReview', val)}
             colorClass="bg-orange-500"
+            paperClassName={selectedPaper.className}
           />
           <ReflectionCard 
             title="Monthly Challenge" 
@@ -135,6 +142,7 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
             value={reflections.monthlyChallenge.content}
             onChange={(val) => handleUpdateReflection('monthlyChallenge', val)}
             colorClass="bg-emerald-500"
+            paperClassName={selectedPaper.className}
           />
           <ReflectionCard 
             title="3-Month Vision" 
@@ -143,6 +151,7 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
             value={reflections.threeMonthVision.content}
             onChange={(val) => handleUpdateReflection('threeMonthVision', val)}
             colorClass="bg-indigo-500"
+            paperClassName={selectedPaper.className}
           />
           <ReflectionCard 
             title="6-Month Vision" 
@@ -151,6 +160,7 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
             value={reflections.sixMonthVision.content}
             onChange={(val) => handleUpdateReflection('sixMonthVision', val)}
             colorClass="bg-purple-500"
+            paperClassName={selectedPaper.className}
           />
           <ReflectionCard 
             title="1-Year Vision" 
@@ -159,6 +169,7 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
             value={reflections.oneYearVision.content}
             onChange={(val) => handleUpdateReflection('oneYearVision', val)}
             colorClass="bg-rose-500"
+            paperClassName={selectedPaper.className}
           />
         </div>
       ) : (

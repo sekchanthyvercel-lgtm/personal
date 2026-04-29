@@ -53,6 +53,7 @@ export interface AppSettings {
   currency?: 'USD' | 'KHR';
   exchangeRate?: number;
   fontColor?: string;
+  paperStyle?: string;
 }
 
 export interface ModuleLocks {

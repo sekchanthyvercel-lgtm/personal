@@ -114,6 +114,62 @@
         animation: flyAcrossRTL 10s linear forwards;
       }
 
+      /* Paper Pattern Classes */
+      .paper-ruled {
+        background-color: #ffffff !important;
+        background-image: linear-gradient(#f1f5f9 2px, transparent 2px) !important;
+        background-size: 100% 2.25rem !important;
+        background-attachment: local !important;
+      }
+      
+      .paper-grid {
+        background-color: #ffffff !important;
+        background-image: 
+          linear-gradient(#f1f5f9 1px, transparent 1px) !important,
+          linear-gradient(90deg, #f1f5f9 1px, transparent 1px) !important;
+        background-size: 1.5rem 1.5rem !important;
+        background-attachment: local !important;
+      }
+      
+      .paper-dots {
+        background-color: #ffffff !important;
+        background-image: radial-gradient(#e2e8f0 2px, transparent 2px) !important;
+        background-size: 1.5rem 1.5rem !important;
+        background-attachment: local !important;
+      }
+
+      .paper-stardust {
+        background-color: #0f172a !important;
+        background-image: 
+          radial-gradient(rgba(255,255,255,0.1) 1px, transparent 1px) !important,
+          radial-gradient(rgba(255,255,255,0.05) 1.5px, transparent 1.5px) !important;
+        background-size: 2rem 2rem, 3rem 3rem !important;
+        color: #f8fafc !important;
+        background-attachment: local !important;
+      }
+
+      .paper-engineering {
+        background-color: #f0f9ff !important;
+        background-image: 
+          linear-gradient(rgba(14, 165, 233, 0.1) 1px, transparent 1px) !important,
+          linear-gradient(90deg, rgba(14, 165, 233, 0.1) 1px, transparent 1px) !important;
+        background-size: 1rem 1rem !important;
+        background-attachment: local !important;
+      }
+
+      .paper-isometric {
+        background-color: #ffffff !important;
+        background-image: 
+          linear-gradient(30deg, #f1f5f9 12%, transparent 12.5%, transparent 87%, #f1f5f9 87.5%, #f1f5f9),
+          linear-gradient(150deg, #f1f5f9 12%, transparent 12.5%, transparent 87%, #f1f5f9 87.5%, #f1f5f9),
+          linear-gradient(30deg, #f1f5f9 12%, transparent 12.5%, transparent 87%, #f1f5f9 87.5%, #f1f5f9),
+          linear-gradient(150deg, #f1f5f9 12%, transparent 12.5%, transparent 87%, #f1f5f9 87.5%, #f1f5f9),
+          linear-gradient(60deg, #e2e8f0 25%, transparent 25.5%, transparent 75%, #e2e8f0 75%, #e2e8f0),
+          linear-gradient(60deg, #e2e8f0 25%, transparent 25.5%, transparent 75%, #e2e8f0 75%, #e2e8f0) !important;
+        background-size: 40px 70px !important;
+        background-attachment: local !important;
+      }
+
       /* PRINT SPECIFIC STYLES FOR EXPORTING ID CARDS */
       @media print {
         /* Hide everything by default */
