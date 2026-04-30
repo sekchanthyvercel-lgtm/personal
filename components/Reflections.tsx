@@ -1,8 +1,9 @@
 import React from 'react';
 import { AppData, ReflectionData, ReflectionEntry } from '../types';
-import { motion } from 'motion/react';
-import { Calendar, Target, Compass, Award, Flag } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Calendar, Target, Compass, Award, Flag, Wand2, Loader2, RefreshCw } from 'lucide-react';
 import { PAPER_STYLES } from '../src/styles/paperStyles';
+import { callNeuralEngine } from '../services/neuralEngine';
 
 interface ReflectionsProps {
   data: AppData;
@@ -64,6 +65,9 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
 
  export const Reflections: React.FC<ReflectionsProps> = ({ data, onUpdate }) => {
   const [showHistory, setShowHistory] = React.useState(false);
+  const [isSummarizing, setIsSummarizing] = React.useState(false);
+  const [summary, setSummary] = React.useState<string | null>(null);
+  
   const settings = data.settings || { fontSize: 12, fontFamily: "'Inter', sans-serif" };
   const paperStyle = settings.paperStyle || 'none';
   const selectedPaper = PAPER_STYLES.find(s => s.id === paperStyle) || PAPER_STYLES[0];
@@ -104,6 +108,35 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
     onUpdate({ ...data, reflections: newReflections });
   };
 
+  const generateAISummary = async () => {
+    if (isSummarizing) return;
+    setIsSummarizing(true);
+    setSummary(null);
+
+    const context = `
+      Weekly Review: ${reflections.weeklyReview.content}
+      Monthly Challenge: ${reflections.monthlyChallenge.content}
+      3-Month Vision: ${reflections.threeMonthVision.content}
+      6-Month Vision: ${reflections.sixMonthVision.content}
+      1-Year Vision: ${reflections.oneYearVision.content}
+    `;
+
+    try {
+      const result = await callNeuralEngine(
+        'gemini-3-flash-preview',
+        `Summarize my growth journey based on these reflections. Highlight key achievements, identify core patterns in my goals and vision, and suggest areas for improvement for the next quarter. Keep it concise, professional, and empowering. Use sections with emojis. 
+        Context: ${context}`,
+        "You are an elite performance coach. Synthesize reflections into a cohesive growth strategy."
+      );
+      setSummary(result.text);
+    } catch (e) {
+      console.error(e);
+      alert('Failed to generate summary.');
+    } finally {
+      setIsSummarizing(false);
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col h-full bg-white/[0.01] backdrop-blur-3xl p-4 md:p-8 overflow-y-auto custom-scrollbar font-sans text-slate-900">
       <div className="mb-10 flex flex-col md:flex-row items-start md:items-end justify-between gap-6">
@@ -116,13 +149,55 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
           </p>
         </div>
         
-        <button 
-          onClick={() => setShowHistory(!showHistory)}
-          className="w-full md:w-auto px-6 py-3 bg-white/40 hover:bg-white/60 rounded-2xl text-slate-900 font-black text-[10px] uppercase tracking-widest transition-all border border-white/40 shadow-sm"
-        >
-          {showHistory ? 'View Master Plan' : 'View Motivation Archives'}
-        </button>
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <button 
+            onClick={generateAISummary}
+            disabled={isSummarizing}
+            className="flex-1 md:flex-none px-6 py-3 bg-gradient-to-r from-orange-500 to-rose-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg hover:from-orange-600 hover:to-rose-600 disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {isSummarizing ? <RefreshCw size={14} className="animate-spin" /> : <Wand2 size={14} />}
+            AI Journey Summary
+          </button>
+          <button 
+            onClick={() => setShowHistory(!showHistory)}
+            className="flex-1 md:flex-none px-6 py-3 bg-white/40 hover:bg-white/60 rounded-2xl text-slate-900 font-black text-[10px] uppercase tracking-widest transition-all border border-white/40 shadow-sm"
+          >
+            {showHistory ? 'View Master Plan' : 'View Motivation Archives'}
+          </button>
+        </div>
       </div>
+
+      <AnimatePresence>
+        {summary && (
+          <motion.div 
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mb-10 bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-3xl p-8 rounded-[40px] border border-white/10 shadow-2xl relative overflow-hidden"
+          >
+            <div className="absolute top-4 right-4">
+              <button 
+                onClick={() => setSummary(null)}
+                className="p-2 text-white/40 hover:text-white transition-colors"
+                title="Clear summary"
+              >
+                <RefreshCw size={16} />
+              </button>
+            </div>
+            <div className="flex items-center gap-4 mb-6">
+              <div className="p-3 bg-white/10 rounded-2xl text-orange-400">
+                <Wand2 size={24} />
+              </div>
+              <h2 className="text-xl font-black text-white uppercase italic">AI Evolution Strategic Summary</h2>
+            </div>
+            <div className="markdown-body text-white/80 space-y-4 font-bold text-sm leading-relaxed">
+               {summary.split('\n').map((line, i) => (
+                 <p key={i}>{line}</p>
+               ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {!showHistory ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 pb-16">

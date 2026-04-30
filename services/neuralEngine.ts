@@ -23,8 +23,8 @@ export const getGeminiKeys = (userKey?: string): string[] => {
         const metaEnv = (import.meta as any).env;
         envKeys = metaEnv?.VITE_GEMINI_API_KEYS || metaEnv?.GEMINI_API_KEY || "";
         
-        if (!envKeys && typeof process !== 'undefined') {
-            envKeys = process.env.VITE_GEMINI_API_KEYS || process.env.GEMINI_API_KEY || "";
+        if (!envKeys) {
+            envKeys = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEYS || "";
         }
     } catch (e) {
         console.error("Environment key lookup failed", e);
@@ -64,8 +64,40 @@ export const callNeuralEngine = async (
   userKeys: ExternalKeys = {}
 ): Promise<NeuralResult> => {
   
-  // FIX: Check if the engine name contains "gemini" (handles all versions: 1.5, 2.0, 3.1, etc.)
+  // Try server proxy first for Gemini models (secure way)
+  if (engine.toLowerCase().includes("gemini") && !userKeys[engine]) {
+    try {
+      const response = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt,
+          systemInstruction,
+          model: (engine === 'gemini-3-flash-preview' || engine === 'gemini-3.1-flash-lite-preview') 
+            ? 'gemini-3-flash-preview' 
+            : engine
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        return { 
+          text: data.text,
+          thought: `Neural synthesis complete via secure server proxy.`
+        };
+      }
+    } catch (e) {
+      console.warn("Server proxy failed, falling back to client-side direct call", e);
+    }
+  }
+
+  // Fallback to client-side logic (existing)
   const isGeminiModel = engine.toLowerCase().includes("gemini");
+  
+  // Use a fallback stable model if a preview/placeholder was passed
+  const modelToUse = (engine === 'gemini-3-flash-preview' || engine === 'gemini-3.1-flash-lite-preview') 
+    ? 'gemini-3-flash-preview' 
+    : engine;
 
   if (isGeminiModel) {
     const availableKeys = getGeminiKeys(userKeys[engine]);
@@ -74,7 +106,7 @@ export const callNeuralEngine = async (
       return { 
         text: `<div class="p-6 bg-orange-50 text-orange-700 border border-orange-200 rounded-xl">
                 <strong>Configuration Required:</strong> No Gemini API Keys found. 
-                Please add <code>VITE_GEMINI_API_KEYS</code> to your Vercel Environment Variables.
+                Please set <code>GEMINI_API_KEY</code> in your environment or Settings.
                </div>` 
       };
     }
@@ -91,8 +123,8 @@ export const callNeuralEngine = async (
           }
 
           const response: GenerateContentResponse = await ai.models.generateContent({
-            model: engine, // This passes the exact string (e.g. "gemini-3.1-flash-lite-preview")
-            contents: { parts },
+            model: modelToUse,
+            contents: [{ role: 'user', parts }],
             config: {
               systemInstruction,
               temperature: 0.7,

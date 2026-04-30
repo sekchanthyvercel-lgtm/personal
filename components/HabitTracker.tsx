@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { AppData, Habit, HabitCompletion } from '../types';
-import { ChevronLeft, ChevronRight, Plus, Trash2, CheckCircle2, Zap, Maximize2, Minimize2, Calendar as CalendarIcon, Edit3, Target } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Trash2, CheckCircle2, Zap, Maximize2, Minimize2, Calendar as CalendarIcon, Edit3, Target, Wand2, RefreshCw } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isToday, isSameDay, subDays, startOfWeek, endOfWeek, addMonths, subMonths, isSameMonth } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 import { motion, AnimatePresence } from 'motion/react';
+import { callNeuralEngine } from '../services/neuralEngine';
 
 interface HabitTrackerProps {
   data: AppData;
@@ -18,6 +19,8 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate }) =>
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [planningNote, setPlanningNote] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [isSuggesting, setIsSuggesting] = useState(false);
+  const [suggestedHabits, setSuggestedHabits] = useState<string[]>([]);
 
   const habits = data.habits || [];
   const completions = data.habitCompletions || {};
@@ -108,6 +111,54 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate }) =>
       }
     }
     return currentStreak;
+  };
+
+  const getAISuggestions = async () => {
+    if (isSuggesting) return;
+    setIsSuggesting(true);
+    setSuggestedHabits([]);
+
+    const existingHabits = habits.map(h => h.name).join(', ');
+    const recentNotes = Object.values(notes).slice(-5).join('\n');
+    const performance = habits.map(h => `${h.name}: ${getStreak(h.id)} day streak`).join(', ');
+
+    const prompt = `Based on my current habits: [${existingHabits}], my recent journal entries: [${recentNotes}], and my performance: [${performance}], suggest 3 new habits that would complement my growth. 
+    Format: Return ONLY a JSON array of strings, e.g., ["Meditate for 10 min", "Drink 2L water", "Read 5 pages"]. No other text.`;
+
+    try {
+      const result = await callNeuralEngine(
+        'gemini-3-flash-preview',
+        prompt,
+        "You are an expert life optimizer and habit coach. Focus on complementary habits for holistic growth."
+      );
+      
+      // Try to parse the JSON array
+      const cleaned = result.text.replace(/```json|```/g, '').trim();
+      const parsed = JSON.parse(cleaned);
+      if (Array.isArray(parsed)) {
+        setSuggestedHabits(parsed);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Failed to get AI suggestions.');
+    } finally {
+      setIsSuggesting(false);
+    }
+  };
+
+  const applySuggestedHabit = (name: string) => {
+    const colors = ['#f97316', '#22c55e', '#fb923c', '#4ade80', '#ea580c', '#16a34a'];
+    const habitColor = colors[habits.length % colors.length];
+    
+    const newHabit: Habit = {
+      id: uuidv4(),
+      name: name,
+      order: habits.length,
+      color: habitColor
+    };
+    
+    onUpdate({ ...data, habits: [...habits, newHabit] });
+    setSuggestedHabits(prev => prev.filter(h => h !== name));
   };
 
   return (
@@ -252,6 +303,14 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate }) =>
 
         <div className="flex items-center gap-2 md:gap-4 flex-wrap justify-center">
           <button 
+            onClick={getAISuggestions}
+            disabled={isSuggesting}
+            className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-5 md:px-7 py-3 md:py-4 rounded-2xl font-black text-[10px] md:text-xs tracking-widest hover:shadow-indigo-500/40 hover:-translate-y-1 transition-all shadow-xl disabled:opacity-50 uppercase"
+          >
+            {isSuggesting ? <RefreshCw size={16} className="animate-spin" /> : <Wand2 size={16} />}
+            AI Suggestions
+          </button>
+          <button 
             onClick={() => setIsFullScreen(true)}
             className="flex items-center gap-2 bg-emerald-600 text-white px-5 md:px-7 py-3 md:py-4 rounded-2xl font-black text-[10px] md:text-xs tracking-widest hover:bg-emerald-700 transition-all shadow-xl uppercase"
           >
@@ -265,6 +324,38 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate }) =>
           </button>
         </div>
       </div>
+
+      {/* AI Suggestions Dropdown/Panel */}
+      <AnimatePresence>
+        {suggestedHabits.length > 0 && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="mb-6 bg-white/10 backdrop-blur-2xl border border-white/20 rounded-[24px] p-6 shadow-xl"
+          >
+            <div className="flex items-center justify-between mb-4">
+               <h3 className="text-sm font-black text-slate-800 uppercase italic flex items-center gap-2">
+                 <Wand2 size={16} className="text-indigo-500" />
+                 AI Master Recommendations
+               </h3>
+               <button onClick={() => setSuggestedHabits([])} className="text-[9px] font-black uppercase text-slate-400 hover:text-slate-900 transition-colors tracking-widest">Clear</button>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              {suggestedHabits.map((h, i) => (
+                <button 
+                  key={i}
+                  onClick={() => applySuggestedHabit(h)}
+                  className="px-4 py-2 bg-white/40 hover:bg-white/60 border border-white/20 rounded-xl text-xs font-bold text-slate-800 transition-all flex items-center gap-2 group"
+                >
+                  <Plus size={14} className="text-indigo-500 group-hover:scale-125 transition-transform" />
+                  {h}
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Master Planning Architecture - Compact Hero */}
       <div className={`mb-8 ${isFullScreen ? 'hidden' : 'space-y-6'}`}>

@@ -288,6 +288,12 @@ const App: React.FC = () => {
     }
   };
 
+  const handlePhoneLogin = (userResult: any) => {
+    const user: CurrentUser = { name: userResult?.displayName || userResult?.phoneNumber || 'User', role: 'Teacher', uid: userResult?.uid };
+    setCurrentUser(user);
+    localStorage.setItem('dps_user', JSON.stringify(user));
+  };
+
   const handleLogout = async () => {
     try {
       const { logOut } = await import('./services/firebase');
@@ -391,6 +397,7 @@ const App: React.FC = () => {
         onUpdate={(newSettings) => handleUpdate({...data, settings: newSettings})} 
         currentUser={currentUser}
         onLogin={handleLogin as any}
+        onPhoneLogin={handlePhoneLogin}
         onLogout={handleLogout}
       />
 

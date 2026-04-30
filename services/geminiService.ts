@@ -24,8 +24,8 @@ const getGeminiKeys = (userKey?: string): string[] => {
         const metaEnv = (import.meta as any).env;
         envKeys = metaEnv?.VITE_GEMINI_API_KEYS || metaEnv?.GEMINI_API_KEY || "";
         
-        if (!envKeys && typeof process !== 'undefined') {
-            envKeys = process.env.VITE_GEMINI_API_KEYS || process.env.GEMINI_API_KEY || "";
+        if (!envKeys) {
+            envKeys = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEYS || "";
         }
     } catch (e) {
         console.error("Environment key lookup failed", e);
@@ -65,8 +65,10 @@ export const callNeuralEngine = async (
   userKeys: ExternalKeys = {}
 ): Promise<NeuralResult> => {
   
-  // FIX: Check if the engine name contains "gemini" (handles all versions: 1.5, 2.0, 3.1, etc.)
+  // FIX: Check if the engine name contains "gemini"
   const isGeminiModel = engine.toLowerCase().includes("gemini");
+  
+
 
   if (isGeminiModel) {
     const availableKeys = getGeminiKeys(userKeys[engine]);
@@ -75,7 +77,7 @@ export const callNeuralEngine = async (
       return { 
         text: `<div class="p-6 bg-orange-50 text-orange-700 border border-orange-200 rounded-xl">
                 <strong>Configuration Required:</strong> No Gemini API Keys found. 
-                Please add <code>VITE_GEMINI_API_KEYS</code> to your Vercel Environment Variables.
+                Please set <code>GEMINI_API_KEY</code> in your environment or Settings.
                </div>` 
       };
     }
@@ -92,7 +94,7 @@ export const callNeuralEngine = async (
           }
 
           const response: GenerateContentResponse = await ai.models.generateContent({
-            model: engine, // This passes the exact string (e.g. "gemini-3.1-flash-lite-preview")
+            model: engine,
             contents: { parts },
             config: {
               systemInstruction,
@@ -317,21 +319,77 @@ const calculateDeadline = (startDate: Date, durationStr: string): Date => {
 };
 
 export const parseStudentData = async (inputText: string, imageFile?: File, mode: 'Hall' | 'Finance' | 'Attendance' | 'DailyTask' = 'Hall'): Promise<Partial<Student>[] | null> => {
+  
+  // Attempt secure server proxy first (no image support in simple proxy yet, skip if image)
+  if (!imageFile) {
+      try {
+          const proxyPrompt = `Analyze this MESSY data for ${mode}: ${inputText}. 
+          Extract all valid records. Even if the data is fragmented, disorganized, or contains unrelated text, find the names, dates, amounts, and levels.
+          Return a JSON array of objects.`;
+          
+          const response = await fetch('/api/ai/generate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  prompt: proxyPrompt,
+                  systemInstruction: "You are a professional data extraction specialist. Convert MESSY, UNSTRUCTURED text into clean JSON. Be aggressive in finding matches. Always return valid JSON array.",
+                  model: 'gemini-3-flash-preview'
+              })
+          });
+          
+          if (response.ok) {
+              const data = await response.json();
+              // Attempt to sanitize and parse the text into JSON
+              const cleaned = data.text.replace(/```json|```/g, '').trim();
+              const parsed = JSON.parse(cleaned);
+              if (Array.isArray(parsed)) return parsed.map(p => ({ ...p, _fromProxy: true }));
+          }
+      } catch (e) {
+          console.warn("Proxy failed for parseStudentData, using direct SDK...", e);
+      }
+  }
+
   const parts: any[] = [];
   if (imageFile) parts.push(await fileToGenerativePart(imageFile));
   if (inputText) parts.push({ text: `Context: ${inputText}` });
 
   let prompt = '';
   if (mode === 'Hall') {
-      prompt = `Extract Hall Study records: Name (name), Fee (schoolFee), Teacher (teachers), Level (level), Behavior (behavior), Schedule (schedule - e.g. Mon-Fri or Sat & Sunday), Time (time), Start Date (startDate), Assistant (assistant), Duration (duration).`;
+      prompt = `EXTRACT Hall Study records from the messy input. 
+      Identify fields even if formatted poorly:
+      - Name (name): Person's full name.
+      - Fee (schoolFee): Currency/Amount.
+      - Teacher (teachers): List of names.
+      - Level (level): Class/Grade level.
+      - Behavior (behavior): Comments on conduct.
+      - Schedule (schedule): e.g. Mon-Fri or Sat & Sunday.
+      - Time (time): Duration or start/end times.
+      - Start Date (startDate): Any mention of a starting date.
+      - Assistant (assistant): Staff helping.
+      - Duration (duration): e.g. 1 month, 2 weeks.`;
   } else if (mode === 'Finance') {
-      prompt = `Extract Finance records: ID (displayId), Name (name), Fee (schoolFee), Level (level), Start Date (startDate), Teachers (teachers), Monthly Payments (paymentList), Duration (duration).`;
+      prompt = `EXTRACT Finance records from the messy input. 
+      Identify fields even if formatted poorly:
+      - ID (displayId): Student ID starting with DPSS.
+      - Name (name): Full student name.
+      - Fee (schoolFee): Amount paid or due.
+      - Level (level): Grade/Level.
+      - Start Date (startDate): When they start.
+      - Teachers (teachers): Names of teachers.
+      - Monthly Payments (paymentList): Array of {period: string, status: string}.
+      - Duration (duration): How long they paid for.`;
   } else if (mode === 'DailyTask') {
-      prompt = `Extract Teacher Daily Task assignments: Teacher Name (name), Level (level), Shift (shift). Shift should be 'Morning', 'Afternoon', or 'Evening'.`;
+      prompt = `EXTRACT Teacher Daily Task assignments from the messy input. 
+      - Teacher Name (name)
+      - Level (level)
+      - Shift (shift): MUST be 'Morning', 'Afternoon', or 'Evening'.`;
   } else {
-      prompt = `Extract Attendance list: Full Name (name). Keep Sex (M)/(F) if present.`;
+      prompt = `EXTRACT Attendance list from the messy input. 
+      - Full Name (name)
+      - Sex: Keep (M) or (F) if found.`;
   }
-  prompt += `\nCRITICAL: Return startDate in format dd/MM/yyyy (e.g., 24/12/2025). Ensure year is ALWAYS 4 digits. JSON array format.`;
+  prompt += `\nINSTRUCTION: You are a high-precision extraction engine. Use deep natural language understanding to find these fields even in unstructured sentences, messy bullet points, or complex tables.
+  CRITICAL: Return startDate in format dd/MM/yyyy (e.g., 24/12/2025). Ensure year is ALWAYS 4 digits. JSON array format.`;
 
   const availableKeys = getGeminiKeys();
   if (availableKeys.length === 0) return null;
@@ -342,7 +400,7 @@ export const parseStudentData = async (inputText: string, imageFile?: File, mode
       const ai = new GoogleGenAI({ apiKey: availableKeys[i] });
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: { parts },
+        contents: [{ role: 'user', parts }],
         config: {
           responseMimeType: 'application/json',
           responseSchema: {

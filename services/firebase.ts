@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore, doc, onSnapshot, setDoc, getDocFromServer } from 'firebase/firestore';
-import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth'; 
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth'; 
 import { AppData, BackupEntry } from '../types';
 import firebaseConfig from '../firebase-applet-config.json';
 
@@ -9,6 +9,10 @@ const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId); // CRITICAL: Database ID
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: 'select_account' });
+
+// Auth Helpers
+export { signInWithEmailAndPassword, createUserWithEmailAndPassword };
 
 enum OperationType {
   CREATE = 'create',

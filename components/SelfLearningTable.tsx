@@ -224,7 +224,11 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
     if (!selectedTopic) return;
     const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     const formattedDate = `<div style="color: #10b981; font-weight: 800; font-size: 1.2em; border-left: 4px solid #10b981; padding-left: 12px; margin: 10px 0;">${dateStr}</div>`;
-    updateTopic(selectedTopic.id, { content: formattedDate + selectedTopic.content });
+    const newContent = formattedDate + selectedTopic.content;
+    updateTopic(selectedTopic.id, { content: newContent });
+    if (editorRef.current) {
+        editorRef.current.innerHTML = newContent;
+    }
   };
 
   const enhanceWithAI = async () => {
@@ -237,10 +241,12 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
             "You are a helpful note-taking assistant. Output ONLY valid HTML."
         );
         let improved = result.text.trim();
-        if (improved.startsWith('\`\`\`html')) improved = improved.slice(7);
-        if (improved.endsWith('\`\`\`')) improved = improved.slice(0, -3);
+        improved = improved.replace(/^`{3}(html)?\n?/i, '').replace(/`{3}$/, '').trim();
         
         updateTopic(selectedTopic.id, { content: improved });
+        if (editorRef.current) {
+            editorRef.current.innerHTML = improved;
+        }
     } catch(e) {
         console.error(e);
         alert('Failed to enhance content with AI.');

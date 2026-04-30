@@ -1,7 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { AppSettings, CurrentUser } from '../types';
 import { X, Save, Settings2, Type, Baseline, Paintbrush, Check, Cloud, LogIn, LogOut, Image as ImageIcon, Trash2, FileText } from 'lucide-react';
 import { PAPER_STYLES } from '../src/styles/paperStyles';
+import { signInWithEmailAndPassword, auth } from '../services/firebase';
 
 interface Props {
   isOpen: boolean;
@@ -10,6 +11,7 @@ interface Props {
   onUpdate: (settings: AppSettings) => void;
   currentUser?: CurrentUser | null;
   onLogin?: () => void;
+  onPhoneLogin?: (user: any) => void;
   onLogout?: () => void;
 }
 
@@ -31,7 +33,7 @@ const colors = [
   { name: 'Amber', value: '#b45309' },
 ];
 
-export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onUpdate, currentUser, onLogin, onLogout }) => {
+export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onUpdate, currentUser, onLogin, onPhoneLogin, onLogout }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [localSettings, setLocalSettings] = useState<AppSettings>({
     fontFamily: settings?.fontFamily || 'ui-sans-serif, system-ui, -apple-system, sans-serif',
@@ -44,6 +46,31 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onUp
     backgroundImage: settings?.backgroundImage,
     paperStyle: settings?.paperStyle || 'none'
   });
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isSignUpMode, setIsSignUpMode] = useState(false);
+  const [isEmailLoading, setIsEmailLoading] = useState(false);
+  const [emailError, setEmailError] = useState('');
+
+  const handleEmailPasswordAction = async () => {
+    setEmailError('');
+    setIsEmailLoading(true);
+    try {
+      const { signInWithEmailAndPassword, createUserWithEmailAndPassword } = await import('../services/firebase');
+      if (isSignUpMode) {
+        await createUserWithEmailAndPassword(auth, email, password);
+      } else {
+        await signInWithEmailAndPassword(auth, email, password);
+      }
+      if (onLogin) onLogin();
+    } catch (error: any) {
+      console.error(error);
+      setEmailError(error.message || `Error ${isSignUpMode ? 'signing up' : 'signing in'} with Email/Password`);
+    } finally {
+      setIsEmailLoading(false);
+    }
+  };
 
   const handleSave = () => {
     onUpdate({ ...settings, ...localSettings });
@@ -108,7 +135,7 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onUp
                               onClick={onLogout}
                               className="px-4 py-2 border border-slate-200 bg-white text-slate-600 rounded-lg hover:bg-slate-50 hover:text-red-500 transition-colors font-bold text-xs flex items-center gap-2 mx-auto"
                             >
-                              <LogOut size={14} /> Google Sign Out
+                              <LogOut size={14} /> Sign Out
                             </button>
                           </div>
                         </>
@@ -123,11 +150,62 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onUp
                               Your data is only stored in this browser. Please sign in to sync.
                             </p>
                             <button 
-                              onClick={onLogin}
-                              className="px-6 py-2.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 shadow-lg shadow-orange-500/30 transition-all font-black uppercase text-xs tracking-widest flex items-center gap-2 mx-auto"
+                              onClick={() => { if(onLogin) onLogin(); }}
+                              className="px-6 w-full py-2.5 bg-orange-500 text-white rounded-xl hover:bg-orange-600 shadow-lg shadow-orange-500/30 transition-all font-black uppercase text-xs flex items-center justify-center gap-2 mb-4"
                             >
                               <LogIn size={16} /> Google Sign In
                             </button>
+                            <div className="relative mb-4">
+                                <div className="absolute inset-0 flex items-center">
+                                    <div className="w-full border-t border-slate-200"></div>
+                                </div>
+                                <div className="relative flex justify-center text-[10px] uppercase font-bold text-slate-400">
+                                    <span className="bg-white/50 px-2">OR</span>
+                                </div>
+                            </div>
+                            {emailError && (
+                              <div className="mb-4 bg-red-50 text-red-600 border border-red-200 p-3 rounded-xl text-xs font-medium text-left leading-tight shadow-sm">
+                                {emailError}
+                              </div>
+                            )}
+                             <div className="space-y-4 mb-4">
+                               <input 
+                                 type="email"
+                                 className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:border-slate-400"
+                                 placeholder="Email"
+                                 value={email}
+                                 onChange={(e) => setEmail(e.target.value)}
+                                 disabled={isEmailLoading}
+                               />
+                               <input 
+                                 type="password"
+                                 className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:border-slate-400"
+                                 placeholder="Password"
+                                 value={password}
+                                 onChange={(e) => setPassword(e.target.value)}
+                                 disabled={isEmailLoading}
+                               />
+                               <button 
+                                 onClick={handleEmailPasswordAction}
+                                 disabled={isEmailLoading || !email || !password}
+                                 className="px-6 w-full py-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-900 shadow-lg transition-all font-black uppercase text-xs flex items-center justify-center gap-2 disabled:opacity-50"
+                               >
+                                 {isEmailLoading ? (
+                                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                 ) : (
+                                   <LogIn size={16} />
+                                 )}
+                                 {isSignUpMode ? 'Sign Up' : 'Sign In'} with Email
+                               </button>
+                               <div className="text-center">
+                                  <button
+                                     onClick={() => setIsSignUpMode(!isSignUpMode)}
+                                     className="text-xs text-orange-600 hover:text-orange-700 font-bold underline"
+                                  >
+                                    {isSignUpMode ? 'Already have an account? Sign In' : 'Need an account? Sign Up'}
+                                  </button>
+                               </div>
+                            </div>
                           </div>
                         </>
                     )}
