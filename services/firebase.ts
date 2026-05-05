@@ -1,7 +1,7 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, doc, onSnapshot, setDoc, getDocFromServer } from 'firebase/firestore';
+import { getFirestore, doc, onSnapshot, setDoc, getDocFromServer, collection, writeBatch } from 'firebase/firestore';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth'; 
-import { AppData, BackupEntry } from '../types';
+import { AppData, BackupEntry, Student } from '../types';
 import firebaseConfig from '../firebase-applet-config.json';
 
 // Initialize Firebase
@@ -97,6 +97,7 @@ async function testConnection() {
 testConnection();
 
 // 4. Real-time Subscription logic needed by App.tsx
+// Aggregates data from subcollections to keep AppData interface compatible
 export const subscribeToData = (
   userId: string,
   onData: (data: AppData) => void,
@@ -108,39 +109,146 @@ export const subscribeToData = (
   }
   
   const docRef = doc(db, 'users', userId, 'appData', 'data');
+  const unsubscribes: (() => void)[] = [];
   
-  const unsubscribe = onSnapshot(docRef, (docSnap) => {
+  let currentData: AppData = { 
+    students: [], 
+    attendance: {}, 
+    systemLocked: false,
+    expenses: [],
+    journalEntries: {},
+    dpssTopics: [],
+    dailyTasks: {},
+    habitCompletions: {},
+    dailyNotes: {}
+  };
+
+  const notifyChange = () => {
+    onData({ ...currentData });
+  };
+
+  // 1. Subscribe to main settings document
+  const unsubMain = onSnapshot(docRef, (docSnap) => {
     if (docSnap.exists()) {
-      const data = docSnap.data() as AppData;
-      // Provide defaults if missing
-      onData({
-        ...data,
-        students: data.students || [],
-        attendance: data.attendance || {},
-        systemLocked: data.systemLocked || false
-      });
+      const mainData = docSnap.data();
+      currentData = { ...currentData, ...mainData };
+      notifyChange();
     } else {
-      // Document doesn't exist yet, initialize it
       const initialData: AppData = { students: [], attendance: {}, systemLocked: false };
       setDoc(docRef, initialData).catch((err) => handleFirestoreError(err, OperationType.WRITE, docRef.path));
-      onData(initialData);
     }
-  }, (error) => {
-    isOffline = true;
-    handleFirestoreError(error, OperationType.GET, docRef.path);
-  });
+  }, (err) => handleFirestoreError(err, OperationType.GET, docRef.path));
+  unsubscribes.push(unsubMain);
 
-  return unsubscribe;
+  // 2. Subscribe to Students collection
+  const studentsRef = collection(db, 'users', userId, 'students');
+  const unsubStudents = onSnapshot(studentsRef, (querySnap) => {
+    currentData.students = querySnap.docs.map(d => d.data() as Student).sort((a, b) => (a.order || 0) - (b.order || 0));
+    notifyChange();
+  }, (err) => handleFirestoreError(err, OperationType.GET, studentsRef.path));
+  unsubscribes.push(unsubStudents);
+
+  // 3. Subscribe to Expenses collection
+  const expensesRef = collection(db, 'users', userId, 'expenses');
+  const unsubExpenses = onSnapshot(expensesRef, (querySnap) => {
+    currentData.expenses = querySnap.docs.map(d => d.data() as any);
+    notifyChange();
+  }, (err) => handleFirestoreError(err, OperationType.GET, expensesRef.path));
+  unsubscribes.push(unsubExpenses);
+
+  // 4. Subscribe to Journal collection
+  const journalRef = collection(db, 'users', userId, 'journal');
+  const unsubJournal = onSnapshot(journalRef, (querySnap) => {
+    const entries: any = {};
+    querySnap.docs.forEach(d => { entries[d.id] = d.data(); });
+    currentData.journalEntries = entries;
+    notifyChange();
+  }, (err) => handleFirestoreError(err, OperationType.GET, journalRef.path));
+  unsubscribes.push(unsubJournal);
+
+  // 5. Subscribe to Attendance collection
+  const attendanceRef = collection(db, 'users', userId, 'attendance');
+  const unsubAttendance = onSnapshot(attendanceRef, (querySnap) => {
+    const attendance: any = {};
+    querySnap.docs.forEach(d => { attendance[d.id] = d.data(); });
+    currentData.attendance = attendance;
+    notifyChange();
+  }, (err) => handleFirestoreError(err, OperationType.GET, attendanceRef.path));
+  unsubscribes.push(unsubAttendance);
+
+  // 6. Subscribe to Daily Tasks collection
+  const dailyTasksRef = collection(db, 'users', userId, 'dailyTasks');
+  const unsubDailyTasks = onSnapshot(dailyTasksRef, (querySnap) => {
+    const tasks: any = {};
+    querySnap.docs.forEach(d => { tasks[d.id] = d.data(); });
+    currentData.dailyTasks = tasks;
+    notifyChange();
+  }, (err) => handleFirestoreError(err, OperationType.GET, dailyTasksRef.path));
+  unsubscribes.push(unsubDailyTasks);
+
+  // 7. Subscribe to DPSS Topics collection
+  const topicsRef = collection(db, 'users', userId, 'dpssTopics');
+  const unsubTopics = onSnapshot(topicsRef, (querySnap) => {
+    currentData.dpssTopics = querySnap.docs.map(d => d.data() as any);
+    notifyChange();
+  }, (err) => handleFirestoreError(err, OperationType.GET, topicsRef.path));
+  unsubscribes.push(unsubTopics);
+
+  return () => unsubscribes.forEach(u => u());
 };
 
 export const saveData = async (userId: string, data: AppData) => {
   if (!userId) return;
+  
+  const { 
+    students, 
+    expenses, 
+    journalEntries, 
+    dpssTopics, 
+    dailyTasks, 
+    attendance,
+    habitCompletions, 
+    dailyNotes,
+    ...mainSettings 
+  } = data;
+
   const docRef = doc(db, 'users', userId, 'appData', 'data');
+  const batch = writeBatch(db);
+
   try {
-    await setDoc(docRef, data, { merge: true });
+    batch.set(docRef, mainSettings, { merge: true });
+
+    // For full updates (like from settings), we still save the core.
+    // For lists, the UI components should use the specialized functions below.
+    await batch.commit();
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, docRef.path);
   }
+};
+
+// Specialized save functions
+export const saveStudent = async (userId: string, student: Student) => {
+  if (!userId || !student.id) return;
+  const docRef = doc(db, 'users', userId, 'students', student.id);
+  await setDoc(docRef, student, { merge: true });
+};
+
+export const saveAttendance = async (userId: string, date: string, data: Record<string, number>) => {
+  if (!userId || !date) return;
+  const docRef = doc(db, 'users', userId, 'attendance', date);
+  await setDoc(docRef, data, { merge: true });
+};
+
+export const saveExpense = async (userId: string, expense: any) => {
+  if (!userId || !expense.id) return;
+  const docRef = doc(db, 'users', userId, 'expenses', expense.id);
+  await setDoc(docRef, expense, { merge: true });
+};
+
+export const saveJournalEntry = async (userId: string, date: string, entry: any) => {
+  if (!userId || !date) return;
+  const docRef = doc(db, 'users', userId, 'journal', date);
+  await setDoc(docRef, entry, { merge: true });
 };
 
 export const createCloudBackup = async (data: AppData, type: 'Auto' | 'Manual' = 'Manual') => {

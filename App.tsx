@@ -210,7 +210,27 @@ const App: React.FC = () => {
       }
       setData(newData);
       localStorage.setItem('dps_data', JSON.stringify(newData));
-      if (currentUser?.uid) saveData(currentUser.uid, newData);
+      if (currentUser?.uid) {
+        saveData(currentUser.uid, newData);
+      }
+  };
+
+  const handleUpdateStudent = async (id: string, updates: Partial<Student>) => {
+    const updatedStudents = data.students.map(s => s.id === id ? { ...s, ...updates } : s);
+    const newData = { ...data, students: updatedStudents };
+    
+    // Update local state and history
+    setHistory(prev => [...prev.slice(-19), data]);
+    setRedoStack([]);
+    setData(newData);
+    localStorage.setItem('dps_data', JSON.stringify(newData));
+
+    // Save specifically to the student document in Firestore
+    if (currentUser?.uid) {
+      const { saveStudent } = await import('./services/firebase');
+      const student = updatedStudents.find(s => s.id === id);
+      if (student) saveStudent(currentUser.uid, student);
+    }
   };
 
   const undo = () => {
@@ -252,9 +272,9 @@ const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [history, redoStack, data]);
 
-  const handleAddStudent = (parsedData?: Partial<Student> | Partial<Student>[]) => {
+  const handleAddStudent = async (parsedData?: Partial<Student> | Partial<Student>[]) => {
     const incomingData = Array.isArray(parsedData) ? parsedData : (parsedData ? [parsedData] : [{}]);
-    const newStudents = incomingData.map((s, index) => {
+    const newStudentsBatch = incomingData.map((s, index) => {
         const today = new Date();
         
         let determinedCategory: StudentCategory = 'DailyTask';
@@ -272,7 +292,16 @@ const App: React.FC = () => {
           ...s
         } as Student;
     });
-    handleUpdate({ ...data, students: [...newStudents, ...data.students] });
+    
+    const newData = { ...data, students: [...newStudentsBatch, ...data.students] };
+    handleUpdate(newData);
+
+    if (currentUser?.uid) {
+      const { saveStudent } = await import('./services/firebase');
+      for (const student of newStudentsBatch) {
+        await saveStudent(currentUser.uid, student);
+      }
+    }
   };
 
   const handleLogin = async (_name: string, role: UserRole, _pin: string) => {
@@ -312,13 +341,19 @@ const App: React.FC = () => {
     handleUpdate({ ...data, students: updatedStudents });
   };
 
-  const handleDeleteStudent = (id: string) => {
+  const handleDeleteStudent = async (id: string) => {
     if (window.confirm('Move to Recycle Bin?')) {
       const now = new Date().toISOString();
       const updatedStudents = data.students.map(s => 
         s.id === id ? { ...s, deletedAt: now } : s
       );
       handleUpdate({ ...data, students: updatedStudents });
+
+      if (currentUser?.uid) {
+        const { saveStudent } = await import('./services/firebase');
+        const student = updatedStudents.find(s => s.id === id);
+        if (student) await saveStudent(currentUser.uid, student);
+      }
     }
   };
 
@@ -422,10 +457,7 @@ const App: React.FC = () => {
               <ReminderTable 
                 students={data.students}
                 onAddStudent={(defaults) => handleAddStudent(defaults)}
-                onUpdateStudent={(id, updates) => {
-                  const updatedStudents = data.students.map(s => s.id === id ? { ...s, ...updates } : s);
-                  handleUpdate({ ...data, students: updatedStudents });
-                }}
+                onUpdateStudent={handleUpdateStudent}
                 onDeleteStudent={handleDeleteStudent}
                 onClearCategory={(cats) => handleClearCategory(cats as StudentCategory[])}
                 filters={filters}
