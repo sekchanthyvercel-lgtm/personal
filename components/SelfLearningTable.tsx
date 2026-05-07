@@ -9,10 +9,11 @@ import { PAPER_STYLES } from '../src/styles/paperStyles';
 interface SelfLearningTableProps {
   data: AppData;
   onUpdate: (data: AppData) => void;
+  onUpdateTopic?: (updatedTopics: DPSSTopic[], topicToSave?: DPSSTopic) => void;
   onOpenSidebar?: () => void;
 }
 
-export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUpdate, onOpenSidebar }) => {
+export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUpdate, onUpdateTopic, onOpenSidebar }) => {
   const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
   const [pickerPos, setPickerPos] = useState<{ x: number, y: number } | null>(null);
   const [activeColor, setActiveColor] = useState<string | null>(null);
@@ -65,12 +66,20 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
   const paperStyle = dpssSettings.paperStyle || 'none';
   const selectedPaper = PAPER_STYLES.find(s => s.id === paperStyle) || PAPER_STYLES[0];
 
-  const topics = (data.selfLearningTopics || []).map(t => ({
-    ...t,
-    content: typeof t.content === 'string' ? t.content : '',
-    alignment: t.alignment || 'left',
-    children: t.children || []
-  })).filter(t => !t.deletedAt);
+  const filterTopics = (items: DPSSTopic[]): DPSSTopic[] => {
+    return items
+      .filter(t => !t.deletedAt)
+      .map(t => ({
+        ...t,
+        content: typeof t.content === 'string' ? t.content : '',
+        alignment: t.alignment || 'left',
+        children: t.children ? filterTopics(t.children) : []
+      }));
+  };
+
+  const topics = React.useMemo(() => {
+    return filterTopics(data.selfLearningTopics || []);
+  }, [data.selfLearningTopics]);
 
   const handleSelection = () => {
     const selection = window.getSelection();
@@ -135,6 +144,15 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
     return null;
   };
 
+  const findRootTopic = (items: DPSSTopic[], childId: string): DPSSTopic | null => {
+    for (const item of items) {
+      if (item.id === childId) return item;
+      const found = findTopic(item.children || [], childId);
+      if (found) return item;
+    }
+    return null;
+  };
+
   const addTopic = (parentId?: string) => {
     const newTopic: DPSSTopic = { id: uuidv4(), title: 'New Topic', content: '', alignment: 'left' };
     const updateTopics = (items: DPSSTopic[]): DPSSTopic[] => {
@@ -145,7 +163,17 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
         return item;
       });
     };
-    onUpdate({ ...data, selfLearningTopics: updateTopics(topics) });
+    const updated = updateTopics(data.selfLearningTopics || []);
+    if (onUpdateTopic) {
+      if (!parentId) {
+        onUpdateTopic(updated, newTopic);
+      } else {
+        const root = findRootTopic(updated, parentId);
+        onUpdateTopic(updated, root || undefined);
+      }
+    } else {
+      onUpdate({ ...data, selfLearningTopics: updated });
+    }
   };
 
   const deleteTopic = (id: string) => {
@@ -157,7 +185,16 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
           return item;
         });
       };
-      onUpdate({ ...data, selfLearningTopics: markDeleted(data.selfLearningTopics || []) });
+      const updatedData = markDeleted(data.selfLearningTopics || []);
+      const root = findRootTopic(data.selfLearningTopics || [], id); // Find root in old data to know which doc to update
+      
+      const updatedRoot = root ? findRootTopic(updatedData, root.id) : null;
+
+      if (onUpdateTopic) {
+        onUpdateTopic(updatedData, updatedRoot || undefined);
+      } else {
+        onUpdate({ ...data, selfLearningTopics: updatedData });
+      }
       setSelectedTopicId(null);
     }
   };
@@ -170,7 +207,13 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
         return item;
       });
     };
-    onUpdate({ ...data, selfLearningTopics: updateItems(topics) });
+    const updated = updateItems(data.selfLearningTopics || []);
+    const root = findRootTopic(updated, id);
+    if (onUpdateTopic) {
+      onUpdateTopic(updated, root || undefined);
+    } else {
+      onUpdate({ ...data, selfLearningTopics: updated });
+    }
   };
 
   const selectedTopic = selectedTopicId ? findTopic(topics, selectedTopicId) : null;

@@ -9,9 +9,11 @@ import { callNeuralEngine } from '../services/neuralEngine';
 interface HabitTrackerProps {
   data: AppData;
   onUpdate: (newData: AppData) => void;
+  onUpdateHabitCompletion?: (date: string, habitId: string, completed: boolean) => void;
+  onUpdateDailyNote?: (date: string, content: string) => void;
 }
 
-export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate }) => {
+export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUpdateHabitCompletion, onUpdateDailyNote }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedPlanningDate, setSelectedPlanningDate] = useState(new Date());
   const [isAddingHabit, setIsAddingHabit] = useState(false);
@@ -36,7 +38,11 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate }) =>
   const savePlanningNote = () => {
     const dateKey = format(selectedPlanningDate, 'yyyy-MM-dd');
     const newNotes = { ...notes, [dateKey]: planningNote };
-    onUpdate({ ...data, dailyNotes: newNotes });
+    if (onUpdateDailyNote) {
+      onUpdateDailyNote(dateKey, planningNote);
+    } else {
+      onUpdate({ ...data, dailyNotes: newNotes });
+    }
   };
 
   const monthStart = startOfMonth(currentDate);
@@ -51,8 +57,13 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate }) =>
       newCompletions[dateKey] = {};
     }
     
-    newCompletions[dateKey][habitId] = !newCompletions[dateKey][habitId];
-    onUpdate({ ...data, habitCompletions: newCompletions });
+    const isCompleted = !newCompletions[dateKey][habitId];
+    newCompletions[dateKey][habitId] = isCompleted;
+    if (onUpdateHabitCompletion) {
+      onUpdateHabitCompletion(dateKey, habitId, isCompleted);
+    } else {
+      onUpdate({ ...data, habitCompletions: newCompletions });
+    }
   };
 
   const handleAddHabit = () => {

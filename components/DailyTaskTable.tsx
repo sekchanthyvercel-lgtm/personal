@@ -91,7 +91,10 @@ interface DailyTaskTableProps {
   filters: FilterState;
   setFilters?: (f: FilterState) => void;
   onUpdate: (data: AppData) => void;
+  onUpdateDailyTasks?: (studentId: string, date: string, slot: 1 | 2, status: string | undefined) => void;
+  onUpdateStudent?: (id: string, updates: Partial<Student>) => void;
   onAddStudent: (defaults: Partial<Student>) => void;
+  onDeleteStudent?: (id: string) => void;
   role: UserRole;
   onClearCategory?: (categories: string[]) => void;
 }
@@ -102,7 +105,10 @@ export const DailyTaskTable: React.FC<DailyTaskTableProps> = ({
   filters,
   setFilters,
   onUpdate,
+  onUpdateDailyTasks,
+  onUpdateStudent,
   onAddStudent,
+  onDeleteStudent,
   role,
   onClearCategory
 }) => {
@@ -239,8 +245,12 @@ DO NOT wrap the response in markdown blocks like \`\`\`json. Just return the raw
       studentTasks[taskKey] = next;
     }
 
-    newTasks[studentId] = studentTasks;
-    onUpdate({ ...data, dailyTasks: newTasks });
+    if (onUpdateDailyTasks) {
+      onUpdateDailyTasks(studentId, dateKey, taskSlot, next);
+    } else {
+      newTasks[studentId] = studentTasks;
+      onUpdate({ ...data, dailyTasks: newTasks });
+    }
   };
 
   const getLevelBorderColor = (level?: string) => {
@@ -302,14 +312,20 @@ DO NOT wrap the response in markdown blocks like \`\`\`json. Just return the raw
         updates.deadline = format(new Date(), 'dd/MM/yy');
     }
 
-    onUpdate({
-      ...data,
-      students: students.map(s => s.id === id ? { ...s, ...updates } : s)
-    });
+    if (onUpdateStudent) {
+      onUpdateStudent(id, updates);
+    } else {
+      onUpdate({
+        ...data,
+        students: students.map(s => s.id === id ? { ...s, ...updates } : s)
+      });
+    }
   };
 
   const removeEntry = (id: string) => {
-    if (confirm("Remove this teacher assignment?")) {
+    if (onDeleteStudent) {
+      onDeleteStudent(id);
+    } else if (confirm("Remove this teacher assignment?")) {
       onUpdate({
         ...data,
         students: students.filter(s => s.id !== id)

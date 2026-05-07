@@ -8,6 +8,7 @@ import { PAPER_STYLES } from '../src/styles/paperStyles';
 interface DailyJournalProps {
   data: AppData;
   onUpdate: (newData: AppData) => void;
+  onUpdateJournalEntry?: (date: string, entry: JournalEntry) => void;
 }
 
 interface JournalBlockProps {
@@ -28,7 +29,7 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
   </motion.div>
 );
 
-export const DailyJournal: React.FC<DailyJournalProps> = ({ data, onUpdate }) => {
+export const DailyJournal: React.FC<DailyJournalProps> = ({ data, onUpdate, onUpdateJournalEntry }) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [reflectionMode, setReflectionMode] = useState<'Daily' | 'Weekly' | 'Monthly' | '3Month'>('Daily');
   const [showCalendar, setShowCalendar] = useState(false);
@@ -57,8 +58,13 @@ export const DailyJournal: React.FC<DailyJournalProps> = ({ data, onUpdate }) =>
 
   const updateEntry = (key: keyof JournalEntry, value: any) => {
     const newEntries = { ...entries };
-    newEntries[dateKey] = { ...currentEntry, [key]: value };
-    onUpdate({ ...data, journalEntries: newEntries });
+    const entry = { ...currentEntry, [key]: value };
+    newEntries[dateKey] = entry;
+    if (onUpdateJournalEntry) {
+      onUpdateJournalEntry(dateKey, entry);
+    } else {
+      onUpdate({ ...data, journalEntries: newEntries });
+    }
   };
 
   const updateAchievement = (idx: number, val: string) => {

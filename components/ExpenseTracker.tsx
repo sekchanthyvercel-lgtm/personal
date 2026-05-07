@@ -8,12 +8,13 @@ import { motion, AnimatePresence } from 'motion/react';
 interface ExpenseTrackerProps {
   data: AppData;
   onUpdate: (newData: AppData) => void;
+  onUpdateExpense?: (expense: ExpenseEntry, isDelete?: boolean) => void;
 }
 
 const DEFAULT_CATEGORIES = ['Rice', 'Noodle', 'Water', 'Gasoline', 'Coffee', 'Tea', 'Clothes', 'Milk Shake', 'Food', 'Others'];
 const EXCHANGE_RATE = 4000; // 1 USD = 4000 KHR
 
-export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate }) => {
+export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, onUpdateExpense }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [isManagingCategories, setIsManagingCategories] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -108,10 +109,14 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate }
       date: selectedDate.toISOString()
     };
 
-    onUpdate({
-      ...data,
-      expenses: [expense, ...expenses]
-    });
+    if (onUpdateExpense) {
+      onUpdateExpense(expense);
+    } else {
+      onUpdate({
+        ...data,
+        expenses: [expense, ...expenses]
+      });
+    }
 
     setNewExpense({
       description: '',
@@ -166,10 +171,14 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate }
       date: selectedDate.toISOString()
     };
 
-    onUpdate({
-      ...data,
-      expenses: [expense, ...expenses]
-    });
+    if (onUpdateExpense) {
+      onUpdateExpense(expense);
+    } else {
+      onUpdate({
+        ...data,
+        expenses: [expense, ...expenses]
+      });
+    }
 
     setInlineInputs({ ...inlineInputs, [category]: '' });
   };
@@ -195,10 +204,15 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate }
   const totals = getCombinedTotal(filteredByView);
 
   const handleDeleteExpense = (id: string) => {
-    onUpdate({
-      ...data,
-      expenses: expenses.filter(e => e.id !== id)
-    });
+    const expenseToDelete = expenses.find(e => e.id === id);
+    if (onUpdateExpense && expenseToDelete) {
+      onUpdateExpense(expenseToDelete, true);
+    } else {
+      onUpdate({
+        ...data,
+        expenses: expenses.filter(e => e.id !== id)
+      });
+    }
   };
 
   const handleAddCategory = () => {
@@ -273,10 +287,14 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate }
       date: selectedDate.toISOString()
     };
 
-    onUpdate({
-      ...data,
-      expenses: [expense, ...expenses]
-    });
+    if (onUpdateExpense) {
+      onUpdateExpense(expense);
+    } else {
+      onUpdate({
+        ...data,
+        expenses: [expense, ...expenses]
+      });
+    }
 
     setSmartInput('');
   };

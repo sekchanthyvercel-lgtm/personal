@@ -20,6 +20,7 @@ export interface CurrentUser {
   name: string;
   role: UserRole;
   uid?: string;
+  email?: string | null;
 }
 
 export interface PhotoAdjust {

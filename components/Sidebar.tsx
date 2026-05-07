@@ -27,7 +27,7 @@ import {
   Settings,
   Sparkles
 } from 'lucide-react';
-import { Tab, UserRole, AppSettings, ViewMode, StudentCategory, AppData } from '../types';
+import { Tab, UserRole, AppSettings, ViewMode, StudentCategory, AppData, CurrentUser } from '../types';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -36,6 +36,7 @@ interface SidebarProps {
   setActiveTab: (tab: Tab) => void;
   onLogout: () => void;
   role: UserRole;
+  currentUser?: CurrentUser | null;
   onSettingsOpen: () => void;
   filters: any;
   setFilters: (f: any) => void;
@@ -64,6 +65,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeTab, 
   setActiveTab, 
   role,
+  currentUser,
   onSettingsOpen,
   canUndo,
   canRedo,
@@ -159,6 +161,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Navigation & Filters */}
         <div className="flex-1 px-5 py-6 space-y-8 overflow-y-auto custom-scrollbar">
+          {role && (
+            <div className="bg-orange-500/10 rounded-2xl p-4 border border-orange-500/20 mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center text-white text-[10px] font-black">
+                  {currentUser?.name?.[0]?.toUpperCase() || 'U'}
+                </div>
+                <div className="overflow-hidden">
+                  <p className="text-[10px] font-black text-slate-900 truncate tracking-tight">{currentUser?.name}</p>
+                  <p className="text-[8px] font-bold text-slate-500 truncate lowercase">{currentUser?.uid ? (currentUser.email || 'Connected & Synced') : 'Local Mode'}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <nav className="space-y-2">
               {navItems.filter(item => item.roles.includes(role)).map(item => (
                 <button

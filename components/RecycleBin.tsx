@@ -6,9 +6,16 @@ import { format, differenceInDays, parseISO } from 'date-fns';
 interface Props {
   data: AppData;
   onUpdate: (data: AppData) => void;
+  onPermanentDeleteStudent?: (id: string) => void;
+  onPermanentDeleteTopic?: (id: string, category: 'dpss' | 'selfLearning') => void;
 }
 
-export const RecycleBin: React.FC<Props> = ({ data, onUpdate }) => {
+export const RecycleBin: React.FC<Props> = ({ 
+  data, 
+  onUpdate,
+  onPermanentDeleteStudent,
+  onPermanentDeleteTopic
+}) => {
   const [search, setSearch] = React.useState('');
 
   const deletedItems = React.useMemo(() => {
@@ -63,17 +70,24 @@ export const RecycleBin: React.FC<Props> = ({ data, onUpdate }) => {
 
   const handlePermanentDelete = (id: string, type: string) => {
     if (window.confirm(`This will permanently delete this ${type} item. Continue?`)) {
-      if (type === 'Student') {
-        onUpdate({ ...data, students: data.students.filter(s => s.id !== id) });
+      if (type === 'Student' && onPermanentDeleteStudent) {
+        onPermanentDeleteStudent(id);
+      } else if ((type === 'DPSS' || type === 'SelfLearning') && onPermanentDeleteTopic) {
+        onPermanentDeleteTopic(id, type === 'DPSS' ? 'dpss' : 'selfLearning');
       } else {
-        const field = type === 'DPSS' ? 'dpssTopics' : 'selfLearningTopics';
-        const deleteFromTopics = (items: any[]): any[] => {
-          return items.filter(item => item.id !== id).map(item => ({
-            ...item,
-            children: item.children ? deleteFromTopics(item.children) : undefined
-          }));
-        };
-        onUpdate({ ...data, [field]: deleteFromTopics(data[field as keyof AppData] as any[]) });
+        // Fallback for standalone mode
+        if (type === 'Student') {
+          onUpdate({ ...data, students: data.students.filter(s => s.id !== id) });
+        } else {
+          const field = type === 'DPSS' ? 'dpssTopics' : 'selfLearningTopics';
+          const deleteFromTopics = (items: any[]): any[] => {
+            return items.filter(item => item.id !== id).map(item => ({
+              ...item,
+              children: item.children ? deleteFromTopics(item.children) : undefined
+            }));
+          };
+          onUpdate({ ...data, [field]: deleteFromTopics(data[field as keyof AppData] as any[]) });
+        }
       }
     }
   };
@@ -109,6 +123,17 @@ export const RecycleBin: React.FC<Props> = ({ data, onUpdate }) => {
 
   const handleEmptyBin = () => {
     if (window.confirm('PERMANENTLY delete ALL items in the recycle bin? This cannot be undone.')) {
+      if (onPermanentDeleteStudent || onPermanentDeleteTopic) {
+        // Use granular deletes if available
+        deletedItems.forEach(item => {
+          if (item.type === 'Student' && onPermanentDeleteStudent) {
+            onPermanentDeleteStudent(item.id);
+          } else if ((item.type === 'DPSS' || item.type === 'SelfLearning') && onPermanentDeleteTopic) {
+            onPermanentDeleteTopic(item.id, item.type === 'DPSS' ? 'dpss' : 'selfLearning');
+          }
+        });
+      }
+
       let newData = { ...data };
       newData.students = data.students.filter(s => !s.deletedAt);
       

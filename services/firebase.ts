@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, doc, onSnapshot, setDoc, getDocFromServer, collection, writeBatch } from 'firebase/firestore';
+import { getFirestore, doc, onSnapshot, setDoc, deleteDoc, getDocFromServer, collection, writeBatch } from 'firebase/firestore';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth'; 
 import { AppData, BackupEntry, Student } from '../types';
 import firebaseConfig from '../firebase-applet-config.json';
@@ -194,6 +194,34 @@ export const subscribeToData = (
   }, (err) => handleFirestoreError(err, OperationType.GET, topicsRef.path));
   unsubscribes.push(unsubTopics);
 
+  // 8. Subscribe to Habit Completions collection
+  const habitCompRef = collection(db, 'users', userId, 'habitCompletions');
+  const unsubHabitComp = onSnapshot(habitCompRef, (querySnap) => {
+    const completions: any = {};
+    querySnap.docs.forEach(d => { completions[d.id] = d.data(); });
+    currentData.habitCompletions = completions;
+    notifyChange();
+  }, (err) => handleFirestoreError(err, OperationType.GET, habitCompRef.path));
+  unsubscribes.push(unsubHabitComp);
+
+  // 9. Subscribe to Daily Notes collection
+  const notesRef = collection(db, 'users', userId, 'dailyNotes');
+  const unsubNotes = onSnapshot(notesRef, (querySnap) => {
+    const notes: any = {};
+    querySnap.docs.forEach(d => { notes[d.id] = (d.data() as any).content || d.data(); });
+    currentData.dailyNotes = notes;
+    notifyChange();
+  }, (err) => handleFirestoreError(err, OperationType.GET, notesRef.path));
+  unsubscribes.push(unsubNotes);
+
+  // 10. Subscribe to Self Learning Topics collection
+  const slRef = collection(db, 'users', userId, 'selfLearningTopics');
+  const unsubSl = onSnapshot(slRef, (querySnap) => {
+    currentData.selfLearningTopics = querySnap.docs.map(d => d.data() as any);
+    notifyChange();
+  }, (err) => handleFirestoreError(err, OperationType.GET, slRef.path));
+  unsubscribes.push(unsubSl);
+
   return () => unsubscribes.forEach(u => u());
 };
 
@@ -209,6 +237,7 @@ export const saveData = async (userId: string, data: AppData) => {
     attendance,
     habitCompletions, 
     dailyNotes,
+    selfLearningTopics,
     ...mainSettings 
   } = data;
 
@@ -218,37 +247,149 @@ export const saveData = async (userId: string, data: AppData) => {
   try {
     batch.set(docRef, mainSettings, { merge: true });
 
-    // For full updates (like from settings), we still save the core.
-    // For lists, the UI components should use the specialized functions below.
+    // Note: Iterating over all arrays/objects in every saveData call is inefficient for large datasets.
+    // However, to fix the sync issue where handleUpdate is used globally, we need to ensure 
+    // these are saved correctly. For now, we'll focus on making specialized functions 
+    // available and using them in components.
+    
     await batch.commit();
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, docRef.path);
   }
 };
 
-// Specialized save functions
+// Specialized save functions to avoid rewriting everything and improve performance
 export const saveStudent = async (userId: string, student: Student) => {
-  if (!userId || !student.id) return;
-  const docRef = doc(db, 'users', userId, 'students', student.id);
-  await setDoc(docRef, student, { merge: true });
+  if (!userId || !student || !student.id) return;
+  try {
+    const docRef = doc(db, 'users', userId, 'students', student.id);
+    await setDoc(docRef, student, { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, `users/${userId}/students/${student.id}`);
+  }
+};
+
+export const deleteStudent = async (userId: string, studentId: string) => {
+  if (!userId || !studentId) return;
+  try {
+    const docRef = doc(db, 'users', userId, 'students', studentId);
+    await deleteDoc(docRef);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `users/${userId}/students/${studentId}`);
+  }
 };
 
 export const saveAttendance = async (userId: string, date: string, data: Record<string, number>) => {
   if (!userId || !date) return;
-  const docRef = doc(db, 'users', userId, 'attendance', date);
-  await setDoc(docRef, data, { merge: true });
+  try {
+    const docRef = doc(db, 'users', userId, 'attendance', date);
+    await setDoc(docRef, data, { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, `users/${userId}/attendance/${date}`);
+  }
 };
 
-export const saveExpense = async (userId: string, expense: any) => {
-  if (!userId || !expense.id) return;
-  const docRef = doc(db, 'users', userId, 'expenses', expense.id);
-  await setDoc(docRef, expense, { merge: true });
+export const saveExpense = async (userId: string, expense: any, isDelete: boolean = false) => {
+  if (!userId || !expense || !expense.id) return;
+  try {
+    const docRef = doc(db, 'users', userId, 'expenses', expense.id);
+    if (isDelete) {
+      await deleteDoc(docRef);
+    } else {
+      await setDoc(docRef, expense, { merge: true });
+    }
+  } catch (error) {
+    handleFirestoreError(error, isDelete ? OperationType.DELETE : OperationType.WRITE, `users/${userId}/expenses/${expense.id}`);
+  }
 };
 
 export const saveJournalEntry = async (userId: string, date: string, entry: any) => {
   if (!userId || !date) return;
-  const docRef = doc(db, 'users', userId, 'journal', date);
-  await setDoc(docRef, entry, { merge: true });
+  try {
+    const docRef = doc(db, 'users', userId, 'journal', date);
+    await setDoc(docRef, entry, { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, `users/${userId}/journal/${date}`);
+  }
+};
+
+export const saveTopic = async (userId: string, topic: any, category: 'dpss' | 'selfLearning' = 'dpss') => {
+  if (!userId || !topic || !topic.id) return;
+  try {
+    const coll = category === 'dpss' ? 'dpssTopics' : 'selfLearningTopics';
+    const docRef = doc(db, 'users', userId, coll, topic.id);
+    await setDoc(docRef, topic, { merge: true });
+  } catch (error) {
+    const coll = category === 'dpss' ? 'dpssTopics' : 'selfLearningTopics';
+    handleFirestoreError(error, OperationType.WRITE, `users/${userId}/${coll}/${topic.id}`);
+  }
+};
+
+export const deleteTopic = async (userId: string, topicId: string, category: 'dpss' | 'selfLearning' = 'dpss') => {
+  if (!userId || !topicId) return;
+  try {
+    const coll = category === 'dpss' ? 'dpssTopics' : 'selfLearningTopics';
+    const docRef = doc(db, 'users', userId, coll, topicId);
+    await deleteDoc(docRef);
+  } catch (error) {
+    const coll = category === 'dpss' ? 'dpssTopics' : 'selfLearningTopics';
+    handleFirestoreError(error, OperationType.DELETE, `users/${userId}/${coll}/${topicId}`);
+  }
+};
+
+export const saveDailyNote = async (userId: string, date: string, content: string) => {
+  if (!userId || !date) return;
+  try {
+    const docRef = doc(db, 'users', userId, 'dailyNotes', date);
+    await setDoc(docRef, { content, updatedAt: new Date().toISOString() }, { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, `users/${userId}/dailyNotes/${date}`);
+  }
+};
+
+export const saveHabitCompletion = async (userId: string, date: string, habitId: string, completed: boolean) => {
+  if (!userId || !date || !habitId) return;
+  try {
+    const docRef = doc(db, 'users', userId, 'habitCompletions', date);
+    await setDoc(docRef, { [habitId]: completed }, { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, `users/${userId}/habitCompletions/${date}`);
+  }
+};
+
+export const saveDailyTasks = async (userId: string, studentId: string, date: string, slot: 1 | 2, status: string | undefined) => {
+  if (!userId || !studentId || !date) return;
+  const docRef = doc(db, 'users', userId, 'dailyTasks', studentId);
+  const taskKey = `${date}_${slot}`;
+  
+  if (status === undefined) {
+    // Note: To truly delete a field in merge:true we use deleteField() but partial object works too with setDoc if we handle it carefully.
+    // However, setDoc with merge:true and a field set to undefined doesn't remove it.
+    // For simplicity, we'll just set it to 'Removed' or keep it as is.
+    await setDoc(docRef, { [taskKey]: null }, { merge: true });
+  } else {
+    await setDoc(docRef, { [taskKey]: status }, { merge: true });
+  }
+};
+
+export const saveDailyTasksBulk = async (userId: string, studentId: string, tasks: Record<string, string>) => {
+  if (!userId || !studentId) return;
+  try {
+    const docRef = doc(db, 'users', userId, 'dailyTasks', studentId);
+    await setDoc(docRef, tasks, { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, `users/${userId}/dailyTasks/${studentId}`);
+  }
+};
+
+export const saveHabitCompletionBulk = async (userId: string, date: string, completions: Record<string, boolean>) => {
+  if (!userId || !date) return;
+  try {
+    const docRef = doc(db, 'users', userId, 'habitCompletions', date);
+    await setDoc(docRef, completions, { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, `users/${userId}/habitCompletions/${date}`);
+  }
 };
 
 export const createCloudBackup = async (data: AppData, type: 'Auto' | 'Manual' = 'Manual') => {
