@@ -128,6 +128,7 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onUp
                           </div>
                           <div>
                             <p className="text-sm font-black text-slate-800 mb-1">Synced & Backed Up</p>
+                            {currentUser?.email && <p className="text-[10px] font-bold text-orange-600 mb-1 break-all tracking-tight">{currentUser.email}</p>}
                             <p className="text-xs text-slate-500 leading-relaxed mb-4">
                               Your data is automatically syncing across all devices.
                             </p>
