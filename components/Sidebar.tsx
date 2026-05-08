@@ -25,7 +25,8 @@ import {
   RotateCw,
   GraduationCap,
   Settings,
-  Sparkles
+  Sparkles,
+  BarChart3
 } from 'lucide-react';
 import { Tab, UserRole, AppSettings, ViewMode, StudentCategory, AppData, CurrentUser } from '../types';
 
@@ -89,6 +90,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: Tab.DPSS, icon: FileText, label: 'Note-taking', roles: ['Admin', 'Teacher', 'Finance'] },
     { id: Tab.SelfLearning, icon: GraduationCap, label: 'Self-Learning', roles: ['Admin', 'Teacher', 'Finance'] },
     { id: Tab.ExpenseTracker, icon: Wallet, label: 'Daily Expenses', roles: ['Admin', 'Teacher', 'Finance'] },
+    { id: Tab.Analytics, icon: BarChart3, label: 'Analytics', roles: ['Admin', 'Teacher', 'Finance'] },
     { id: Tab.RecycleBin, icon: Trash2, label: 'Recycle Bin', roles: ['Admin', 'Teacher'] },
   ];
 

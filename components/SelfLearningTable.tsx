@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Plus, Trash2, Calendar, AlignLeft, AlignCenter, AlignRight, Highlighter, MousePointer2, Minus, Layout, Square, Quote, Settings2, FileUp, Image as ImageIcon, Video, Music, FileText, Loader2, Wand2, Menu, ChevronLeft, GraduationCap, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, Calendar, AlignLeft, AlignCenter, AlignRight, Highlighter, MousePointer2, Minus, Layout, Square, Quote, Settings2, FileUp, Image as ImageIcon, Video, Music, FileText, Loader2, Wand2, Menu, ChevronLeft, GraduationCap, ChevronRight, Table, Grid3X3, Columns, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Palette } from 'lucide-react';
 import { AppData, DPSSTopic } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { callNeuralEngine } from '../services/neuralEngine';
@@ -262,6 +262,107 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
     reader.readAsDataURL(file);
     e.target.value = ''; // reset
   };
+  
+  const [isTableModalOpen, setIsTableModalOpen] = useState(false);
+  const [tableConfig, setTableConfig] = useState({ rows: 5, cols: 2, hasHeader: true, theme: '#10b981', headerTitle: 'New Learning Table' });
+
+  const insertSmartTable = () => {
+    const { rows, cols, hasHeader, theme, headerTitle } = tableConfig;
+    let html = `<table style="width: 100%; border-collapse: collapse; margin: 20px 0; border: 2px solid ${theme}; font-size: 14px; border-radius: 12px; overflow: hidden; display: table;">`;
+    
+    if (hasHeader) {
+      html += `<thead><tr style="background-color: ${theme}; color: white;">
+        <th colspan="${cols}" style="padding: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; border: 1px solid rgba(255,255,255,0.2);">${headerTitle}</th>
+      </tr></thead>`;
+    }
+
+    html += '<tbody>';
+    for (let r = 0; r < rows; r++) {
+      html += '<tr>';
+      for (let c = 0; c < cols; c++) {
+        const isFirstCol = c === 0;
+        const cellStyle = `padding: 10px; border: 1px solid ${theme}40; min-height: 24px; transition: background 0.2s;`;
+        const content = isFirstCol ? (r + 1).toString() : '';
+        const textAlign = isFirstCol ? 'center' : 'left';
+        const width = isFirstCol ? '40px' : 'auto';
+        html += `<td style="${cellStyle} text-align: ${textAlign}; width: ${width}; font-weight: ${isFirstCol ? '800' : '500'};">${content}</td>`;
+      }
+      html += '</tr>';
+    }
+    html += '</tbody></table><p><br></p>';
+
+    if (editorRef.current) {
+      editorRef.current.focus();
+      if (savedRange.current) {
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(savedRange.current);
+      }
+      document.execCommand('insertHTML', false, html);
+      setIsTableModalOpen(false);
+    }
+  };
+
+  const manageTable = (action: 'row-above' | 'row-below' | 'col-left' | 'col-right' | 'delete-row' | 'delete-col') => {
+    const selection = window.getSelection();
+    if (!selection || !selection.anchorNode) return;
+    
+    const cell = (selection.anchorNode as HTMLElement).closest?.('td, th') as HTMLTableCellElement;
+    if (!cell) return;
+    
+    const row = cell.parentElement as HTMLTableRowElement;
+    const table = row.closest('table') as HTMLTableElement;
+    if (!table) return;
+
+    const rowIndex = row.rowIndex;
+    const colIndex = cell.cellIndex;
+
+    if (action === 'row-above') {
+      const newRow = table.insertRow(rowIndex);
+      for (let i = 0; i < row.cells.length; i++) {
+        const newCell = newRow.insertCell(i);
+        newCell.style.cssText = row.cells[i].style.cssText;
+        newCell.innerHTML = '&nbsp;';
+      }
+    } else if (action === 'row-below') {
+      const newRow = table.insertRow(rowIndex + 1);
+      for (let i = 0; i < row.cells.length; i++) {
+        const newCell = newRow.insertCell(i);
+        newCell.style.cssText = row.cells[i].style.cssText;
+        newCell.innerHTML = '&nbsp;';
+      }
+    } else if (action === 'col-left') {
+      for (let i = 0; i < table.rows.length; i++) {
+        const r = table.rows[i];
+        if (r.cells[0].colSpan > 1) continue;
+        const newCell = r.insertCell(colIndex);
+        newCell.style.cssText = cell.style.cssText;
+        newCell.innerHTML = '&nbsp;';
+      }
+    } else if (action === 'col-right') {
+      for (let i = 0; i < table.rows.length; i++) {
+        const r = table.rows[i];
+        if (r.cells[0].colSpan > 1) continue;
+        const newCell = r.insertCell(colIndex + 1);
+        newCell.style.cssText = cell.style.cssText;
+        newCell.innerHTML = '&nbsp;';
+      }
+    } else if (action === 'delete-row') {
+      table.deleteRow(rowIndex);
+    } else if (action === 'delete-col') {
+      for (let i = 0; i < table.rows.length; i++) {
+        const r = table.rows[i];
+        if (r.cells[0].colSpan > 1) continue;
+        if (r.cells.length > colIndex) {
+          r.deleteCell(colIndex);
+        }
+      }
+    }
+
+    if (editorRef.current) {
+      updateTopic(selectedTopic!.id, { content: editorRef.current.innerHTML });
+    }
+  };
 
   const insertDate = () => {
     if (!selectedTopic) return;
@@ -469,6 +570,26 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                       >
                         <Layout size={16} />
                       </button>
+
+                      <button 
+                        className="p-1.5 hover:bg-emerald-500 hover:text-white rounded transition-all text-slate-700 font-bold flex items-center gap-1 px-2" 
+                        title="Smart Table Builder"
+                        onClick={() => setIsTableModalOpen(true)}
+                      >
+                        <Table size={16} />
+                        <span className="text-[10px] uppercase">Table</span>
+                      </button>
+                    </div>
+
+                    <div className="h-6 w-px bg-white/30 mx-1" />
+
+                    <div className="flex gap-1 bg-white/40 p-1 rounded-lg shrink-0">
+                       <button onClick={() => manageTable('row-above')} className="p-1.5 hover:bg-white rounded text-slate-600" title="Insert Row Above"><ArrowUp size={14} /></button>
+                       <button onClick={() => manageTable('row-below')} className="p-1.5 hover:bg-white rounded text-slate-600" title="Insert Row Below"><ArrowDown size={14} /></button>
+                       <button onClick={() => manageTable('col-left')} className="p-1.5 hover:bg-white rounded text-slate-600" title="Insert Col Left"><ArrowLeft size={14} /></button>
+                       <button onClick={() => manageTable('col-right')} className="p-1.5 hover:bg-white rounded text-slate-600" title="Insert Col Right"><ArrowRight size={14} /></button>
+                       <div className="w-px h-4 bg-black/10 mx-1 self-center" />
+                       <button onClick={() => manageTable('delete-row')} className="p-1.5 hover:bg-red-50 text-red-500 rounded" title="Delete Row"><Trash2 size={14} /></button>
                     </div>
 
                     <div className="h-6 w-px bg-white/30 mx-1" />
@@ -567,6 +688,96 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                     }}
                     className={`w-full flex-1 outline-none p-8 rounded-3xl text-slate-800 leading-relaxed font-medium transition-all focus:ring-4 focus:ring-emerald-500/10 overflow-y-auto shadow-md ${selectedPaper.className}`}
                 ></div>
+
+                {isTableModalOpen && (
+                  <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl border border-slate-200 animate-in zoom-in duration-300">
+                      <div className="flex items-center gap-4 mb-8">
+                        <div className="p-3 bg-emerald-100 text-emerald-600 rounded-2xl">
+                           <Table size={24} strokeWidth={3} />
+                        </div>
+                        <div>
+                          <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase italic">Smart Learning Table</h2>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Organize your learning modules</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-6">
+                        <div>
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Subject/Topic Title</label>
+                          <input 
+                            type="text" 
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-bold text-slate-900 outline-none focus:border-emerald-500 transition-all font-sans"
+                            value={tableConfig.headerTitle}
+                            onChange={(e) => setTableConfig({...tableConfig, headerTitle: e.target.value})}
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Rows</label>
+                            <input 
+                              type="number" 
+                              className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-bold text-slate-900 outline-none focus:border-emerald-500"
+                              value={tableConfig.rows}
+                              onChange={(e) => setTableConfig({...tableConfig, rows: parseInt(e.target.value) || 1})}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Columns</label>
+                            <select 
+                              className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-bold text-slate-900 outline-none focus:border-emerald-500"
+                              value={tableConfig.cols}
+                              onChange={(e) => setTableConfig({...tableConfig, cols: parseInt(e.target.value)})}
+                            >
+                              {[2, 3, 4, 5, 6, 8, 10].map(n => <option key={n} value={n}>{n} Columns</option>)}
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-4 py-2">
+                           <input 
+                             type="checkbox" 
+                             id="hasHeaderSl" 
+                             checked={tableConfig.hasHeader}
+                             onChange={(e) => setTableConfig({...tableConfig, hasHeader: e.target.checked})}
+                             className="w-5 h-5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
+                           />
+                           <label htmlFor="hasHeaderSl" className="text-sm font-bold text-slate-700 cursor-pointer">Include Header Row</label>
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Theme Color</label>
+                          <div className="flex gap-2">
+                             {['#10b981', '#f97316', '#ef4444', '#3b82f6', '#8b5cf6', '#000000'].map(c => (
+                               <button 
+                                 key={c}
+                                 onClick={() => setTableConfig({...tableConfig, theme: c})}
+                                 className={`w-8 h-8 rounded-full border-2 transition-all ${tableConfig.theme === c ? 'border-emerald-500 scale-125' : 'border-white'}`}
+                                 style={{ backgroundColor: c }}
+                               />
+                             ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-3 mt-10">
+                        <button 
+                          onClick={() => setIsTableModalOpen(false)}
+                          className="flex-1 py-4 text-slate-500 font-black uppercase text-[10px] tracking-widest hover:bg-slate-50 rounded-2xl transition-all"
+                        >
+                          Cancel
+                        </button>
+                        <button 
+                          onClick={insertSmartTable}
+                          className="flex-1 py-4 bg-emerald-500 text-white font-black uppercase text-[10px] tracking-widest rounded-2xl shadow-xl shadow-emerald-500/20 hover:bg-emerald-600 active:scale-95 transition-all"
+                        >
+                          Generate Table
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
             </div>
         ) : (
             <div className="h-full flex flex-col items-center justify-center gap-6 text-slate-400 p-8 text-center bg-white/5 backdrop-blur-sm rounded-[40px] m-4">

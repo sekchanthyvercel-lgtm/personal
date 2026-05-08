@@ -207,6 +207,7 @@ export enum Tab {
   DPSS = 'DPSS',
   SelfLearning = 'SelfLearning',
   ExpenseTracker = 'ExpenseTracker',
+  Analytics = 'Analytics',
   RecycleBin = 'RecycleBin'
 }
 

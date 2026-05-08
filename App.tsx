@@ -12,6 +12,7 @@ import DPSSTable from './components/DPSSTable';
 import SelfLearningTable from './components/SelfLearningTable';
 import { DailyTaskTable } from './components/DailyTaskTable';
 import { RecycleBin } from './components/RecycleBin';
+import Dashboard from './components/Dashboard';
 import { AppData, Student, CurrentUser, UserRole, ColumnConfig, Tab, ViewMode, AppSettings, StudentCategory, JournalEntry, ExpenseEntry } from './types';
 import { subscribeToData, saveData } from './services/firebase';
 import { Menu, MessageSquare, X } from 'lucide-react';
@@ -773,6 +774,9 @@ const App: React.FC = () => {
                 onUpdate={handleUpdate} 
                 onUpdateExpense={handleUpdateExpense}
               />
+            )}
+            {activeTab === Tab.Analytics && (
+              <Dashboard data={data} />
             )}
             {activeTab === Tab.RecycleBin && (
               <RecycleBin 
