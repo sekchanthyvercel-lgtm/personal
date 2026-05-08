@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Plus, Trash2, Calendar, AlignLeft, AlignCenter, AlignRight, Highlighter, MousePointer2, Minus, Layout, Square, Quote, Settings2, FileUp, Image as ImageIcon, Video, Music, FileText, Loader2, Wand2, Menu, ChevronLeft, GraduationCap, ChevronRight, Table, Grid3X3, Columns, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Palette } from 'lucide-react';
+import { Plus, Trash2, Calendar, AlignLeft, AlignCenter, AlignRight, Highlighter, MousePointer2, Minus, Layout, Square, Quote, Settings2, FileUp, Image as ImageIcon, Video, Music, FileText, Loader2, Wand2, Menu, ChevronLeft, GraduationCap, ChevronRight, Table, Grid3X3, Columns, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Palette, Italic, Underline, Strikethrough, Indent, Outdent, List, ListOrdered, CheckSquare } from 'lucide-react';
 import { AppData, DPSSTopic } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { callNeuralEngine } from '../services/neuralEngine';
@@ -49,6 +49,15 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
     { name: 'Blue', value: '#dbeafe' },
     { name: 'Pink', value: '#fce7f3' },
     { name: 'Orange', value: '#ffedd5' },
+    { name: 'Red', value: '#fee2e2' },
+    { name: 'Purple', value: '#f3e8ff' },
+    { name: 'Teal', value: '#ccfbf1' },
+    { name: 'Cyan', value: '#cffafe' },
+    { name: 'Lime', value: '#ecfccb' },
+    { name: 'Amber', value: '#fef3c7' },
+    { name: 'Rose', value: '#ffe4e6' },
+    { name: 'Black', value: '#000000' },
+    { name: 'White', value: '#ffffff' },
     { name: 'Clear', value: 'transparent' }
   ];
 
@@ -519,6 +528,66 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                 
                 <div className='flex flex-wrap gap-2 p-2 border-b border-white/20 items-center sticky top-0 bg-white/30 backdrop-blur-xl z-20 rounded-xl overflow-x-auto no-scrollbar'>
                     <div className="flex gap-1 bg-white/40 p-1 rounded-lg shrink-0">
+                      <button className="p-1.5 hover:bg-white rounded transition-colors" title="Italic" onClick={() => document.execCommand('italic')}><Italic size={14} /></button>
+                      <button className="p-1.5 hover:bg-white rounded transition-colors" title="Underline" onClick={() => document.execCommand('underline')}><Underline size={14} /></button>
+                      <button className="p-1.5 hover:bg-white rounded transition-colors" title="Strikethrough" onClick={() => document.execCommand('strikeThrough')}><Strikethrough size={14} /></button>
+                    </div>
+
+                    <div className="h-6 w-px bg-white/30 mx-1" />
+
+                    <div className="flex gap-1 bg-white/40 p-1 rounded-lg shrink-0">
+                      <div className="relative group/list z-[150]">
+                        <button className="p-1.5 hover:bg-white rounded transition-colors text-slate-700 font-bold text-xs flex items-center gap-1" title="Bullets"><List size={14} /> <span className="text-[10px]">▼</span></button>
+                        <div className="absolute hidden group-hover/list:grid grid-cols-5 gap-1 top-full left-0 bg-white shadow-xl border border-slate-200 p-2 rounded-xl z-[200] w-[180px]">
+                           {['•','🌹','⭐','🚗','❤️','✅','✨','🔥','🔮','🍃','🎵','👑','☀️','🌙','💎'].map(marker => (
+                             <button key={marker} onClick={() => {
+                                const html = `<ul style="list-style-type: none; padding-left: 20px;"><li>${marker} Item 1</li><li>${marker} Item 2</li></ul><p><br></p>`;
+                                document.execCommand('insertHTML', false, html);
+                             }} className="p-1 hover:bg-slate-100 rounded text-center text-sm">{marker}</button>
+                           ))}
+                        </div>
+                      </div>
+
+                      <div className="relative group/list2 z-[150]">
+                        <button className="p-1.5 hover:bg-white rounded transition-colors text-slate-700 font-bold text-xs flex items-center gap-1" title="Numbers"><ListOrdered size={14} /> <span className="text-[10px]">▼</span></button>
+                        <div className="absolute hidden group-hover/list2:flex flex-col gap-1 top-full left-0 bg-white shadow-xl border border-slate-200 p-2 rounded-xl z-[200] w-[120px]">
+                           {[ {n: '1.', t: 'decimal'}, {n:'1)', t: 'ol'}, {n:'1-', t: 'ol'}, {n:'I.', t:'upper-roman'}, {n:'i.', t:'lower-roman'}, {n:'A.', t:'upper-alpha'}, {n:'a.', t:'lower-alpha'}, {n:'①', t:'ol'} ].map(marker => (
+                             <button key={marker.n} onClick={() => {
+                                let html = '';
+                                if (marker.t === 'ol') {
+                                   html = `<ul style="list-style-type: none; padding-left: 20px;"><li>${marker.n.replace('1','1')} Item 1</li><li>${marker.n.replace('1','2')} Item 2</li></ul><p><br></p>`;
+                                } else {
+                                   html = `<ol style="list-style-type: ${marker.t}; padding-left: 20px;"><li>Item 1</li><li>Item 2</li></ol><p><br></p>`;
+                                }
+                                document.execCommand('insertHTML', false, html);
+                             }} className="p-1 hover:bg-slate-100 rounded text-left text-xs font-bold">{marker.n} Type</button>
+                           ))}
+                        </div>
+                      </div>
+
+                      <div className="relative group/list3 z-[150]">
+                        <button className="p-1.5 hover:bg-white rounded transition-colors text-slate-700 font-bold text-xs flex items-center gap-1" title="Checklist"><CheckSquare size={14} /> <span className="text-[10px]">▼</span></button>
+                        <div className="absolute hidden group-hover/list3:grid grid-cols-2 gap-1 top-full left-0 bg-white shadow-xl border border-slate-200 p-2 rounded-xl z-[200] w-[140px]">
+                           {['<input type="checkbox" />', '[ ]', '⬜', '🔳', '✅', '❎', '🔴', '🟢', '⚪', '✓'].map((marker, idx) => (
+                             <button key={idx} onClick={() => {
+                                const html = `<ul style="list-style-type: none; padding-left: 20px;"><li>${marker} Item 1</li><li>${marker} Item 2</li></ul><p><br></p>`;
+                                document.execCommand('insertHTML', false, html);
+                             }} className="p-1 hover:bg-slate-100 rounded text-center text-xs" dangerouslySetInnerHTML={{__html: marker}}></button>
+                           ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="h-6 w-px bg-white/30 mx-1" />
+
+                    <div className="flex gap-1 bg-white/40 p-1 rounded-lg shrink-0">
+                      <button className="p-1.5 hover:bg-white rounded transition-colors" title="Outdent" onClick={() => document.execCommand('outdent')}><Outdent size={14} /></button>
+                      <button className="p-1.5 hover:bg-white rounded transition-colors" title="Indent" onClick={() => document.execCommand('indent')}><Indent size={14} /></button>
+                    </div>
+
+                    <div className="h-6 w-px bg-white/30 mx-1" />
+
+                    <div className="flex gap-1 bg-white/40 p-1 rounded-lg shrink-0">
                       <button className="p-1.5 hover:bg-white rounded transition-colors" title="Align Left" onClick={() => updateTopic(selectedTopic.id, { alignment: 'left' })}><AlignLeft size={16} /></button>
                       <button className="p-1.5 hover:bg-white rounded transition-colors" title="Align Center" onClick={() => updateTopic(selectedTopic.id, { alignment: 'center' })}><AlignCenter size={16} /></button>
                       <button className="p-1.5 hover:bg-white rounded transition-colors" title="Align Right" onClick={() => updateTopic(selectedTopic.id, { alignment: 'right' })}><AlignRight size={16} /></button>
@@ -749,7 +818,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                         <div>
                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Theme Color</label>
                           <div className="flex gap-2">
-                             {['#10b981', '#f97316', '#ef4444', '#3b82f6', '#8b5cf6', '#000000'].map(c => (
+                             {['#f97316', '#ef4444', '#10b981', '#3b82f6', '#8b5cf6', '#000000', '#ffffff', '#64748b', '#f43f5e', '#d946ef', '#14b8a6', '#0ea5e9', '#84cc16', '#eab308', '#ec4899'].map(c => (
                                <button 
                                  key={c}
                                  onClick={() => setTableConfig({...tableConfig, theme: c})}

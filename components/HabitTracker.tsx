@@ -187,7 +187,7 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
               {/* Full Screen Header */}
               <div className="flex items-center justify-between mb-8 pb-4 border-b border-white/10">
                  <h2 className="text-2xl md:text-5xl font-black text-slate-800 tracking-tighter uppercase italic flex items-center gap-4">
-                    <CalendarIcon className="text-orange-600" size={32} />
+                    <CalendarIcon style={{ color: data.settings?.dateTextColor || '#ea580c' }} size={32} />
                     Monthly Planner
                  </h2>
                  <button 
@@ -300,7 +300,7 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
                 setCurrentDate(newDate);
               }
             }}>
-               <span className="block text-[8px] font-black uppercase text-orange-600 leading-none mb-1 tracking-widest group-hover/year:scale-110 transition-transform">{format(currentDate, 'yyyy')}</span>
+               <span className="block text-[8px] font-black uppercase leading-none mb-1 tracking-widest group-hover/year:scale-110 transition-transform" style={{ color: data.settings?.dateTextColor || '#ea580c' }}>{format(currentDate, 'yyyy')}</span>
                <span className="block text-sm font-black text-slate-800 leading-none">{format(currentDate, 'MMMM')}</span>
             </div>
             <button 

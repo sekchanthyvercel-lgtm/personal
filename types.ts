@@ -51,9 +51,11 @@ export interface AppSettings {
   textFontSize?: number;
   columns?: ColumnConfig[];
   backgroundImage?: string;
+  appBackgroundColor?: string;
   currency?: 'USD' | 'KHR';
   exchangeRate?: number;
   fontColor?: string;
+  dateTextColor?: string;
   paperStyle?: string;
 }
 

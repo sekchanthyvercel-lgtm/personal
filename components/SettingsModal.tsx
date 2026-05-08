@@ -41,6 +41,8 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onUp
     textFontFamily: settings?.textFontFamily || 'ui-sans-serif, system-ui, -apple-system, sans-serif',
     textFontSize: settings?.textFontSize || 16,
     fontColor: settings?.fontColor || '#0f172a',
+    appBackgroundColor: settings?.appBackgroundColor || '',
+    dateTextColor: settings?.dateTextColor || '#f97316',
     currency: settings?.currency || 'USD',
     exchangeRate: settings?.exchangeRate || 4000,
     backgroundImage: settings?.backgroundImage,
@@ -285,23 +287,58 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onUp
             <div className="space-y-4">
                 <div className="flex items-center gap-2 text-slate-800 font-black mb-2">
                     <Paintbrush size={18} className="text-orange-500" />
-                    <h3 className="tracking-wide">Theme Color</h3>
+                    <h3 className="tracking-wide">Theme Colors</h3>
                 </div>
 
-                <div className="bg-white/50 border border-white/60 p-4 rounded-2xl shadow-sm">
-                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 pl-1">Base Text Color</p>
-                    <div className="flex flex-wrap gap-3">
-                        {colors.map(c => (
-                            <button
-                                key={c.value}
-                                onClick={() => setLocalSettings(prev => ({...prev, fontColor: c.value}))}
-                                className={`w-10 h-10 rounded-xl border-2 transition-all hover:scale-110 shadow-sm flex items-center justify-center ${localSettings.fontColor === c.value ? 'border-orange-500 scale-110' : 'border-transparent'}`}
-                                style={{ backgroundColor: c.value }}
-                                title={c.name}
-                            >
-                                {localSettings.fontColor === c.value && <Check size={16} className="text-white mix-blend-overlay" />}
-                            </button>
-                        ))}
+                <div className="bg-white/50 border border-white/60 p-4 rounded-2xl shadow-sm space-y-4">
+                    <div>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 pl-1">Global App Text Color</p>
+                        <div className="flex flex-wrap gap-3">
+                            {colors.map(c => (
+                                <button
+                                    key={c.value}
+                                    onClick={() => setLocalSettings(prev => ({...prev, fontColor: c.value}))}
+                                    className={`w-10 h-10 rounded-xl border-2 transition-all hover:scale-110 shadow-sm flex items-center justify-center ${localSettings.fontColor === c.value ? 'border-orange-500 scale-110' : 'border-transparent'}`}
+                                    style={{ backgroundColor: c.value }}
+                                    title={c.name}
+                                >
+                                    {localSettings.fontColor === c.value && <Check size={16} className="text-white mix-blend-overlay" />}
+                                </button>
+                            ))}
+                            <input 
+                                type="color" 
+                                value={localSettings.fontColor} 
+                                onChange={(e) => setLocalSettings(prev => ({...prev, fontColor: e.target.value}))} 
+                                className="w-10 h-10 rounded-xl border-2 border-slate-200 cursor-pointer" 
+                                title="Custom Text Color"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-200/50">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 pl-1">App Background Color</p>
+                        <div className="flex flex-wrap gap-3">
+                            <input 
+                                type="color" 
+                                value={localSettings.appBackgroundColor || '#ffffff'} 
+                                onChange={(e) => setLocalSettings(prev => ({...prev, appBackgroundColor: e.target.value}))} 
+                                className="w-full h-10 rounded-xl border-2 border-slate-200 cursor-pointer" 
+                                title="Custom Background Color"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-200/50">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 pl-1">Global Date Text Color</p>
+                        <div className="flex flex-wrap gap-3">
+                            <input 
+                                type="color" 
+                                value={localSettings.dateTextColor} 
+                                onChange={(e) => setLocalSettings(prev => ({...prev, dateTextColor: e.target.value}))} 
+                                className="w-full h-10 rounded-xl border-2 border-slate-200 cursor-pointer" 
+                                title="Custom Date Text Color"
+                            />
+                        </div>
                     </div>
                 </div>
             </div>

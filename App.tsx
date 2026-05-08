@@ -622,10 +622,11 @@ const App: React.FC = () => {
 
   return (
     <div 
-      className="h-screen bg-cover bg-center bg-no-repeat flex font-sans overflow-hidden md:overflow-hidden transition-all duration-700 bg-transparent" 
+      className="h-screen bg-cover bg-center bg-no-repeat flex font-sans overflow-hidden md:overflow-hidden transition-all duration-700" 
       style={{ 
         fontFamily: data.settings?.fontFamily || "'Inter', sans-serif",
         backgroundImage: data.settings?.backgroundImage ? `url(${data.settings.backgroundImage})` : 'none',
+        backgroundColor: data.settings?.appBackgroundColor || 'transparent',
         color: data.settings?.fontColor || 'inherit'
       }}
     >
