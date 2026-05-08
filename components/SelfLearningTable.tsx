@@ -339,10 +339,12 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
   );
 
   useEffect(() => {
-    if (editorRef.current && selectedTopic) {
-      editorRef.current.innerHTML = selectedTopic.content;
+    if (editorRef.current && selectedTopic && editorRef.current.innerHTML !== selectedTopic.content) {
+      if (document.activeElement !== editorRef.current) {
+        editorRef.current.innerHTML = selectedTopic.content;
+      }
     }
-  }, [selectedTopic?.id]);
+  }, [selectedTopic?.id, selectedTopic?.content]);
 
   return (
     <div className="flex flex-col md:flex-row h-full md:h-[90vh] p-2 gap-0 overflow-hidden relative">

@@ -52,7 +52,7 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
 
   const fontFamilies = [
     { name: 'Modern', value: 'Inter' },
-    { name: 'Display (DPSS)', value: 'Space Grotesk' },
+    { name: 'Display (Growth)', value: 'Space Grotesk' },
     { name: 'Elegant', value: 'Playfair Display' },
     { name: 'Technical', value: 'JetBrains Mono' },
     { name: 'Handwritten', value: 'cursive' }
@@ -340,10 +340,12 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
   );
 
   useEffect(() => {
-    if (editorRef.current && selectedTopic) {
-      editorRef.current.innerHTML = selectedTopic.content;
+    if (editorRef.current && selectedTopic && editorRef.current.innerHTML !== selectedTopic.content) {
+      if (document.activeElement !== editorRef.current) {
+        editorRef.current.innerHTML = selectedTopic.content;
+      }
     }
-  }, [selectedTopic?.id]);
+  }, [selectedTopic?.id, selectedTopic?.content]);
 
   return (
     <div className="flex flex-col md:flex-row h-full md:h-[90vh] p-2 gap-0 overflow-hidden relative">
@@ -359,7 +361,7 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
         `}
       >
         <div className="flex items-center justify-between mb-4 shrink-0">
-          <h2 className="text-xl font-black text-slate-800 tracking-tight whitespace-nowrap">DPSS & Notes</h2>
+          <h2 className="text-xl font-black text-slate-800 tracking-tight whitespace-nowrap">Note-taking</h2>
           <button 
             onClick={() => setIsSidebarOpen(false)} 
             className="p-2 text-slate-500 hover:bg-slate-100 rounded-full"

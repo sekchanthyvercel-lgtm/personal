@@ -706,7 +706,7 @@ const App: React.FC = () => {
             )}
             {activeTab === Tab.Reminder && (
               <ReminderTable 
-                students={data.students}
+                students={activeStudents}
                 onAddStudent={(defaults) => handleAddStudent(defaults)}
                 onUpdateStudent={handleUpdateStudent}
                 onDeleteStudent={handleDeleteStudent}

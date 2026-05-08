@@ -86,7 +86,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: Tab.DailyJournal, icon: BookOpen, label: 'Daily Journal', roles: ['Admin', 'Teacher', 'Finance'] },
     { id: Tab.DailyTask, icon: ClipboardList, label: 'Daily Task', roles: ['Admin', 'Teacher', 'Finance'] },
     { id: Tab.Reminder, icon: Bell, label: 'Reminder Hub', roles: ['Admin', 'Teacher', 'Finance'] },
-    { id: Tab.DPSS, icon: FileText, label: 'DPSS & Note-taking', roles: ['Admin', 'Teacher', 'Finance'] },
+    { id: Tab.DPSS, icon: FileText, label: 'Note-taking', roles: ['Admin', 'Teacher', 'Finance'] },
     { id: Tab.SelfLearning, icon: GraduationCap, label: 'Self-Learning', roles: ['Admin', 'Teacher', 'Finance'] },
     { id: Tab.ExpenseTracker, icon: Wallet, label: 'Daily Expenses', roles: ['Admin', 'Teacher', 'Finance'] },
     { id: Tab.RecycleBin, icon: Trash2, label: 'Recycle Bin', roles: ['Admin', 'Teacher'] },
@@ -128,7 +128,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
             <div>
               <h2 className="text-lg font-black tracking-tight uppercase leading-none text-slate-900">Peak Performance</h2>
-              <p className="text-[9px] font-black text-slate-700 uppercase tracking-widest mt-1">Growth Portal</p>
+              <p className="text-[10px] font-black text-rose-600 uppercase tracking-widest mt-1">Growth Portal</p>
             </div>
           </div>
           <button 
@@ -169,7 +169,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </div>
                 <div className="overflow-hidden">
                   <p className="text-[10px] font-black text-slate-900 truncate tracking-tight">{currentUser?.name}</p>
-                  <p className="text-[8px] font-bold text-slate-500 truncate lowercase">{currentUser?.uid ? (currentUser.email || 'Connected & Synced') : 'Local Mode'}</p>
+                  <p className="text-[10px] font-black text-rose-600 truncate lowercase mt-0.5">{currentUser?.email || 'Local Account'}</p>
                 </div>
               </div>
             </div>

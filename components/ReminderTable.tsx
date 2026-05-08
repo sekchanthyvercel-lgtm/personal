@@ -26,6 +26,11 @@ const MultilineInput: React.FC<{
   placeholder?: string;
 }> = ({ value, onChange, className, style, placeholder }) => {
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+  const [localValue, setLocalValue] = React.useState(value);
+
+  React.useEffect(() => {
+    setLocalValue(value);
+  }, [value]);
 
   React.useEffect(() => {
     if (textareaRef.current) {
@@ -33,14 +38,15 @@ const MultilineInput: React.FC<{
       const scrollHeight = textareaRef.current.scrollHeight;
       textareaRef.current.style.height = Math.max(36, scrollHeight) + 'px';
     }
-  }, [value]);
+  }, [localValue]);
 
   return (
     <textarea
       ref={textareaRef}
-      value={value}
+      value={localValue}
       placeholder={placeholder}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={(e) => setLocalValue(e.target.value)}
+      onBlur={() => onChange(localValue)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault();
@@ -79,7 +85,7 @@ const ReminderTable: React.FC<ReminderTableProps> = ({
   onUpdateSettings
 }) => {
   const filteredReminders = students
-    .filter(s => s.category === 'Reminder')
+    .filter(s => s.category === 'Reminder' && !s.deletedAt)
     .filter(s => {
       const query = (filters.searchQuery || '').toLowerCase();
       return (s.name || '').toLowerCase().includes(query) || 
@@ -150,7 +156,7 @@ const ReminderTable: React.FC<ReminderTableProps> = ({
             <Bell size={24} strokeWidth={3} />
           </div>
           <div>
-            <h1 className="text-xl font-black text-slate-900 uppercase tracking-tight leading-none italic">Reminder Hub</h1>
+            <h1 className="text-xl font-black text-slate-900 uppercase tracking-tight leading-none italic">Growth Reminders</h1>
             <p className="text-[10px] font-bold text-slate-900/60 uppercase tracking-widest mt-1">Staff Tasks & Notifications</p>
           </div>
         </div>

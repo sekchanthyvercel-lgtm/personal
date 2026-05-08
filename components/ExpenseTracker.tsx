@@ -33,6 +33,42 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, 
     type: 'Expense' as 'Income' | 'Expense',
     currency: currencyMode
   });
+
+  const quickAmounts = [
+    { label: '4000R', amount: 4000, currency: 'KHR' },
+    { label: '5000R', amount: 5000, currency: 'KHR' },
+    { label: '10,000R', amount: 10000, currency: 'KHR' },
+    { label: '$1', amount: 1, currency: 'USD' },
+    { label: '$2', amount: 2, currency: 'USD' },
+    { label: '$5', amount: 5, currency: 'USD' },
+  ];
+
+  // Get common amounts for specific category from history
+  const getCategorySuggestions = (category: string) => {
+    const historical = expenses
+      .filter(e => e.category.toLowerCase() === category.toLowerCase())
+      .map(e => ({ amount: e.amount, currency: e.currency }));
+    
+    // Count frequency
+    const counts: Record<string, number> = {};
+    historical.forEach(h => {
+      const key = `${h.amount}-${h.currency}`;
+      counts[key] = (counts[key] || 0) + 1;
+    });
+
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([key]) => {
+        const [amount, currency] = key.split('-');
+        return { amount: parseFloat(amount), currency: currency as 'USD' | 'KHR' };
+      });
+  };
+
+  const categorySuggestions = useMemo(() => {
+    if (!newExpense.category) return [];
+    return getCategorySuggestions(newExpense.category);
+  }, [newExpense.category, expenses]);
   
   const [smartInput, setSmartInput] = useState('');
   const [editingCategory, setEditingCategory] = useState<{index: number, value: string} | null>(null);
@@ -499,22 +535,22 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, 
                         exit={{ height: 0, opacity: 0 }}
                         className="flex-1 overflow-y-auto custom-scrollbar-amber p-6"
                     >
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-left">
+                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 text-left">
                             {categories.map(cat => (
-                                <div key={cat} className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-3xl group hover:bg-slate-50 transition-all shadow-sm focus-within:ring-2 focus-within:border-transparent focus-within:ring-amber-500/30 overflow-hidden relative">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-1.5 h-6 bg-amber-500 rounded-full shadow-lg shadow-amber-500/20"></div>
-                                        <span className="text-[12px] font-black text-slate-900 uppercase tracking-tight truncate max-w-[120px]">{cat}</span>
+                                <div key={cat} className="flex items-center justify-between p-6 bg-white border border-slate-100 rounded-[32px] group hover:bg-slate-50 transition-all shadow-sm focus-within:ring-2 focus-within:border-transparent focus-within:ring-amber-500/30 overflow-hidden relative">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-2 h-8 bg-amber-500 rounded-full shadow-lg shadow-amber-500/20"></div>
+                                        <span className="text-[14px] font-black text-slate-900 uppercase tracking-tight truncate max-w-[150px]">{cat}</span>
                                     </div>
 
-                                    <div className="flex items-center gap-2 z-10 transition-transform origin-right">
+                                    <div className="flex items-center gap-3 z-10 transition-transform origin-right">
                                         <input 
                                           type="text"
                                           placeholder="$0.00"
                                           value={inlineInputs[cat] || ''}
                                           onChange={(e) => setInlineInputs({...inlineInputs, [cat]: e.target.value})}
                                           onKeyDown={(e) => e.key === 'Enter' && handleInlineAdd(cat)}
-                                          className="w-24 bg-transparent text-right text-[14px] font-black outline-none placeholder:text-slate-300 transition-all focus:text-amber-600"
+                                          className="w-28 bg-transparent text-right text-[16px] font-black outline-none placeholder:text-slate-300 transition-all focus:text-amber-600"
                                         />
                                         {inlineInputs[cat] && (
                                           <button 
@@ -588,20 +624,20 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, 
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           key={expense.id} 
-                          className="group flex items-center justify-between p-4 bg-white/[0.002] hover:bg-white/[0.015] rounded-3xl transition-all border border-white/5"
+                           className="group flex items-center justify-between p-6 bg-white/[0.002] hover:bg-white/[0.015] border-b border-white/5 last:border-b-0 transition-all"
                         >
-                            <div className="flex items-center gap-4">
-                                <div className={`p-3 rounded-xl flex items-center justify-center ${expense.type === 'Income' ? 'bg-emerald-500/5 text-emerald-600' : 'bg-rose-500/5 text-rose-600'}`}>
-                                   {expense.type === 'Income' ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
+                            <div className="flex items-center gap-6">
+                                <div className={`p-4 rounded-2xl flex items-center justify-center ${expense.type === 'Income' ? 'bg-emerald-500/5 text-emerald-600' : 'bg-rose-500/5 text-rose-600'}`}>
+                                   {expense.type === 'Income' ? <TrendingUp size={24} /> : <TrendingDown size={24} />}
                                 </div>
                                 <div>
-                                    <h3 className="text-sm font-black text-slate-900 italic tracking-tight">{expense.description}</h3>
-                                    <div className="flex items-center gap-2 mt-0.5">
-                                        <span className="text-[9px] font-black uppercase tracking-[0.1em] text-slate-900/40 flex items-center gap-1">
+                                    <h3 className="text-[17px] font-black text-slate-900 italic tracking-tight">{expense.description}</h3>
+                                    <div className="flex items-center gap-3 mt-1">
+                                        <span className="text-[10px] font-black uppercase tracking-[0.1em] text-slate-900/40 flex items-center gap-1">
                                             {viewMode === 'Daily' ? `${format(new Date(expense.date), 'MMM dd')} • ${expense.category}` : `${expense.category} • ${(expense as any).count || 1} records`}
                                         </span>
                                         {expense.currency !== currencyMode && (
-                                          <span className="text-[8px] font-black px-1.5 py-0.5 bg-amber-500/10 text-amber-700 rounded-md border border-amber-500/10 uppercase">
+                                          <span className="text-[9px] font-black px-2 py-0.5 bg-amber-500/10 text-amber-700 rounded-lg border border-amber-500/10 uppercase italic">
                                              Saved in {expense.currency}
                                           </span>
                                         )}
@@ -609,8 +645,8 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, 
                                 </div>
                             </div>
                             
-                            <div className="flex items-center gap-4">
-                                <div className={`text-lg font-black italic tracking-tighter ${expense.type === 'Income' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            <div className="flex items-center gap-6">
+                                <div className={`text-2xl font-black italic tracking-tighter ${expense.type === 'Income' ? 'text-emerald-600' : 'text-rose-600'}`}>
                                     {expense.type === 'Income' ? '+' : '-'}{formatCurrency(expense.amount, expense.currency as 'USD' | 'KHR')}
                                 </div>
                                 {viewMode === 'Daily' && (
@@ -650,59 +686,88 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, 
                     className="bg-white w-full max-w-lg rounded-[40px] p-10 shadow-2xl border border-slate-200 relative"
                   >
                       <h3 className="text-2xl font-black text-slate-900 mb-8 uppercase italic tracking-tighter">New Record</h3>
-                      
-                      <div className="space-y-5">
-                          <div className="flex gap-3 p-1 bg-black/5 rounded-2xl">
+                                         <div className="space-y-6">
+                          <div className="flex gap-3 p-1.5 bg-black/5 rounded-[24px]">
                               <button 
                                 onClick={() => setNewExpense({...newExpense, type: 'Expense'})}
-                                className={`flex-1 py-3 font-black text-xs uppercase tracking-widest rounded-xl transition-all ${newExpense.type === 'Expense' ? 'bg-rose-500 text-white shadow-lg' : 'text-slate-900/30'}`}
+                                className={`flex-1 py-4 font-black text-[13px] uppercase tracking-widest rounded-2xl transition-all ${newExpense.type === 'Expense' ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/20' : 'text-slate-900/30 hover:text-slate-900'}`}
                               >
                                   Expense
                               </button>
                               <button 
                                 onClick={() => setNewExpense({...newExpense, type: 'Income'})}
-                                className={`flex-1 py-3 font-black text-xs uppercase tracking-widest rounded-xl transition-all ${newExpense.type === 'Income' ? 'bg-emerald-500 text-white shadow-lg' : 'text-slate-900/30'}`}
+                                className={`flex-1 py-4 font-black text-[13px] uppercase tracking-widest rounded-2xl transition-all ${newExpense.type === 'Income' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'text-slate-900/30 hover:text-slate-900'}`}
                               >
                                   Income
                               </button>
                           </div>
 
-                          <div className="space-y-1">
-                             <label className="text-[9px] font-black uppercase tracking-widest text-slate-900/40 ml-2">Description</label>
+                          <div className="space-y-2">
+                             <label className="text-[10px] font-black uppercase tracking-widest text-slate-900/40 ml-4">Description</label>
                              <input 
                                 value={newExpense.description}
                                 onChange={(e) => setNewExpense({...newExpense, description: e.target.value})}
                                 placeholder="What is this for?"
-                                className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-6 text-slate-900 font-bold outline-none focus:border-amber-500 transition-all font-sans"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-[28px] py-6 px-8 text-[15px] text-slate-900 font-bold outline-none focus:border-amber-500 focus:bg-white transition-all font-sans"
                              />
                           </div>
 
-                          <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-1">
-                                <label className="text-[9px] font-black uppercase tracking-widest text-slate-900/40 ml-2">Amount</label>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-900/40 ml-4">Amount</label>
                                 <div className="relative">
                                     <input 
                                         type="number" 
                                         value={newExpense.amount}
                                         onChange={(e) => setNewExpense({...newExpense, amount: e.target.value})}
                                         placeholder="0.00"
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 pl-6 pr-12 text-slate-900 font-black outline-none focus:border-amber-500 transition-all font-sans"
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-[28px] py-6 pl-10 pr-16 text-[20px] text-slate-900 font-black outline-none focus:border-amber-500 focus:bg-white transition-all font-sans"
                                     />
                                     <button 
                                       onClick={() => setNewExpense({...newExpense, currency: newExpense.currency === 'USD' ? 'KHR' : 'USD'})}
-                                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 bg-amber-500 text-white rounded-lg text-[9px] font-black uppercase shadow-lg shadow-amber-500/10"
+                                      className="absolute right-4 top-1/2 -translate-y-1/2 px-4 py-2 bg-amber-500 text-white rounded-xl text-[11px] font-black uppercase shadow-lg shadow-amber-500/20 active:scale-95 transition-all"
                                     >
                                       {newExpense.currency}
                                     </button>
                                 </div>
+
+                                {/* Quick Amounts */}
+                                <div className="flex flex-wrap gap-2 mt-4 px-2">
+                                  {quickAmounts.map((q) => (
+                                    <button
+                                      key={q.label}
+                                      onClick={() => setNewExpense({ ...newExpense, amount: q.amount.toString(), currency: q.currency as any })}
+                                      className="px-4 py-2.5 bg-slate-100 hover:bg-amber-100 text-slate-600 hover:text-amber-700 rounded-xl text-[10px] font-black uppercase tracking-tight transition-all border border-transparent hover:border-amber-200"
+                                    >
+                                      {q.label}
+                                    </button>
+                                  ))}
+                                </div>
+                                
+                                {categorySuggestions.length > 0 && (
+                                  <div className="mt-4 px-2">
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-900/40 mb-2 ml-1">Recently for {newExpense.category}:</p>
+                                    <div className="flex flex-wrap gap-2">
+                                      {categorySuggestions.map((s, i) => (
+                                        <button
+                                          key={i}
+                                          onClick={() => setNewExpense({ ...newExpense, amount: s.amount.toString(), currency: s.currency })}
+                                          className="px-4 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-xl text-[10px] font-black uppercase tracking-tight transition-all border border-amber-200/50"
+                                        >
+                                          {s.currency === 'KHR' ? `${s.amount.toLocaleString()} R` : `$${s.amount}`}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
-                              <div className="space-y-1">
-                                <label className="text-[9px] font-black uppercase tracking-widest text-slate-900/40 ml-2">Category</label>
+                              <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-900/40 ml-4">Category</label>
                                 <select 
                                     value={newExpense.category}
                                     disabled={newExpense.type === 'Income'}
                                     onChange={(e) => setNewExpense({...newExpense, category: e.target.value})}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-6 text-slate-900 font-black outline-none focus:border-amber-500 transition-all appearance-none font-sans"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-[28px] py-6 px-8 text-[15px] text-slate-900 font-black outline-none focus:border-amber-500 focus:bg-white transition-all appearance-none font-sans cursor-pointer"
                                 >
                                     {newExpense.type === 'Income' ? (
                                       <option value="Income">Income</option>

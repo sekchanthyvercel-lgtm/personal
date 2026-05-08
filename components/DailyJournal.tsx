@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppData, JournalEntry } from '../types';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, addDays, subMonths, addMonths } from 'date-fns';
 import { CheckCircle2, ChevronLeft, ChevronRight, Calendar as CalendarIcon, BookOpen, Clock, X, Target, Quote, Heart, Sparkles, Footprints, Zap, ShieldCheck, Lightbulb, Activity, Circle } from 'lucide-react';
@@ -29,11 +29,15 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
   </motion.div>
 );
 
-export const DailyJournal: React.FC<DailyJournalProps> = ({ data, onUpdate, onUpdateJournalEntry }) => {
+ export const DailyJournal: React.FC<DailyJournalProps> = ({ data, onUpdate, onUpdateJournalEntry }) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [reflectionMode, setReflectionMode] = useState<'Daily' | 'Weekly' | 'Monthly' | '3Month'>('Daily');
   const [showCalendar, setShowCalendar] = useState(false);
   const [calendarViewDate, setCalendarViewDate] = useState(new Date());
+  
+  // Local state for auto-syncing inputs to prevent cursor jumping
+  const [localEntry, setLocalEntry] = useState<JournalEntry | null>(null);
+  const [activeField, setActiveField] = useState<string | null>(null);
 
   const journalSettings = data.settings || { fontSize: 12, fontFamily: "'Inter', sans-serif" };
   const textFontFamily = journalSettings.textFontFamily || journalSettings.fontFamily;
@@ -56,9 +60,21 @@ export const DailyJournal: React.FC<DailyJournalProps> = ({ data, onUpdate, onUp
     isCompleted: false
   };
 
+  // Sync prop data to local state when not focused
+  useEffect(() => {
+    if (!activeField) {
+      setLocalEntry({ ...currentEntry });
+    }
+  }, [currentEntry, activeField]);
+
   const updateEntry = (key: keyof JournalEntry, value: any) => {
+    // Update local state immediately
+    if (localEntry) {
+      setLocalEntry({ ...localEntry, [key]: value });
+    }
+
     const newEntries = { ...entries };
-    const entry = { ...currentEntry, [key]: value };
+    const entry = { ...(localEntry || currentEntry), [key]: value };
     newEntries[dateKey] = entry;
     if (onUpdateJournalEntry) {
       onUpdateJournalEntry(dateKey, entry);
@@ -68,7 +84,8 @@ export const DailyJournal: React.FC<DailyJournalProps> = ({ data, onUpdate, onUp
   };
 
   const updateAchievement = (idx: number, val: string) => {
-    const newAchievements = [...currentEntry.achievements];
+    const currentAchievements = (localEntry || currentEntry).achievements || [];
+    const newAchievements = [...currentAchievements];
     newAchievements[idx] = val;
     updateEntry('achievements', newAchievements);
   };
@@ -155,7 +172,7 @@ export const DailyJournal: React.FC<DailyJournalProps> = ({ data, onUpdate, onUp
               <motion.div key="daily" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
                 <JournalBlock title="What are my Today's priorities?" icon={<CheckCircle2 className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
                   <div className="space-y-4">
-                    {currentEntry.achievements.map((ach, idx) => (
+                    {(localEntry || currentEntry).achievements.map((ach, idx) => (
                       <div key={idx} className="flex items-center gap-4">
                          <div className="w-6 h-6 border-2 border-emerald-400/30 rounded flex items-center justify-center bg-white/20">
                               {ach.trim() !== '' && <CheckCircle2 size={14} className="text-emerald-600" />}
@@ -163,6 +180,8 @@ export const DailyJournal: React.FC<DailyJournalProps> = ({ data, onUpdate, onUp
                          <input 
                            type="text" 
                            value={ach} 
+                           onFocus={() => setActiveField(`ach-${idx}`)}
+                           onBlur={() => setActiveField(null)}
                            onChange={(e) => updateAchievement(idx, e.target.value)} 
                            placeholder="Type an objective..." 
                            className="flex-1 bg-transparent border-b border-black/10 py-2 outline-none focus:border-emerald-600 transition-all font-bold text-slate-900 placeholder:text-slate-900/20" 
@@ -170,13 +189,15 @@ export const DailyJournal: React.FC<DailyJournalProps> = ({ data, onUpdate, onUp
                          />
                       </div>
                     ))}
-                    <button onClick={() => updateEntry('achievements', [...currentEntry.achievements, ''])} className="text-[10px] font-black uppercase tracking-widest text-emerald-600 hover:text-emerald-700 transition-colors">+ Add Another</button>
+                    <button onClick={() => updateEntry('achievements', [...(localEntry || currentEntry).achievements, ''])} className="text-[10px] font-black uppercase tracking-widest text-emerald-600 hover:text-emerald-700 transition-colors">+ Add Another</button>
                   </div>
                 </JournalBlock>
 
                 <JournalBlock title="Today's Positive Affirmation - What truth sets the tone for your day?" icon={<Quote className="text-cyan-600" size={20} />} bgColor={selectedPaper.className}>
                   <textarea 
-                    value={currentEntry.affirmation} 
+                    value={(localEntry || currentEntry).affirmation} 
+                    onFocus={() => setActiveField('affirmation')}
+                    onBlur={() => setActiveField(null)}
                     onChange={(e) => updateEntry('affirmation', e.target.value)} 
                     placeholder="I am capable..." 
                     className="w-full bg-transparent outline-none italic font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-16" 
@@ -186,7 +207,9 @@ export const DailyJournal: React.FC<DailyJournalProps> = ({ data, onUpdate, onUp
 
                 <JournalBlock title="What am I grateful for today?" icon={<Heart className="text-rose-600" size={20} />} bgColor={selectedPaper.className}>
                   <textarea 
-                    value={currentEntry.gratitude} 
+                    value={(localEntry || currentEntry).gratitude} 
+                    onFocus={() => setActiveField('gratitude')}
+                    onBlur={() => setActiveField(null)}
                     onChange={(e) => updateEntry('gratitude', e.target.value)} 
                     placeholder="I am grateful for..." 
                     className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-16" 
@@ -198,7 +221,9 @@ export const DailyJournal: React.FC<DailyJournalProps> = ({ data, onUpdate, onUp
                   < JournalBlock title="How do I choose to feel today?" icon={<Sparkles className="text-amber-600" size={20} />} bgColor={selectedPaper.className}>
                       <input 
                         type="text" 
-                        value={currentEntry.feeling} 
+                        value={(localEntry || currentEntry).feeling} 
+                        onFocus={() => setActiveField('feeling')}
+                        onBlur={() => setActiveField(null)}
                         onChange={(e) => updateEntry('feeling', e.target.value)} 
                         placeholder="Peaceful, productive..." 
                         className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20" 
@@ -209,7 +234,9 @@ export const DailyJournal: React.FC<DailyJournalProps> = ({ data, onUpdate, onUp
                   < JournalBlock title="Who am I surprising with appreciation today?" icon={<Footprints className="text-indigo-600" size={20} />} bgColor={selectedPaper.className}>
                       <input 
                         type="text" 
-                        value={currentEntry.appreciation} 
+                        value={(localEntry || currentEntry).appreciation} 
+                        onFocus={() => setActiveField('appreciation')}
+                        onBlur={() => setActiveField(null)}
                         onChange={(e) => updateEntry('appreciation', e.target.value)} 
                         placeholder="A quick note to..." 
                         className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20" 
@@ -222,42 +249,42 @@ export const DailyJournal: React.FC<DailyJournalProps> = ({ data, onUpdate, onUp
                   <div className="space-y-2">
                       <RatingScale 
                         label="Energy Level (Physical/Mental)" 
-                        value={currentEntry.energyRating} 
+                        value={(localEntry || currentEntry).energyRating} 
                         onChange={(val) => updateEntry('energyRating', val)} 
                         icon={<Zap size={14} className="text-orange-500" />}
                         color="orange"
                       />
                       <RatingScale 
                         label="Focus & Concentration" 
-                        value={currentEntry.focusRating} 
+                        value={(localEntry || currentEntry).focusRating} 
                         onChange={(val) => updateEntry('focusRating', val)} 
                         icon={<Target size={14} className="text-indigo-500" />}
                         color="indigo"
                       />
                       <RatingScale 
                         label="Productivity & Execution" 
-                        value={currentEntry.productivityRating} 
+                        value={(localEntry || currentEntry).productivityRating} 
                         onChange={(val) => updateEntry('productivityRating', val)} 
                         icon={<Activity size={14} className="text-emerald-500" />}
                         color="emerald"
                       />
                       <RatingScale 
                         label="Stress & Anxiety Management" 
-                        value={currentEntry.stressRating} 
+                        value={(localEntry || currentEntry).stressRating} 
                         onChange={(val) => updateEntry('stressRating', val)} 
                         icon={<ShieldCheck size={14} className="text-rose-500" />}
                         color="rose"
                       />
                       <RatingScale 
                         label="Gratitude Depth" 
-                        value={currentEntry.gratitudeRating} 
+                        value={(localEntry || currentEntry).gratitudeRating} 
                         onChange={(val) => updateEntry('gratitudeRating', val)} 
                         icon={<Heart size={14} className="text-pink-500" />}
                         color="pink"
                       />
                       <RatingScale 
                         label="Physical Vitality" 
-                        value={currentEntry.vitalityRating} 
+                        value={(localEntry || currentEntry).vitalityRating} 
                         onChange={(val) => updateEntry('vitalityRating', val)} 
                         icon={<Sparkles size={14} className="text-amber-500" />}
                         color="amber"
@@ -267,7 +294,9 @@ export const DailyJournal: React.FC<DailyJournalProps> = ({ data, onUpdate, onUp
 
                 <JournalBlock title="What are the great things that happened today?" icon={<Quote className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
                   <textarea 
-                    value={currentEntry.inspiration} 
+                    value={(localEntry || currentEntry).inspiration} 
+                    onFocus={() => setActiveField('inspiration')}
+                    onBlur={() => setActiveField(null)}
                     onChange={(e) => updateEntry('inspiration', e.target.value)} 
                     placeholder="Moments of joy..."
                     className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-24" 
@@ -277,7 +306,9 @@ export const DailyJournal: React.FC<DailyJournalProps> = ({ data, onUpdate, onUp
 
                 <JournalBlock title="What is one thing I learned today?" icon={<Lightbulb className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
                   <textarea 
-                    value={currentEntry.learning} 
+                    value={(localEntry || currentEntry).learning} 
+                    onFocus={() => setActiveField('learning')}
+                    onBlur={() => setActiveField(null)}
                     onChange={(e) => updateEntry('learning', e.target.value)} 
                     placeholder="New insights..."
                     className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-24" 

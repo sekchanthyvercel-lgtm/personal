@@ -15,6 +15,8 @@ interface ReflectionCardProps {
   icon: any;
   value: string;
   onChange: (val: string) => void;
+  onFocus?: () => void;
+  onBlur?: () => void;
   colorClass: string;
   subtitle: string;
   paperClassName: string;
@@ -25,6 +27,8 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
   icon: Icon, 
   value, 
   onChange, 
+  onFocus,
+  onBlur,
   colorClass, 
   subtitle,
   paperClassName
@@ -57,6 +61,8 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
     <textarea
       value={value}
       onChange={(e) => onChange(e.target.value)}
+      onFocus={onFocus}
+      onBlur={onBlur}
       placeholder={`Type your goals and vision here...`}
       className={`w-full border border-white/20 rounded-[24px] p-6 text-slate-900 text-base font-bold focus:outline-none focus:ring-2 focus:ring-orange-500/20 min-h-[180px] resize-none transition-all placeholder:text-slate-900/20 custom-scrollbar leading-relaxed ${paperClassName}`}
     />
@@ -68,6 +74,10 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
   const [isSummarizing, setIsSummarizing] = React.useState(false);
   const [summary, setSummary] = React.useState<string | null>(null);
   
+  // Local state for auto-syncing inputs to prevent cursor jumping
+  const [localReflections, setLocalReflections] = React.useState<Record<string, string>>({});
+  const [activeField, setActiveField] = React.useState<string | null>(null);
+
   const settings = data.settings || { fontSize: 12, fontFamily: "'Inter', sans-serif" };
   const paperStyle = settings.paperStyle || 'none';
   const selectedPaper = PAPER_STYLES.find(s => s.id === paperStyle) || PAPER_STYLES[0];
@@ -80,6 +90,27 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
     oneYearVision: { id: '1year', title: '1-Year Vision', content: '' },
     archives: []
   };
+
+  // Sync prop data to local state when not focused
+  React.useEffect(() => {
+    const fields: (keyof ReflectionData)[] = ['weeklyReview', 'monthlyChallenge', 'threeMonthVision', 'sixMonthVision', 'oneYearVision'];
+    const newLocal: Record<string, string> = { ...localReflections };
+    let changed = false;
+
+    fields.forEach(field => {
+      if (activeField !== field) {
+        const cloudContent = (reflections[field] as ReflectionEntry)?.content || '';
+        if (newLocal[field] !== cloudContent) {
+          newLocal[field] = cloudContent;
+          changed = true;
+        }
+      }
+    });
+
+    if (changed) {
+      setLocalReflections(newLocal);
+    }
+  }, [reflections, activeField]);
 
   const handleUpdateReflection = (key: keyof ReflectionData, content: string) => {
     if (content === 'ARCHIVE') {
@@ -97,9 +128,15 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
         [key]: { ...entryToArchive, content: '' },
         archives: [...(reflections.archives || []), archivedEntry]
       };
+      
+      // Update local too
+      setLocalReflections(prev => ({ ...prev, [key]: '' }));
       onUpdate({ ...data, reflections: newReflections });
       return;
     }
+
+    // Update local state immediately for responsiveness
+    setLocalReflections(prev => ({ ...prev, [key]: content }));
 
     const newReflections = {
       ...reflections,
@@ -205,8 +242,16 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
             title="Weekly Review" 
             subtitle="Wins & Adjustments"
             icon={Calendar}
-            value={reflections.weeklyReview.content}
-            onChange={(val) => handleUpdateReflection('weeklyReview', val)}
+            value={localReflections.weeklyReview ?? reflections.weeklyReview.content}
+            onChange={(val) => {
+              if (val === 'ARCHIVE') {
+                handleUpdateReflection('weeklyReview', 'ARCHIVE');
+              } else {
+                handleUpdateReflection('weeklyReview', val);
+              }
+            }}
+            onFocus={() => setActiveField('weeklyReview')}
+            onBlur={() => setActiveField(null)}
             colorClass="bg-orange-500"
             paperClassName={selectedPaper.className}
           />
@@ -214,8 +259,16 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
             title="Monthly Challenge" 
             subtitle="30-Day Mastery Status"
             icon={Target}
-            value={reflections.monthlyChallenge.content}
-            onChange={(val) => handleUpdateReflection('monthlyChallenge', val)}
+            value={localReflections.monthlyChallenge ?? reflections.monthlyChallenge.content}
+            onChange={(val) => {
+              if (val === 'ARCHIVE') {
+                handleUpdateReflection('monthlyChallenge', 'ARCHIVE');
+              } else {
+                handleUpdateReflection('monthlyChallenge', val);
+              }
+            }}
+            onFocus={() => setActiveField('monthlyChallenge')}
+            onBlur={() => setActiveField(null)}
             colorClass="bg-emerald-500"
             paperClassName={selectedPaper.className}
           />
@@ -223,8 +276,16 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
             title="3-Month Vision" 
             subtitle="Quarterly Evolution"
             icon={Compass}
-            value={reflections.threeMonthVision.content}
-            onChange={(val) => handleUpdateReflection('threeMonthVision', val)}
+            value={localReflections.threeMonthVision ?? reflections.threeMonthVision.content}
+            onChange={(val) => {
+              if (val === 'ARCHIVE') {
+                handleUpdateReflection('threeMonthVision', 'ARCHIVE');
+              } else {
+                handleUpdateReflection('threeMonthVision', val);
+              }
+            }}
+            onFocus={() => setActiveField('threeMonthVision')}
+            onBlur={() => setActiveField(null)}
             colorClass="bg-indigo-500"
             paperClassName={selectedPaper.className}
           />
@@ -232,8 +293,16 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
             title="6-Month Vision" 
             subtitle="Bi-Annual Milestones"
             icon={Award}
-            value={reflections.sixMonthVision.content}
-            onChange={(val) => handleUpdateReflection('sixMonthVision', val)}
+            value={localReflections.sixMonthVision ?? reflections.sixMonthVision.content}
+            onChange={(val) => {
+              if (val === 'ARCHIVE') {
+                handleUpdateReflection('sixMonthVision', 'ARCHIVE');
+              } else {
+                handleUpdateReflection('sixMonthVision', val);
+              }
+            }}
+            onFocus={() => setActiveField('sixMonthVision')}
+            onBlur={() => setActiveField(null)}
             colorClass="bg-purple-500"
             paperClassName={selectedPaper.className}
           />
@@ -241,8 +310,16 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
             title="1-Year Vision" 
             subtitle="Long-term Legacy"
             icon={Flag}
-            value={reflections.oneYearVision.content}
-            onChange={(val) => handleUpdateReflection('oneYearVision', val)}
+            value={localReflections.oneYearVision ?? reflections.oneYearVision.content}
+            onChange={(val) => {
+              if (val === 'ARCHIVE') {
+                handleUpdateReflection('oneYearVision', 'ARCHIVE');
+              } else {
+                handleUpdateReflection('oneYearVision', val);
+              }
+            }}
+            onFocus={() => setActiveField('oneYearVision')}
+            onBlur={() => setActiveField(null)}
             colorClass="bg-rose-500"
             paperClassName={selectedPaper.className}
           />

@@ -135,7 +135,7 @@ export const DailyTaskTable: React.FC<DailyTaskTableProps> = ({
 
   const filteredStudents = useMemo(() => {
     return students.filter(s => {
-      if (s.category !== 'DailyTask') return false;
+      if (s.category !== 'DailyTask' || s.deletedAt) return false;
       const query = (filters.searchQuery || '').toLowerCase();
       const matchesSearch = !query || 
                            (s.name || '').toLowerCase().includes(query) || 
