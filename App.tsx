@@ -294,6 +294,43 @@ const App: React.FC = () => {
           }
         }
 
+        // 1.1 Sync deletions for students
+        const newStudentsIds = new Set(newData.students.map(s => s.id));
+        const deletedStudents = oldData.students.filter(s => !newStudentsIds.has(s.id));
+        if (deletedStudents.length > 0) {
+          const { deleteStudent } = await import('./services/firebase');
+          for (const s of deletedStudents) {
+            await deleteStudent(currentUser.uid, s.id);
+          }
+        }
+
+        // 1.2 Sync Topic changes (if any root topics changed or were removed)
+        const oldDpssIds = new Set((oldData.dpssTopics || []).map(t => t.id));
+        const newDpssIds = new Set((newData.dpssTopics || []).map(t => t.id));
+        const { saveTopic, deleteTopic } = await import('./services/firebase');
+        
+        // Deletions
+        const deletedDpss = (oldData.dpssTopics || []).filter(t => !newDpssIds.has(t.id));
+        for(const t of deletedDpss) await deleteTopic(currentUser.uid, t.id, 'dpss');
+        
+        // Updates/Creations
+        const changedDpss = (newData.dpssTopics || []).filter(t => {
+           const old = (oldData.dpssTopics || []).find(ot => ot.id === t.id);
+           return !old || JSON.stringify(old) !== JSON.stringify(t);
+        });
+        for(const t of changedDpss) await saveTopic(currentUser.uid, t, 'dpss');
+
+        // Same for Self-Learning
+        const oldSlIds = new Set((oldData.selfLearningTopics || []).map(t => t.id));
+        const newSlIds = new Set((newData.selfLearningTopics || []).map(t => t.id));
+        const deletedSl = (oldData.selfLearningTopics || []).filter(t => !newSlIds.has(t.id));
+        for(const t of deletedSl) await deleteTopic(currentUser.uid, t.id, 'selfLearning');
+        const changedSl = (newData.selfLearningTopics || []).filter(t => {
+           const old = (oldData.selfLearningTopics || []).find(ot => ot.id === t.id);
+           return !old || JSON.stringify(old) !== JSON.stringify(t);
+        });
+        for(const t of changedSl) await saveTopic(currentUser.uid, t, 'selfLearning');
+
         // 2. Sync Attendance changes
         const changedAttendanceDates = Object.keys(newData.attendance || {}).filter(date => 
           JSON.stringify(newData.attendance[date]) !== JSON.stringify(oldData.attendance?.[date])

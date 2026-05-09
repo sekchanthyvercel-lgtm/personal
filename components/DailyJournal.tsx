@@ -260,7 +260,7 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
                   </JournalBlock>
                 </div>
 
-                <JournalBlock title="Performance Metrics (1-10)" icon={<Zap className="text-orange-600" size={20} />} bgColor={selectedPaper.className}>
+                <JournalBlock title={<span className="flex items-center gap-2">Performance Metrics (1-10) <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul><div><br></div>`; let val = (localEntry || currentEntry).appreciation || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateEntry('appreciation', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Zap className="text-orange-600" size={20} />} bgColor={selectedPaper.className}>
                   <div className="space-y-2">
                       <RatingScale 
                         label="Energy Level (Physical/Mental)" 
@@ -309,7 +309,7 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
 
                 <JournalBlock title={<span className="flex items-center gap-2">What are the great things that happened today? <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul><div><br></div>`; let val = (localEntry || currentEntry).inspiration || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateEntry('inspiration', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Quote className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
                   <RichTextDiv 
-                    value={(localEntry || currentEntry).inspiration} 
+                    value={(localEntry || currentEntry).inspiration || ''} 
                     onFocus={() => setActiveField('inspiration')}
                     onBlur={() => setActiveField(null)}
                     onChange={(val) => updateEntry('inspiration', val)} 
@@ -321,7 +321,7 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
 
                 <JournalBlock title={<span className="flex items-center gap-2">What is one thing I learned today? <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul><div><br></div>`; let val = (localEntry || currentEntry).learning || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateEntry('learning', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Lightbulb className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
                   <RichTextDiv 
-                    value={(localEntry || currentEntry).learning} 
+                    value={(localEntry || currentEntry).learning || ''} 
                     onFocus={() => setActiveField('learning')}
                     onBlur={() => setActiveField(null)}
                     onChange={(val) => updateEntry('learning', val)} 

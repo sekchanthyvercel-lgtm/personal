@@ -422,9 +422,10 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
                 <h4 className="flex items-center gap-2 text-[10px] font-black text-orange-600 uppercase tracking-widest mb-1 italic">
                   <Zap size={14} /> Weekly Insight
                 </h4>
-                <p className="text-[10px] font-bold text-slate-500 line-clamp-3">
-                  {data.reflections?.weeklyReview?.content || "Synchronize your objectives for peak efficiency."}
-                </p>
+                <div 
+                  className="text-[10px] font-bold text-slate-500 line-clamp-3 overflow-hidden"
+                  dangerouslySetInnerHTML={{ __html: data.reflections?.weeklyReview?.content || "Synchronize your objectives for peak efficiency." }}
+                />
               </div>
           </div>
         </div>

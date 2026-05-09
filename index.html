@@ -34,6 +34,35 @@
       }
     </script>
     <style>
+      /* Custom Spin animation */
+      @keyframes spin-slow {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+      .animate-spin-slow {
+        animation: spin-slow 3s linear infinite;
+      }
+
+      /* Transitions */
+      .animate-in {
+        animation-duration: 0.3s;
+        animation-fill-mode: both;
+      }
+      .fade-in {
+        animation-name: fadeIn;
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      .slide-in-from-left-2 {
+        animation-name: slideInLeft2;
+      }
+      @keyframes slideInLeft2 {
+        from { transform: translateX(-0.5rem); }
+        to { transform: translateX(0); }
+      }
+
       /* Custom Scrollbar for heavy tables */
       ::-webkit-scrollbar {
         width: 8px;

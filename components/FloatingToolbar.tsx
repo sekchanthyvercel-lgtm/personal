@@ -1,5 +1,13 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Palette, Bold, Italic, Underline as UnderlineIcon, Strikethrough, CheckSquare } from 'lucide-react';
+import { Palette, Bold, Italic, Underline as UnderlineIcon, Strikethrough, CheckSquare, Type } from 'lucide-react';
+
+export const fontFamilies = [
+    { name: 'Modern', value: 'Inter' },
+    { name: 'Display', value: 'Space Grotesk' },
+    { name: 'Elegant', value: 'Playfair Display' },
+    { name: 'Technical', value: 'JetBrains Mono' },
+    { name: 'Handwritten', value: 'cursive' }
+];
 
 export const textColors = [
     { name: 'Slate', value: '#334155' },
@@ -121,14 +129,55 @@ export const FloatingToolbar = () => {
 
     return (
         <div 
-            className="fixed z-[9999] bg-white p-3 rounded-[24px] shadow-[0px_20px_50px_rgba(0,0,0,0.15)] border border-slate-200 flex flex-col gap-3 animate-in fade-in zoom-in slide-in-from-bottom-2 duration-200 min-w-[320px]"
+            className="fixed z-[9999] bg-white p-3 rounded-[24px] shadow-[0px_20px_50px_rgba(0,0,0,0.15)] border border-slate-200 flex flex-col gap-3 animate-in fade-in zoom-in slide-in-from-bottom-2 duration-200 min-w-[360px]"
             style={{ left: pickerPos.x, top: pickerPos.y, transform: 'translateX(-50%) translateY(-110%)' }}
             onMouseDown={(e) => e.preventDefault()}
         >
             <div className="flex gap-2 items-center px-1">
+                <div className="flex bg-slate-50 p-1 rounded-xl gap-1 items-center shrink-0">
+                    <select 
+                        onChange={(e) => {
+                            const font = e.target.value;
+                            applyFormat('fontName', font);
+                        }}
+                        className="bg-white px-2 py-1 rounded-lg text-[10px] font-bold border-none outline-none cursor-pointer hover:bg-slate-100 transition-colors"
+                        title="Font"
+                    >
+                        {fontFamilies.map(f => (
+                            <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.name}</option>
+                        ))}
+                    </select>
+                    
+                    <select 
+                        onChange={(e) => {
+                            const size = e.target.value;
+                            const selection = window.getSelection();
+                            if (selection && selection.rangeCount > 0) {
+                                const range = selection.getRangeAt(0);
+                                const span = document.createElement('span');
+                                span.style.fontSize = `${size}px`;
+                                try {
+                                    range.surroundContents(span);
+                                } catch {
+                                    // Fallback if range is complex
+                                    document.execCommand('fontSize', false, '3'); // Medium
+                                }
+                            }
+                        }}
+                        className="bg-white px-2 py-1 rounded-lg text-[10px] font-bold border-none outline-none cursor-pointer hover:bg-slate-100 transition-colors w-14"
+                        title="Size"
+                    >
+                        {[12, 14, 16, 18, 20, 24, 28, 32, 48].map(s => (
+                            <option key={s} value={s}>{s}px</option>
+                        ))}
+                    </select>
+                </div>
+
+                <div className="w-px h-6 bg-slate-100 self-center mx-1" />
+
                 <div className="flex gap-1">
-                    <button onClick={() => applyFormat('bold')} className="p-2 hover:bg-slate-50 rounded-xl text-slate-600 transition-colors" title="Bold"><Bold size={18} /></button>
-                    <button onClick={() => applyFormat('italic')} className="p-2 hover:bg-slate-50 rounded-xl text-slate-600 transition-colors" title="Italic"><Italic size={18} /></button>
+                    <button onClick={() => applyFormat('bold')} className="p-2 hover:bg-slate-50 rounded-xl text-slate-600 transition-colors" title="Bold"><Bold size={16} /></button>
+                    <button onClick={() => applyFormat('italic')} className="p-2 hover:bg-slate-50 rounded-xl text-slate-600 transition-colors" title="Italic"><Italic size={16} /></button>
                     <button onClick={() => applyFormat('underline')} className="p-2 hover:bg-slate-50 rounded-xl text-slate-600 transition-colors" title="Underline"><UnderlineIcon size={18} /></button>
                     <button onClick={() => applyFormat('strikeThrough')} className="p-2 hover:bg-slate-50 rounded-xl text-slate-600 transition-colors" title="Strikethrough"><Strikethrough size={18} /></button>
                 </div>

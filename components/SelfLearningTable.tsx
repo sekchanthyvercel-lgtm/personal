@@ -15,6 +15,7 @@ interface SelfLearningTableProps {
 
 export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUpdate, onUpdateTopic, onOpenSidebar }) => {
   const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
+  const [showMoreTools, setShowMoreTools] = useState(false);
   const [pickerPos, setPickerPos] = useState<{ x: number, y: number } | null>(null);
   const [activeColor, setActiveColor] = useState<string | null>(null);
   const [isAILoading, setIsAILoading] = useState(false);
@@ -596,66 +597,6 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
 
                     <div className="h-6 w-px bg-white/30 mx-1" />
 
-                    <div className="flex gap-1 bg-white/40 p-1 rounded-lg shrink-0">
-                      <div className="relative group/list z-[150]">
-                        <button className="p-1.5 hover:bg-white rounded transition-colors text-slate-700 font-bold text-xs flex items-center gap-1" title="Bullets"><List size={14} /> <span className="text-[10px]">▼</span></button>
-                        <div className="absolute hidden group-hover/list:grid grid-cols-5 gap-1 top-full left-0 bg-white shadow-xl border border-slate-200 p-2 rounded-xl z-[200] w-[180px]">
-                           {['•','🌹','⭐','🚗','❤️','✅','✨','🔥','🔮','🍃','🎵','👑','☀️','🌙','💎'].map(marker => (
-                             <button key={marker} onClick={() => {
-                                const html = `<ul style="list-style-type: none; padding-left: 20px;"><li>${marker} Item 1</li></ul><div><br></div>`;
-                                document.execCommand('insertHTML', false, html);
-                             }} className="p-1 hover:bg-slate-100 rounded text-center text-sm">{marker}</button>
-                           ))}
-                        </div>
-                      </div>
-
-                      <div className="relative group/list2 z-[150]">
-                        <button className="p-1.5 hover:bg-white rounded transition-colors text-slate-700 font-bold text-xs flex items-center gap-1" title="Numbers"><ListOrdered size={14} /> <span className="text-[10px]">▼</span></button>
-                        <div className="absolute hidden group-hover/list2:flex flex-col gap-1 top-full left-0 bg-white shadow-xl border border-slate-200 p-2 rounded-xl z-[200] w-[120px]">
-                           {[ {n: '1.', t: 'decimal'}, {n:'1)', t: 'ol'}, {n:'1-', t: 'ol'}, {n:'I.', t:'upper-roman'}, {n:'i.', t:'lower-roman'}, {n:'A.', t:'upper-alpha'}, {n:'a.', t:'lower-alpha'}, {n:'①', t:'ol'} ].map(marker => (
-                             <button key={marker.n} onClick={() => {
-                                let html = '';
-                                if (marker.t === 'ol') {
-                                   html = `<ul style="list-style-type: none; padding-left: 20px;"><li>${marker.n} Item 1</li></ul><div><br></div>`;
-                                } else {
-                                   html = `<ol style="list-style-type: ${marker.t}; padding-left: 20px;"><li>Item 1</li></ol><div><br></div>`;
-                                }
-                                document.execCommand('insertHTML', false, html);
-                             }} className="p-1 hover:bg-slate-100 rounded text-left text-xs font-bold">{marker.n} Type</button>
-                           ))}
-                        </div>
-                      </div>
-
-                      <div className="relative group/list3 z-[150]">
-                        <button className="p-1.5 hover:bg-white rounded transition-colors text-slate-700 font-bold text-xs flex items-center gap-1" title="Checklist"><CheckSquare size={14} /> <span className="text-[10px]">▼</span></button>
-                        <div className="absolute hidden group-hover/list3:grid grid-cols-2 gap-1 top-full left-0 bg-white shadow-xl border border-slate-200 p-2 rounded-xl z-[200] w-[140px]">
-                           {['⬜', '[ ]', '🔳', '⚪', '🔴', '❎', '✓'].map((marker, idx) => (
-                             <button key={idx} onClick={() => {
-                                const html = `<ul style="list-style-type: none; padding-left: 20px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">${marker}</span><span>Task</span></li></ul><div><br></div>`;
-                                document.execCommand('insertHTML', false, html);
-                             }} className="p-1 hover:bg-slate-100 rounded text-center text-xs" dangerouslySetInnerHTML={{__html: marker}}></button>
-                           ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="h-6 w-px bg-white/30 mx-1" />
-
-                    <div className="flex gap-1 bg-white/40 p-1 rounded-lg shrink-0">
-                      <button className="p-1.5 hover:bg-white rounded transition-colors" title="Outdent" onClick={() => document.execCommand('outdent')}><Outdent size={14} /></button>
-                      <button className="p-1.5 hover:bg-white rounded transition-colors" title="Indent" onClick={() => document.execCommand('indent')}><Indent size={14} /></button>
-                    </div>
-
-                    <div className="h-6 w-px bg-white/30 mx-1" />
-
-                    <div className="flex gap-1 bg-white/40 p-1 rounded-lg shrink-0">
-                      <button className="p-1.5 hover:bg-white rounded transition-colors" title="Align Left" onClick={() => updateTopic(selectedTopic.id, { alignment: 'left' })}><AlignLeft size={16} /></button>
-                      <button className="p-1.5 hover:bg-white rounded transition-colors" title="Align Center" onClick={() => updateTopic(selectedTopic.id, { alignment: 'center' })}><AlignCenter size={16} /></button>
-                      <button className="p-1.5 hover:bg-white rounded transition-colors" title="Align Right" onClick={() => updateTopic(selectedTopic.id, { alignment: 'right' })}><AlignRight size={16} /></button>
-                    </div>
-
-                    <div className="h-6 w-px bg-white/30 mx-1" />
-
                     <div className="flex gap-1 bg-white/40 p-1 rounded-lg">
                       <button 
                         className="p-1.5 hover:bg-white rounded transition-colors text-slate-700" 
@@ -713,14 +654,88 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
 
                     <div className="h-6 w-px bg-white/30 mx-1" />
 
-                    <div className="flex gap-1 bg-white/40 p-1 rounded-lg shrink-0">
-                       <button onClick={() => manageTable('row-above')} className="p-1.5 hover:bg-white rounded text-slate-600" title="Insert Row Above"><ArrowUp size={14} /></button>
-                       <button onClick={() => manageTable('row-below')} className="p-1.5 hover:bg-white rounded text-slate-600" title="Insert Row Below"><ArrowDown size={14} /></button>
-                       <button onClick={() => manageTable('col-left')} className="p-1.5 hover:bg-white rounded text-slate-600" title="Insert Col Left"><ArrowLeft size={14} /></button>
-                       <button onClick={() => manageTable('col-right')} className="p-1.5 hover:bg-white rounded text-slate-600" title="Insert Col Right"><ArrowRight size={14} /></button>
-                       <div className="w-px h-4 bg-black/10 mx-1 self-center" />
-                       <button onClick={() => manageTable('delete-row')} className="p-1.5 hover:bg-red-50 text-red-500 rounded" title="Delete Row"><Trash2 size={14} /></button>
-                    </div>
+                    <button 
+                      onClick={() => setShowMoreTools(!showMoreTools)}
+                      className={`p-1.5 rounded-lg font-black text-[10px] uppercase transition-all flex items-center gap-1 ${showMoreTools ? 'bg-emerald-500 text-white shadow-lg' : 'bg-white/40 text-slate-600 hover:bg-white/60'}`}
+                    >
+                      <Settings2 size={14} className={showMoreTools ? 'animate-spin-slow' : ''} />
+                      {showMoreTools ? 'Hide' : 'More'}
+                    </button>
+
+                    {showMoreTools && (
+                      <div className="flex flex-wrap items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-300">
+                        <div className="h-6 w-px bg-white/30 mx-1" />
+                        
+                        <div className="flex gap-1 bg-white/40 p-1 rounded-lg shrink-0">
+                           <div className="relative group/list z-[150]">
+                            <button className="p-1.5 hover:bg-white rounded transition-colors text-slate-700 font-bold text-xs flex items-center gap-1" title="Bullets"><List size={14} /> <span className="text-[10px]">▼</span></button>
+                            <div className="absolute hidden group-hover/list:grid grid-cols-5 gap-1 top-full left-0 bg-white shadow-xl border border-slate-200 p-2 rounded-xl z-[200] w-[180px]">
+                               {['•','🌹','⭐','🚗','❤️','✅','✨','🔥','🔮','🍃','🎵','👑','☀️','🌙','💎'].map(marker => (
+                                 <button key={marker} onClick={() => {
+                                    const html = `<ul style="list-style-type: none; padding-left: 20px;"><li>${marker} &nbsp;</li></ul><div><br></div>`;
+                                    document.execCommand('insertHTML', false, html);
+                                 }} className="p-1 hover:bg-slate-100 rounded text-center text-sm">{marker}</button>
+                               ))}
+                            </div>
+                          </div>
+
+                          <div className="relative group/list2 z-[150]">
+                            <button className="p-1.5 hover:bg-white rounded transition-colors text-slate-700 font-bold text-xs flex items-center gap-1" title="Numbers"><ListOrdered size={14} /> <span className="text-[10px]">▼</span></button>
+                            <div className="absolute hidden group-hover/list2:flex flex-col gap-1 top-full left-0 bg-white shadow-xl border border-slate-200 p-2 rounded-xl z-[200] w-[120px]">
+                               {[ {n: '1.', t: 'decimal'}, {n:'1)', t: 'ol'}, {n:'1-', t: 'ol'}, {n:'I.', t:'upper-roman'}, {n:'i.', t:'lower-roman'}, {n:'A.', t:'upper-alpha'}, {n:'a.', t:'lower-alpha'}, {n:'①', t:'ol'} ].map(marker => (
+                                 <button key={marker.n} onClick={() => {
+                                    let html = '';
+                                    if (marker.t === 'ol') {
+                                       html = `<ul style="list-style-type: none; padding-left: 20px;"><li>${marker.n} &nbsp;</li></ul><div><br></div>`;
+                                    } else {
+                                       html = `<ol style="list-style-type: ${marker.t}; padding-left: 20px;"><li>&nbsp;</li></ol><div><br></div>`;
+                                    }
+                                    document.execCommand('insertHTML', false, html);
+                                 }} className="p-1 hover:bg-slate-100 rounded text-left text-xs font-bold">{marker.n} Type</button>
+                               ))}
+                            </div>
+                          </div>
+
+                          <div className="relative group/list3 z-[150]">
+                            <button className="p-1.5 hover:bg-white rounded transition-colors text-slate-700 font-bold text-xs flex items-center gap-1" title="Checklist"><CheckSquare size={14} /> <span className="text-[10px]">▼</span></button>
+                            <div className="absolute hidden group-hover/list3:grid grid-cols-2 gap-1 top-full left-0 bg-white shadow-xl border border-slate-200 p-2 rounded-xl z-[200] w-[140px]">
+                               {['⬜', '[ ]', '🔳', '⚪', '🔴', '❎', '✓'].map((marker, idx) => (
+                                 <button key={idx} onClick={() => {
+                                    const html = `<ul style="list-style-type: none; padding-left: 20px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">${marker}</span><span>&nbsp;</span></li></ul><div><br></div>`;
+                                    document.execCommand('insertHTML', false, html);
+                                 }} className="p-1 hover:bg-slate-100 rounded text-center text-xs" dangerouslySetInnerHTML={{__html: marker}}></button>
+                               ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="h-6 w-px bg-white/30 mx-1" />
+
+                        <div className="flex gap-1 bg-white/40 p-1 rounded-lg shrink-0">
+                          <button className="p-1.5 hover:bg-white rounded transition-colors" title="Outdent" onClick={() => document.execCommand('outdent')}><Outdent size={14} /></button>
+                          <button className="p-1.5 hover:bg-white rounded transition-colors" title="Indent" onClick={() => document.execCommand('indent')}><Indent size={14} /></button>
+                        </div>
+
+                        <div className="h-6 w-px bg-white/30 mx-1" />
+
+                        <div className="flex gap-1 bg-white/40 p-1 rounded-lg shrink-0">
+                          <button className="p-1.5 hover:bg-white rounded transition-colors" title="Align Left" onClick={() => updateTopic(selectedTopic.id, { alignment: 'left' })}><AlignLeft size={16} /></button>
+                          <button className="p-1.5 hover:bg-white rounded transition-colors" title="Align Center" onClick={() => updateTopic(selectedTopic.id, { alignment: 'center' })}><AlignCenter size={16} /></button>
+                          <button className="p-1.5 hover:bg-white rounded transition-colors" title="Align Right" onClick={() => updateTopic(selectedTopic.id, { alignment: 'right' })}><AlignRight size={16} /></button>
+                        </div>
+
+                        <div className="h-6 w-px bg-white/30 mx-1" />
+
+                        <div className="flex gap-1 bg-white/40 p-1 rounded-lg shrink-0">
+                           <button onClick={() => manageTable('row-above')} className="p-1.5 hover:bg-white rounded text-slate-600" title="Insert Row Above"><ArrowUp size={14} /></button>
+                           <button onClick={() => manageTable('row-below')} className="p-1.5 hover:bg-white rounded text-slate-600" title="Insert Row Below"><ArrowDown size={14} /></button>
+                           <button onClick={() => manageTable('col-left')} className="p-1.5 hover:bg-white rounded text-slate-600" title="Insert Col Left"><ArrowLeft size={14} /></button>
+                           <button onClick={() => manageTable('col-right')} className="p-1.5 hover:bg-white rounded text-slate-600" title="Insert Col Right"><ArrowRight size={14} /></button>
+                           <div className="w-px h-4 bg-black/10 mx-1 self-center" />
+                           <button onClick={() => manageTable('delete-row')} className="p-1.5 hover:bg-red-50 text-red-500 rounded" title="Delete Row"><Trash2 size={14} /></button>
+                        </div>
+                      </div>
+                    )}
 
                     <div className="h-6 w-px bg-white/30 mx-1" />
 
