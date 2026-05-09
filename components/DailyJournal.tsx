@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AppData, JournalEntry } from '../types';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, addDays, subMonths, addMonths } from 'date-fns';
-import { CheckCircle2, ChevronLeft, ChevronRight, Calendar as CalendarIcon, BookOpen, Clock, X, Target, Quote, Heart, Sparkles, Footprints, Zap, ShieldCheck, Lightbulb, Activity, Circle } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, ChevronRight, Calendar as CalendarIcon, BookOpen, Clock, X, Target, Quote, Heart, Sparkles, Footprints, Zap, ShieldCheck, Lightbulb, Activity, Circle, CheckSquare } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { PAPER_STYLES } from '../src/styles/paperStyles';
 import { RichTextDiv } from './FloatingToolbar';
@@ -13,7 +13,7 @@ interface DailyJournalProps {
 }
 
 interface JournalBlockProps {
-  title: string;
+  title: string | React.ReactNode;
   icon: React.ReactNode;
   children: React.ReactNode;
   bgColor?: string;
@@ -171,7 +171,7 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
           <AnimatePresence mode="wait">
             {reflectionMode === 'Daily' ? (
               <motion.div key="daily" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
-                <JournalBlock title="What are my Today's priorities?" icon={<CheckCircle2 className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
+                <JournalBlock title={<span className="flex items-center gap-2">What are my Today's priorities? <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>List item</span></li></ul><div><br></div>`; updateEntry('achievements', [...(localEntry || currentEntry).achievements, html]); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<CheckCircle2 className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
                   <div className="space-y-4">
                     {(localEntry || currentEntry).achievements.map((ach, idx) => (
                       <div key={idx} className="flex items-center gap-4">
@@ -193,7 +193,7 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
                   </div>
                 </JournalBlock>
 
-                <JournalBlock title="Today's Positive Affirmation - What truth sets the tone for your day?" icon={<Quote className="text-cyan-600" size={20} />} bgColor={selectedPaper.className}>
+                <JournalBlock title={<span className="flex items-center gap-2">Today's Positive Affirmation - What truth sets the tone for your day? <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>List item</span></li></ul><div><br></div>`; let val = (localEntry || currentEntry).affirmation || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateEntry('affirmation', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Quote className="text-cyan-600" size={20} />} bgColor={selectedPaper.className}>
                   <RichTextDiv 
                     value={(localEntry || currentEntry).affirmation} 
                     onFocus={() => setActiveField('affirmation')}
@@ -205,7 +205,7 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
                   />
                 </JournalBlock>
 
-                <JournalBlock title="What am I grateful for today?" icon={<Heart className="text-rose-600" size={20} />} bgColor={selectedPaper.className}>
+                <JournalBlock title={<span className="flex items-center gap-2">What am I grateful for today? <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>List item</span></li></ul><div><br></div>`; let val = (localEntry || currentEntry).gratitude || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateEntry('gratitude', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Heart className="text-rose-600" size={20} />} bgColor={selectedPaper.className}>
                   <RichTextDiv 
                     value={(localEntry || currentEntry).gratitude} 
                     onFocus={() => setActiveField('gratitude')}
@@ -218,7 +218,7 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
                 </JournalBlock>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  < JournalBlock title="How do I choose to feel today?" icon={<Sparkles className="text-amber-600" size={20} />} bgColor={selectedPaper.className}>
+                  < JournalBlock title={<span className="flex items-center gap-2">How do I choose to feel today? <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>List item</span></li></ul><div><br></div>`; let val = (localEntry || currentEntry).feeling || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateEntry('feeling', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Sparkles className="text-amber-600" size={20} />} bgColor={selectedPaper.className}>
                       <RichTextDiv 
                         value={(localEntry || currentEntry).feeling} 
                         onFocus={() => setActiveField('feeling')}
@@ -230,7 +230,7 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
                       />
                   </JournalBlock>
 
-                  < JournalBlock title="Who am I surprising with appreciation today?" icon={<Footprints className="text-indigo-600" size={20} />} bgColor={selectedPaper.className}>
+                  < JournalBlock title={<span className="flex items-center gap-2">Who am I surprising with appreciation today? <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>List item</span></li></ul><div><br></div>`; let val = (localEntry || currentEntry).appreciation || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateEntry('appreciation', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Footprints className="text-indigo-600" size={20} />} bgColor={selectedPaper.className}>
                       <RichTextDiv 
                         value={(localEntry || currentEntry).appreciation} 
                         onFocus={() => setActiveField('appreciation')}
@@ -290,7 +290,7 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
                   </div>
                 </JournalBlock>
 
-                <JournalBlock title="What are the great things that happened today?" icon={<Quote className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
+                <JournalBlock title={<span className="flex items-center gap-2">What are the great things that happened today? <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>List item</span></li></ul><div><br></div>`; let val = (localEntry || currentEntry).inspiration || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateEntry('inspiration', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Quote className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
                   <RichTextDiv 
                     value={(localEntry || currentEntry).inspiration} 
                     onFocus={() => setActiveField('inspiration')}
@@ -302,7 +302,7 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
                   />
                 </JournalBlock>
 
-                <JournalBlock title="What is one thing I learned today?" icon={<Lightbulb className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
+                <JournalBlock title={<span className="flex items-center gap-2">What is one thing I learned today? <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>List item</span></li></ul><div><br></div>`; let val = (localEntry || currentEntry).learning || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateEntry('learning', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Lightbulb className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
                   <RichTextDiv 
                     value={(localEntry || currentEntry).learning} 
                     onFocus={() => setActiveField('learning')}
@@ -316,31 +316,31 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
               </motion.div>
             ) : reflectionMode === 'Weekly' ? (
               <motion.div key="weekly" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
-                  <JournalBlock title="Weekly Review - Did I work on my goals?" icon={<Target className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
+                  <JournalBlock title={<span className="flex items-center gap-2">Weekly Review - Did I work on my goals? <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>List item</span></li></ul><div><br></div>`; updateEntry('learning', (localEntry?.learning || '') + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Target className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
                     <RichTextDiv value={""} onChange={() => {}} placeholder="Review your goals and progress this week..." className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }} />
                   </JournalBlock>
-                  <JournalBlock title="What needs adjustment for next week?" icon={<Zap className="text-orange-600" size={20} />} bgColor={selectedPaper.className}>
+                  <JournalBlock title={<span className="flex items-center gap-2">What needs adjustment for next week? <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>List item</span></li></ul><div><br></div>`; updateEntry('discipline', (localEntry?.discipline || '') + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Zap className="text-orange-600" size={20} />} bgColor={selectedPaper.className}>
                     <RichTextDiv value={""} onChange={() => {}} placeholder="Identify changes to stay on track..." className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }} />
                   </JournalBlock>
-                  <JournalBlock title="Key Successes & Learnings this week" icon={<Lightbulb className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
+                  <JournalBlock title={<span className="flex items-center gap-2">Key Successes & Learnings this week <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>List item</span></li></ul><div><br></div>`; updateEntry('learning', (localEntry?.learning || '') + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Lightbulb className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
                     <RichTextDiv value={""} onChange={() => {}} placeholder="What was your biggest win?" className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }} />
                   </JournalBlock>
               </motion.div>
             ) : reflectionMode === 'Monthly' ? (
               <motion.div key="monthly" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
-                <JournalBlock title="Monthly Master - Key Achievements" icon={<ShieldCheck className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
+                <JournalBlock title={<span className="flex items-center gap-2">Monthly Master - Key Achievements <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>List item</span></li></ul><div><br></div>`; updateEntry('achievements', [...(localEntry?.achievements || []), html]); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<ShieldCheck className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
                   <RichTextDiv value={""} onChange={() => {}} placeholder="Reflect on your biggest wins this month..." className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }} />
                 </JournalBlock>
-                <JournalBlock title="Core Growth Area & Major Learnings" icon={<Lightbulb className="text-amber-600" size={20} />} bgColor={selectedPaper.className}>
+                <JournalBlock title={<span className="flex items-center gap-2">Core Growth Area & Major Learnings <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>List item</span></li></ul><div><br></div>`; updateEntry('learning', (localEntry?.learning || '') + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Lightbulb className="text-amber-600" size={20} />} bgColor={selectedPaper.className}>
                   <RichTextDiv value={""} onChange={() => {}} placeholder="What was the most significant area of maturity this month?" className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }} />
                 </JournalBlock>
               </motion.div>
             ) : (
               <motion.div key="3month" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
-                <JournalBlock title="90-Day Vision Evolution" icon={<Sparkles className="text-purple-600" size={20} />} bgColor={selectedPaper.className}>
+                <JournalBlock title={<span className="flex items-center gap-2">90-Day Vision Evolution <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>List item</span></li></ul><div><br></div>`; updateEntry('inspiration', (localEntry?.inspiration || '') + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Sparkles className="text-purple-600" size={20} />} bgColor={selectedPaper.className}>
                   <RichTextDiv value={""} onChange={() => {}} placeholder="How has your 3-month vision shifted since the start?" className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }} />
                 </JournalBlock>
-                <JournalBlock title="The Next Plateau for Peak Performance" icon={<Target className="text-rose-600" size={20} />} bgColor={selectedPaper.className}>
+                <JournalBlock title={<span className="flex items-center gap-2">The Next Plateau for Peak Performance <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>List item</span></li></ul><div><br></div>`; updateEntry('lookingForward', (localEntry?.lookingForward || '') + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Target className="text-rose-600" size={20} />} bgColor={selectedPaper.className}>
                   <RichTextDiv value={""} onChange={() => {}} placeholder="What is the next major milestone for the upcoming quarter?" className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }} />
                 </JournalBlock>
               </motion.div>

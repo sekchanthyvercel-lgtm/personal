@@ -1,5 +1,23 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Highlighter, Palette, Bold, Italic, Underline as UnderlineIcon, Strikethrough, CheckSquare } from 'lucide-react';
+import { Highlighter, Palette, Bold, Italic, Underline as UnderlineIcon, Strikethrough, CheckSquare, Heading1, Heading2, Type, ChevronDown } from 'lucide-react';
+
+export const fontFamilies = [
+    { name: 'Standard', value: 'Inter, sans-serif' },
+    { name: 'Modern', value: 'Space Grotesk, sans-serif' },
+    { name: 'Elegant', value: 'Playfair Display, serif' },
+    { name: 'Technical', value: 'JetBrains Mono, monospace' },
+    { name: 'Handwritten', value: 'cursive' }
+];
+
+export const fontSizes = [
+    { label: '8', value: '1' },
+    { label: '10', value: '2' },
+    { label: '12', value: '3' },
+    { label: '14', value: '4' },
+    { label: '18', value: '5' },
+    { label: '24', value: '6' },
+    { label: '36', value: '7' }
+];
 
 export const textColors = [
     { name: 'Slate', value: '#334155' },
@@ -118,17 +136,21 @@ export const FloatingToolbar = () => {
         setPickerPos(null);
     };
 
-    const applyFormat = (command: string) => {
+    const applyFormat = (command: string, value?: string) => {
         const selection = window.getSelection();
         if (!selection || !savedRange.current) return;
         
         selection.removeAllRanges();
         selection.addRange(savedRange.current);
 
-        document.execCommand(command, false, undefined);
+        document.execCommand(command, false, value);
 
         // Keep selection active to allow combining formats
         savedRange.current = selection.getRangeAt(0).cloneRange();
+    };
+
+    const applyHeading = (level: string) => {
+        applyFormat('formatBlock', level);
     };
 
     const insertChecklist = () => {
@@ -149,11 +171,63 @@ export const FloatingToolbar = () => {
 
     return (
         <div 
-            className="fixed z-[9999] bg-white/90 backdrop-blur p-2 rounded-2xl shadow-2xl border border-slate-200 flex gap-3 animate-in fade-in zoom-in slide-in-from-bottom-2 duration-200"
-            style={{ left: pickerPos.x, top: pickerPos.y, transform: 'translateX(-50%) translateY(-100%)' }}
+            className="fixed z-[9999] bg-white/95 backdrop-blur p-2 rounded-2xl shadow-2xl border border-slate-200 flex flex-wrap gap-3 items-center animate-in fade-in zoom-in slide-in-from-bottom-2 duration-200"
+            style={{ left: pickerPos.x, top: pickerPos.y, transform: 'translateX(-50%) translateY(-100%)', maxWidth: '90vw' }}
             onMouseDown={(e) => e.preventDefault()}
         >
+            <div className="flex gap-1 items-center border-r border-slate-200 pr-2">
+                <div className="relative group/font">
+                    <button className="flex items-center gap-1 px-2 py-1 hover:bg-slate-100 rounded text-[10px] font-bold text-slate-600 transition-colors">
+                        <Type size={12} /> <ChevronDown size={10} />
+                    </button>
+                    <div className="absolute hidden group-hover/font:block top-full left-0 bg-white border border-slate-200 rounded-lg shadow-xl p-1 min-w-[120px] mt-1">
+                        {fontFamilies.map(f => (
+                            <button 
+                                key={f.value}
+                                onClick={() => applyFormat('fontName', f.value)}
+                                className="w-full text-left px-2 py-1.5 hover:bg-slate-50 rounded text-[10px] font-medium"
+                                style={{ fontFamily: f.value }}
+                            >
+                                {f.name}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="relative group/size">
+                    <button className="flex items-center gap-1 px-2 py-1 hover:bg-slate-100 rounded text-[10px] font-bold text-slate-600 transition-colors">
+                        Size <ChevronDown size={10} />
+                    </button>
+                    <div className="absolute hidden group-hover/size:block top-full left-0 bg-white border border-slate-200 rounded-lg shadow-xl p-1 min-w-[60px] mt-1">
+                        {fontSizes.map(s => (
+                            <button 
+                                key={s.value}
+                                onClick={() => applyFormat('fontSize', s.value)}
+                                className="w-full text-left px-2 py-1.5 hover:bg-slate-50 rounded text-[10px] font-medium"
+                            >
+                                {s.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
             <div className="flex gap-2 items-center">
+                <button
+                    onClick={() => applyHeading('H1')}
+                    className="p-1 hover:bg-slate-100 rounded text-slate-600 transition-colors font-bold"
+                    title="Heading 1"
+                >
+                    <Heading1 size={14} />
+                </button>
+                <button
+                    onClick={() => applyHeading('H2')}
+                    className="p-1 hover:bg-slate-100 rounded text-slate-600 transition-colors font-bold"
+                    title="Heading 2"
+                >
+                    <Heading2 size={14} />
+                </button>
+                <div className="w-px h-4 bg-slate-200 self-center mx-1" />
                 <button
                     onClick={() => applyFormat('bold')}
                     className="p-1 hover:bg-slate-100 rounded text-slate-600 transition-colors"

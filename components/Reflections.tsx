@@ -1,9 +1,10 @@
 import React from 'react';
 import { AppData, ReflectionData, ReflectionEntry } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { Calendar, Target, Compass, Award, Flag, Wand2, Loader2, RefreshCw } from 'lucide-react';
+import { Calendar, Target, Compass, Award, Flag, Wand2, Loader2, RefreshCw, CheckSquare } from 'lucide-react';
 import { PAPER_STYLES } from '../src/styles/paperStyles';
 import { callNeuralEngine } from '../services/neuralEngine';
+import { RichTextDiv } from './FloatingToolbar';
 
 interface ReflectionsProps {
   data: AppData;
@@ -45,7 +46,21 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
           <Icon size={26} />
         </div>
         <div>
-          <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter italic">{title}</h3>
+          <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter italic flex items-center gap-2">
+            {title}
+            <button 
+              onClick={() => {
+                const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>List item</span></li></ul><div><br></div>`;
+                let safeValue = typeof value === 'string' ? value : '';
+                if (safeValue === '[object Object]') safeValue = '';
+                onChange(safeValue + html);
+              }}
+              className="text-slate-400 hover:text-emerald-600 transition-colors ml-2" 
+              title="Insert Checklist"
+            >
+              <CheckSquare size={16} />
+            </button>
+          </h3>
           <p className="text-slate-900/50 text-[10px] font-black uppercase tracking-[0.2em] mt-1">{subtitle}</p>
         </div>
       </div>
@@ -58,13 +73,13 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
       </button>
     </div>
     
-    <textarea
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
+    <RichTextDiv
+      value={typeof value === 'string' && value !== '[object Object]' ? value : ''}
+      onChange={(val) => onChange(val)}
       onFocus={onFocus}
       onBlur={onBlur}
       placeholder={`Type your goals and vision here...`}
-      className={`w-full border border-white/20 rounded-[24px] p-6 text-slate-900 text-base font-bold focus:outline-none focus:ring-2 focus:ring-orange-500/20 min-h-[180px] resize-none transition-all placeholder:text-slate-900/20 custom-scrollbar leading-relaxed ${paperClassName}`}
+      className={`w-full border border-white/20 rounded-[24px] p-6 text-slate-900 text-base font-bold focus:outline-none focus:ring-2 focus:ring-orange-500/20 min-h-[180px] transition-all placeholder:text-slate-900/20 block custom-scrollbar ${paperClassName}`}
     />
   </motion.div>
 );
