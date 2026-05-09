@@ -1,23 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Highlighter, Palette, Bold, Italic, Underline as UnderlineIcon, Strikethrough, CheckSquare, Heading1, Heading2, Type, ChevronDown } from 'lucide-react';
-
-export const fontFamilies = [
-    { name: 'Standard', value: 'Inter, sans-serif' },
-    { name: 'Modern', value: 'Space Grotesk, sans-serif' },
-    { name: 'Elegant', value: 'Playfair Display, serif' },
-    { name: 'Technical', value: 'JetBrains Mono, monospace' },
-    { name: 'Handwritten', value: 'cursive' }
-];
-
-export const fontSizes = [
-    { label: '8', value: '1' },
-    { label: '10', value: '2' },
-    { label: '12', value: '3' },
-    { label: '14', value: '4' },
-    { label: '18', value: '5' },
-    { label: '24', value: '6' },
-    { label: '36', value: '7' }
-];
+import { Palette, Bold, Italic, Underline as UnderlineIcon, Strikethrough, CheckSquare } from 'lucide-react';
 
 export const textColors = [
     { name: 'Slate', value: '#334155' },
@@ -35,15 +17,6 @@ export const textColors = [
     { name: 'Fuchsia', value: '#d946ef' },
     { name: 'Pink', value: '#ec4899' },
     { name: 'Rose', value: '#f43f5e' },
-    { name: 'Clear', value: 'transparent' }
-];
-
-export const highlightColors = [
-    { name: 'Yellow', value: '#fef3c7' },
-    { name: 'Green', value: '#dcfce7' },
-    { name: 'Blue', value: '#dbeafe' },
-    { name: 'Pink', value: '#fce7f3' },
-    { name: 'Orange', value: '#ffedd5' },
     { name: 'Clear', value: 'transparent' }
 ];
 
@@ -117,25 +90,6 @@ export const FloatingToolbar = () => {
         setPickerPos(null);
     };
 
-    const applyHighlightColor = (color: string) => {
-        const selection = window.getSelection();
-        if (!selection || !savedRange.current) return;
-        
-        selection.removeAllRanges();
-        selection.addRange(savedRange.current);
-
-        if (color === 'transparent') {
-            document.execCommand('backColor', false, 'transparent');
-        } else {
-            document.execCommand('hiliteColor', false, color); // hiliteColor for standard browsers
-            document.execCommand('backColor', false, color);
-        }
-
-        selection.removeAllRanges();
-        savedRange.current = null;
-        setPickerPos(null);
-    };
-
     const applyFormat = (command: string, value?: string) => {
         const selection = window.getSelection();
         if (!selection || !savedRange.current) return;
@@ -149,10 +103,6 @@ export const FloatingToolbar = () => {
         savedRange.current = selection.getRangeAt(0).cloneRange();
     };
 
-    const applyHeading = (level: string) => {
-        applyFormat('formatBlock', level);
-    };
-
     const insertChecklist = () => {
         const selection = window.getSelection();
         if (!selection || !savedRange.current) return;
@@ -160,7 +110,7 @@ export const FloatingToolbar = () => {
         selection.removeAllRanges();
         selection.addRange(savedRange.current);
 
-        const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>List item</span></li></ul><div><br></div>`;
+        const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul><div><br></div>`;
         document.execCommand('insertHTML', false, html);
         
         savedRange.current = null;
@@ -171,132 +121,46 @@ export const FloatingToolbar = () => {
 
     return (
         <div 
-            className="fixed z-[9999] bg-white/95 backdrop-blur p-2 rounded-2xl shadow-2xl border border-slate-200 flex flex-wrap gap-3 items-center animate-in fade-in zoom-in slide-in-from-bottom-2 duration-200"
-            style={{ left: pickerPos.x, top: pickerPos.y, transform: 'translateX(-50%) translateY(-100%)', maxWidth: '90vw' }}
+            className="fixed z-[9999] bg-white p-3 rounded-[24px] shadow-[0px_20px_50px_rgba(0,0,0,0.15)] border border-slate-200 flex flex-col gap-3 animate-in fade-in zoom-in slide-in-from-bottom-2 duration-200 min-w-[320px]"
+            style={{ left: pickerPos.x, top: pickerPos.y, transform: 'translateX(-50%) translateY(-110%)' }}
             onMouseDown={(e) => e.preventDefault()}
         >
-            <div className="flex gap-1 items-center border-r border-slate-200 pr-2">
-                <div className="relative group/font">
-                    <button className="flex items-center gap-1 px-2 py-1 hover:bg-slate-100 rounded text-[10px] font-bold text-slate-600 transition-colors">
-                        <Type size={12} /> <ChevronDown size={10} />
-                    </button>
-                    <div className="absolute hidden group-hover/font:block top-full left-0 bg-white border border-slate-200 rounded-lg shadow-xl p-1 min-w-[120px] mt-1">
-                        {fontFamilies.map(f => (
-                            <button 
-                                key={f.value}
-                                onClick={() => applyFormat('fontName', f.value)}
-                                className="w-full text-left px-2 py-1.5 hover:bg-slate-50 rounded text-[10px] font-medium"
-                                style={{ fontFamily: f.value }}
-                            >
-                                {f.name}
-                            </button>
-                        ))}
-                    </div>
+            <div className="flex gap-2 items-center px-1">
+                <div className="flex gap-1">
+                    <button onClick={() => applyFormat('bold')} className="p-2 hover:bg-slate-50 rounded-xl text-slate-600 transition-colors" title="Bold"><Bold size={18} /></button>
+                    <button onClick={() => applyFormat('italic')} className="p-2 hover:bg-slate-50 rounded-xl text-slate-600 transition-colors" title="Italic"><Italic size={18} /></button>
+                    <button onClick={() => applyFormat('underline')} className="p-2 hover:bg-slate-50 rounded-xl text-slate-600 transition-colors" title="Underline"><UnderlineIcon size={18} /></button>
+                    <button onClick={() => applyFormat('strikeThrough')} className="p-2 hover:bg-slate-50 rounded-xl text-slate-600 transition-colors" title="Strikethrough"><Strikethrough size={18} /></button>
                 </div>
 
-                <div className="relative group/size">
-                    <button className="flex items-center gap-1 px-2 py-1 hover:bg-slate-100 rounded text-[10px] font-bold text-slate-600 transition-colors">
-                        Size <ChevronDown size={10} />
-                    </button>
-                    <div className="absolute hidden group-hover/size:block top-full left-0 bg-white border border-slate-200 rounded-lg shadow-xl p-1 min-w-[60px] mt-1">
-                        {fontSizes.map(s => (
-                            <button 
-                                key={s.value}
-                                onClick={() => applyFormat('fontSize', s.value)}
-                                className="w-full text-left px-2 py-1.5 hover:bg-slate-50 rounded text-[10px] font-medium"
-                            >
-                                {s.label}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            </div>
+                <div className="w-px h-6 bg-slate-100 self-center mx-2" />
 
-            <div className="flex gap-2 items-center">
-                <button
-                    onClick={() => applyHeading('H1')}
-                    className="p-1 hover:bg-slate-100 rounded text-slate-600 transition-colors font-bold"
-                    title="Heading 1"
-                >
-                    <Heading1 size={14} />
-                </button>
-                <button
-                    onClick={() => applyHeading('H2')}
-                    className="p-1 hover:bg-slate-100 rounded text-slate-600 transition-colors font-bold"
-                    title="Heading 2"
-                >
-                    <Heading2 size={14} />
-                </button>
-                <div className="w-px h-4 bg-slate-200 self-center mx-1" />
-                <button
-                    onClick={() => applyFormat('bold')}
-                    className="p-1 hover:bg-slate-100 rounded text-slate-600 transition-colors"
-                    title="Bold"
-                >
-                    <Bold size={14} />
-                </button>
-                <button
-                    onClick={() => applyFormat('italic')}
-                    className="p-1 hover:bg-slate-100 rounded text-slate-600 transition-colors"
-                    title="Italic"
-                >
-                    <Italic size={14} />
-                </button>
-                <button
-                    onClick={() => applyFormat('underline')}
-                    className="p-1 hover:bg-slate-100 rounded text-slate-600 transition-colors"
-                    title="Underline"
-                >
-                    <UnderlineIcon size={14} />
-                </button>
-                <button
-                    onClick={() => applyFormat('strikeThrough')}
-                    className="p-1 hover:bg-slate-100 rounded text-slate-600 transition-colors"
-                    title="Strikethrough"
-                >
-                    <Strikethrough size={14} />
-                </button>
-                <div className="w-px h-4 bg-slate-200 self-center mx-1" />
                 <button
                     onClick={insertChecklist}
-                    className="p-1 hover:bg-slate-100 rounded text-slate-600 transition-colors"
-                    title="Insert Checklist"
+                    className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-100 transition-all font-black text-[10px] uppercase tracking-wider border border-emerald-100"
                 >
-                    <CheckSquare size={14} />
+                    <CheckSquare size={16} /> CHECKLIST
                 </button>
             </div>
-            <div className="w-px h-5 bg-slate-200 self-center" />
-            <div className="flex gap-2 items-center">
-                <Palette size={14} className="text-slate-400" />
-                <div className="flex gap-1">
-                {textColors.map(color => (
-                    <button 
-                        key={color.value}
-                        className={`w-5 h-5 rounded-full border border-black/5 hover:scale-110 transition-transform ${color.value === 'transparent' ? 'bg-slate-100 flex items-center justify-center' : ''}`}
-                        style={{ backgroundColor: color.value === 'transparent' ? '' : color.value }}
-                        onClick={() => applyTextColor(color.value)}
-                        title={color.name}
-                    >
-                        {color.value === 'transparent' && <span className="text-[8px] font-black opacity-40">✕</span>}
-                    </button>
-                ))}
-                </div>
-            </div>
-            <div className="w-px h-5 bg-slate-200 self-center" />
-            <div className="flex gap-2 items-center">
-                <Highlighter size={14} className="text-slate-400" />
-                <div className="flex gap-1">
-                {highlightColors.map(color => (
-                    <button 
-                        key={color.value}
-                        className={`w-5 h-5 rounded-full border border-black/5 hover:scale-110 transition-transform ${color.value === 'transparent' ? 'bg-slate-100 flex items-center justify-center' : ''}`}
-                        style={{ backgroundColor: color.value === 'transparent' ? '' : color.value }}
-                        onClick={() => applyHighlightColor(color.value)}
-                        title={color.name}
-                    >
-                        {color.value === 'transparent' && <span className="text-[8px] font-black opacity-40">✕</span>}
-                    </button>
-                ))}
+
+            <div className="w-full h-px bg-slate-100" />
+
+            <div className="flex flex-col gap-3 px-1 pb-1">
+                <div className="flex gap-3 items-center">
+                    <Palette size={14} className="text-slate-300" />
+                    <div className="flex gap-1.5 ml-4">
+                    {textColors.slice(0, 10).map(color => (
+                        <button 
+                            key={color.value}
+                            className={`w-6 h-6 rounded-full border-2 border-white shadow-sm hover:scale-125 transition-transform ${color.value === 'transparent' ? 'bg-slate-50 flex items-center justify-center' : ''}`}
+                            style={{ backgroundColor: color.value === 'transparent' ? '' : color.value }}
+                            onClick={() => applyTextColor(color.value)}
+                            title={color.name}
+                        >
+                            {color.value === 'transparent' && <span className="text-[10px] font-black opacity-30">✕</span>}
+                        </button>
+                    ))}
+                    </div>
                 </div>
             </div>
         </div>

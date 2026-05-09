@@ -13,7 +13,9 @@ import {
   FilterX,
   LayoutGrid,
   Eye,
-  EyeOff
+  EyeOff,
+  Palette,
+  CheckSquare
 } from 'lucide-react';
 import { Student, FilterState, UserRole } from '../types';
 import { format } from 'date-fns';
@@ -192,15 +194,19 @@ const ReminderTable: React.FC<ReminderTableProps> = ({
             <thead className="sticky top-0 z-40 bg-white/10 backdrop-blur-xl">
               <tr className="border-b border-white/20">
                 <th className="w-16 h-14 text-[10px] font-black text-slate-900 uppercase tracking-widest">#</th>
-                <th className="w-64 text-left px-4 text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
-                  Task / Item
-                  <button 
-                    onClick={() => onAddStudent({ category: 'Reminder', name: '<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>New Item</span></li></ul>' })}
-                    className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-emerald-600 transition-colors"
-                    title="Add Task with Checklist"
-                  >
-                    <CheckSquare size={14} />
-                  </button>
+                <th className="w-64 text-left px-4 text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2 pt-5">
+                  Task / Item 
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => { 
+                      const firstReminder = filteredReminders[0];
+                      if (firstReminder) {
+                        const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul><div><br></div>`;
+                        updateField(firstReminder.id, 'name', (firstReminder.name || '') + html);
+                      }
+                    }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist to first task">
+                      <CheckSquare size={14} />
+                    </button>
+                  </div>
                 </th>
                 <th className="w-40 text-center text-[10px] font-black text-slate-900 uppercase tracking-widest">Deadline</th>
                 <th className="w-40 text-center text-[10px] font-black text-slate-900 uppercase tracking-widest">Status</th>

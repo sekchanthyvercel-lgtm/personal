@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { AppData, JournalEntry } from '../types';
+import { AppData, JournalEntry, ReflectionData } from '../types';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, addDays, subMonths, addMonths } from 'date-fns';
-import { CheckCircle2, ChevronLeft, ChevronRight, Calendar as CalendarIcon, BookOpen, Clock, X, Target, Quote, Heart, Sparkles, Footprints, Zap, ShieldCheck, Lightbulb, Activity, Circle, CheckSquare } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, ChevronRight, Calendar as CalendarIcon, BookOpen, Clock, X, Target, Quote, Heart, Sparkles, Footprints, Zap, ShieldCheck, Lightbulb, Activity, Circle, CheckSquare, Palette } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { PAPER_STYLES } from '../src/styles/paperStyles';
 import { RichTextDiv } from './FloatingToolbar';
@@ -32,7 +32,7 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
 
  export const DailyJournal: React.FC<DailyJournalProps> = ({ data, onUpdate, onUpdateJournalEntry }) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [reflectionMode, setReflectionMode] = useState<'Daily' | 'Weekly' | 'Monthly' | '3Month'>('Daily');
+  const [reflectionMode, setReflectionMode] = useState<'Daily' | 'Weekly' | 'Monthly' | '3Month' | 'Calendar'>('Daily');
   const [showCalendar, setShowCalendar] = useState(false);
   const [calendarViewDate, setCalendarViewDate] = useState(new Date());
   
@@ -85,10 +85,26 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
   };
 
   const updateAchievement = (idx: number, val: string) => {
-    const currentAchievements = (localEntry || currentEntry).achievements || [];
-    const newAchievements = [...currentAchievements];
-    newAchievements[idx] = val;
-    updateEntry('achievements', newAchievements);
+    const newAchs = [...(localEntry || currentEntry).achievements];
+    newAchs[idx] = val;
+    updateEntry('achievements', newAchs);
+  };
+
+  const updateReflection = (type: keyof ReflectionData, val: string) => {
+    const reflections = data.reflections || {
+      weeklyReview: { id: 'weekly', title: 'Weekly Review', content: '' },
+      monthlyChallenge: { id: 'monthly', title: 'Monthly Challenge', content: '' },
+      threeMonthVision: { id: '3month', title: '3-Month Vision', content: '' },
+      sixMonthVision: { id: '6month', title: '6-Month Vision', content: '' },
+      oneYearVision: { id: '1year', title: '1-Year Vision', content: '' }
+    };
+    
+    const newReflections = {
+      ...reflections,
+      [type]: { ...reflections[type], content: val }
+    };
+    
+    onUpdate({ ...data, reflections: newReflections });
   };
 
   const RatingScale = ({ label, value, onChange, icon, color = "emerald" }: { label: string, value?: number, onChange: (val: number) => void, icon: React.ReactNode, color?: string }) => (
@@ -156,7 +172,8 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
                   { id: 'Daily', label: 'Self-Reflection' },
                   { id: 'Weekly', label: 'Weekly Growth' },
                   { id: 'Monthly', label: 'Monthly Master' },
-                  { id: '3Month', label: '90-Day Vision' }
+                  { id: '3Month', label: '90-Day Vision' },
+                  { id: 'Calendar', label: 'Journal History' }
               ].map((m) => (
                   <button 
                   key={m.id}
@@ -171,7 +188,7 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
           <AnimatePresence mode="wait">
             {reflectionMode === 'Daily' ? (
               <motion.div key="daily" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
-                <JournalBlock title={<span className="flex items-center gap-2">What are my Today's priorities? <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>List item</span></li></ul><div><br></div>`; updateEntry('achievements', [...(localEntry || currentEntry).achievements, html]); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<CheckCircle2 className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
+                <JournalBlock title={<span className="flex items-center justify-between gap-2">What are my Today's priorities? <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul><div><br></div>`; updateEntry('achievements', [...(localEntry || currentEntry).achievements.slice(0, -1), ((localEntry || currentEntry).achievements.at(-1) || '') + html]); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<CheckCircle2 className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
                   <div className="space-y-4">
                     {(localEntry || currentEntry).achievements.map((ach, idx) => (
                       <div key={idx} className="flex items-center gap-4">
@@ -193,7 +210,7 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
                   </div>
                 </JournalBlock>
 
-                <JournalBlock title={<span className="flex items-center gap-2">Today's Positive Affirmation - What truth sets the tone for your day? <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>List item</span></li></ul><div><br></div>`; let val = (localEntry || currentEntry).affirmation || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateEntry('affirmation', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Quote className="text-cyan-600" size={20} />} bgColor={selectedPaper.className}>
+                <JournalBlock title={<span className="flex items-center gap-2">Today's Positive Affirmation - What truth sets the tone for your day? <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul><div><br></div>`; let val = (localEntry || currentEntry).affirmation || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateEntry('affirmation', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Quote className="text-cyan-600" size={20} />} bgColor={selectedPaper.className}>
                   <RichTextDiv 
                     value={(localEntry || currentEntry).affirmation} 
                     onFocus={() => setActiveField('affirmation')}
@@ -205,7 +222,7 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
                   />
                 </JournalBlock>
 
-                <JournalBlock title={<span className="flex items-center gap-2">What am I grateful for today? <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>List item</span></li></ul><div><br></div>`; let val = (localEntry || currentEntry).gratitude || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateEntry('gratitude', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Heart className="text-rose-600" size={20} />} bgColor={selectedPaper.className}>
+                <JournalBlock title={<span className="flex items-center gap-2">What am I grateful for today? <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul><div><br></div>`; let val = (localEntry || currentEntry).gratitude || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateEntry('gratitude', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Heart className="text-rose-600" size={20} />} bgColor={selectedPaper.className}>
                   <RichTextDiv 
                     value={(localEntry || currentEntry).gratitude} 
                     onFocus={() => setActiveField('gratitude')}
@@ -218,7 +235,7 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
                 </JournalBlock>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  < JournalBlock title={<span className="flex items-center gap-2">How do I choose to feel today? <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>List item</span></li></ul><div><br></div>`; let val = (localEntry || currentEntry).feeling || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateEntry('feeling', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Sparkles className="text-amber-600" size={20} />} bgColor={selectedPaper.className}>
+                  <JournalBlock title={<span className="flex items-center gap-2">How do I choose to feel today? <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul><div><br></div>`; let val = (localEntry || currentEntry).feeling || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateEntry('feeling', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Sparkles className="text-amber-600" size={20} />} bgColor={selectedPaper.className}>
                       <RichTextDiv 
                         value={(localEntry || currentEntry).feeling} 
                         onFocus={() => setActiveField('feeling')}
@@ -230,7 +247,7 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
                       />
                   </JournalBlock>
 
-                  < JournalBlock title={<span className="flex items-center gap-2">Who am I surprising with appreciation today? <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>List item</span></li></ul><div><br></div>`; let val = (localEntry || currentEntry).appreciation || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateEntry('appreciation', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Footprints className="text-indigo-600" size={20} />} bgColor={selectedPaper.className}>
+                  <JournalBlock title={<span className="flex items-center gap-2">Who am I surprising with appreciation today? <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul><div><br></div>`; let val = (localEntry || currentEntry).appreciation || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateEntry('appreciation', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Footprints className="text-indigo-600" size={20} />} bgColor={selectedPaper.className}>
                       <RichTextDiv 
                         value={(localEntry || currentEntry).appreciation} 
                         onFocus={() => setActiveField('appreciation')}
@@ -290,7 +307,7 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
                   </div>
                 </JournalBlock>
 
-                <JournalBlock title={<span className="flex items-center gap-2">What are the great things that happened today? <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>List item</span></li></ul><div><br></div>`; let val = (localEntry || currentEntry).inspiration || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateEntry('inspiration', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Quote className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
+                <JournalBlock title={<span className="flex items-center gap-2">What are the great things that happened today? <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul><div><br></div>`; let val = (localEntry || currentEntry).inspiration || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateEntry('inspiration', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Quote className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
                   <RichTextDiv 
                     value={(localEntry || currentEntry).inspiration} 
                     onFocus={() => setActiveField('inspiration')}
@@ -302,7 +319,7 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
                   />
                 </JournalBlock>
 
-                <JournalBlock title={<span className="flex items-center gap-2">What is one thing I learned today? <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>List item</span></li></ul><div><br></div>`; let val = (localEntry || currentEntry).learning || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateEntry('learning', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Lightbulb className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
+                <JournalBlock title={<span className="flex items-center gap-2">What is one thing I learned today? <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul><div><br></div>`; let val = (localEntry || currentEntry).learning || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateEntry('learning', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Lightbulb className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
                   <RichTextDiv 
                     value={(localEntry || currentEntry).learning} 
                     onFocus={() => setActiveField('learning')}
@@ -316,33 +333,120 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
               </motion.div>
             ) : reflectionMode === 'Weekly' ? (
               <motion.div key="weekly" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
-                  <JournalBlock title={<span className="flex items-center gap-2">Weekly Review - Did I work on my goals? <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>List item</span></li></ul><div><br></div>`; updateEntry('learning', (localEntry?.learning || '') + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Target className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
-                    <RichTextDiv value={""} onChange={() => {}} placeholder="Review your goals and progress this week..." className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }} />
+                  <JournalBlock title={<span className="flex items-center gap-2">Weekly Review - Did I work on my goals? <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul><div><br></div>`; let val = data.reflections?.weeklyReview?.content || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateReflection('weeklyReview', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Target className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
+                    <RichTextDiv value={data.reflections?.weeklyReview?.content || ''} onChange={(val) => updateReflection('weeklyReview', val)} placeholder="Review your goals and progress this week..." className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }} />
                   </JournalBlock>
-                  <JournalBlock title={<span className="flex items-center gap-2">What needs adjustment for next week? <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>List item</span></li></ul><div><br></div>`; updateEntry('discipline', (localEntry?.discipline || '') + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Zap className="text-orange-600" size={20} />} bgColor={selectedPaper.className}>
-                    <RichTextDiv value={""} onChange={() => {}} placeholder="Identify changes to stay on track..." className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }} />
+                  <JournalBlock title={<span className="flex items-center gap-2">What needs adjustment for next week? <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul><div><br></div>`; let val = data.reflections?.sixMonthVision?.content || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateReflection('sixMonthVision', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Zap className="text-orange-600" size={20} />} bgColor={selectedPaper.className}>
+                    <RichTextDiv value={data.reflections?.sixMonthVision?.content || ''} onChange={(val) => updateReflection('sixMonthVision', val)} placeholder="Identify changes to stay on track..." className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }} />
                   </JournalBlock>
-                  <JournalBlock title={<span className="flex items-center gap-2">Key Successes & Learnings this week <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>List item</span></li></ul><div><br></div>`; updateEntry('learning', (localEntry?.learning || '') + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Lightbulb className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
-                    <RichTextDiv value={""} onChange={() => {}} placeholder="What was your biggest win?" className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }} />
+                  <JournalBlock title={<span className="flex items-center gap-2">Key Successes & Learnings this week <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul><div><br></div>`; let val = data.reflections?.oneYearVision?.content || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateReflection('oneYearVision', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Lightbulb className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
+                    <RichTextDiv value={data.reflections?.oneYearVision?.content || ''} onChange={(val) => updateReflection('oneYearVision', val)} placeholder="What was your biggest win?" className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }} />
                   </JournalBlock>
               </motion.div>
             ) : reflectionMode === 'Monthly' ? (
               <motion.div key="monthly" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
-                <JournalBlock title={<span className="flex items-center gap-2">Monthly Master - Key Achievements <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>List item</span></li></ul><div><br></div>`; updateEntry('achievements', [...(localEntry?.achievements || []), html]); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<ShieldCheck className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
-                  <RichTextDiv value={""} onChange={() => {}} placeholder="Reflect on your biggest wins this month..." className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }} />
+                <JournalBlock title={<span className="flex items-center gap-2">Monthly Master - Key Achievements <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul><div><br></div>`; let val = data.reflections?.monthlyChallenge?.content || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateReflection('monthlyChallenge', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<ShieldCheck className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
+                  <RichTextDiv value={data.reflections?.monthlyChallenge?.content || ''} onChange={(val) => updateReflection('monthlyChallenge', val)} placeholder="Reflect on your biggest wins this month..." className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }} />
                 </JournalBlock>
-                <JournalBlock title={<span className="flex items-center gap-2">Core Growth Area & Major Learnings <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>List item</span></li></ul><div><br></div>`; updateEntry('learning', (localEntry?.learning || '') + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Lightbulb className="text-amber-600" size={20} />} bgColor={selectedPaper.className}>
-                  <RichTextDiv value={""} onChange={() => {}} placeholder="What was the most significant area of maturity this month?" className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }} />
+                <JournalBlock title={<span className="flex items-center gap-2">Core Growth Area & Major Learnings <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul><div><br></div>`; let val = data.reflections?.threeMonthVision?.content || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateReflection('threeMonthVision', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Lightbulb className="text-amber-600" size={20} />} bgColor={selectedPaper.className}>
+                  <RichTextDiv value={data.reflections?.threeMonthVision?.content || ''} onChange={(val) => updateReflection('threeMonthVision', val)} placeholder="What was the most significant area of maturity this month?" className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }} />
+                </JournalBlock>
+              </motion.div>
+            ) : reflectionMode === '3Month' ? (
+              <motion.div key="3month" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
+                <JournalBlock title={<span className="flex items-center gap-2">90-Day Vision Evolution <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul><div><br></div>`; let val = data.reflections?.threeMonthVision?.content || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateReflection('threeMonthVision', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Sparkles className="text-purple-600" size={20} />} bgColor={selectedPaper.className}>
+                  <RichTextDiv value={data.reflections?.threeMonthVision?.content || ''} onChange={(val) => updateReflection('threeMonthVision', val)} placeholder="How has your 3-month vision shifted since the start?" className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }} />
+                </JournalBlock>
+                <JournalBlock title={<span className="flex items-center gap-2">The Next Plateau for Peak Performance <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul><div><br></div>`; let val = data.reflections?.sixMonthVision?.content || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateReflection('sixMonthVision', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Target className="text-rose-600" size={20} />} bgColor={selectedPaper.className}>
+                  <RichTextDiv value={data.reflections?.sixMonthVision?.content || ''} onChange={(val) => updateReflection('sixMonthVision', val)} placeholder="What is the next major milestone for the upcoming quarter?" className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }} />
                 </JournalBlock>
               </motion.div>
             ) : (
-              <motion.div key="3month" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
-                <JournalBlock title={<span className="flex items-center gap-2">90-Day Vision Evolution <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>List item</span></li></ul><div><br></div>`; updateEntry('inspiration', (localEntry?.inspiration || '') + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Sparkles className="text-purple-600" size={20} />} bgColor={selectedPaper.className}>
-                  <RichTextDiv value={""} onChange={() => {}} placeholder="How has your 3-month vision shifted since the start?" className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }} />
-                </JournalBlock>
-                <JournalBlock title={<span className="flex items-center gap-2">The Next Plateau for Peak Performance <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>List item</span></li></ul><div><br></div>`; updateEntry('lookingForward', (localEntry?.lookingForward || '') + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Target className="text-rose-600" size={20} />} bgColor={selectedPaper.className}>
-                  <RichTextDiv value={""} onChange={() => {}} placeholder="What is the next major milestone for the upcoming quarter?" className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }} />
-                </JournalBlock>
+              <motion.div key="calendar" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
+                <div className="bg-white/40 backdrop-blur-3xl rounded-[40px] shadow-sm border border-white/20 overflow-hidden flex flex-col">
+                  <div className="p-6 border-b border-white/20 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 bg-emerald-600 text-white rounded-2xl">
+                        <CalendarIcon size={20} />
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-black uppercase italic tracking-tighter text-slate-800">Monthly Journal Planner</h2>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600/60">Review your daily priorities & progression</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 bg-emerald-500/10 p-1 rounded-xl border border-emerald-500/10">
+                      <button 
+                        onClick={() => setCalendarViewDate(prev => subMonths(prev, 1))}
+                        className="p-2 hover:bg-white/50 rounded-lg transition-all text-emerald-700"
+                      >
+                        <ChevronLeft size={18} />
+                      </button>
+                      <div className="px-4 text-center min-w-[120px]">
+                         <span className="block text-sm font-black text-slate-800">{format(calendarViewDate, 'MMMM yyyy')}</span>
+                      </div>
+                      <button 
+                        onClick={() => setCalendarViewDate(prev => addMonths(prev, 1))}
+                        className="p-2 hover:bg-white/50 rounded-lg transition-all text-emerald-700"
+                      >
+                        <ChevronRight size={18} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="p-6 bg-slate-50/10">
+                    <div className="grid grid-cols-7 gap-px bg-slate-200/50 border border-slate-200/50 rounded-2xl overflow-hidden">
+                      {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                        <div key={day} className="bg-white/90 py-3 text-center text-[9px] font-black uppercase tracking-widest text-slate-400">
+                          {day}
+                        </div>
+                      ))}
+                      
+                      {Array.from({ length: getDay(startOfMonth(calendarViewDate)) }).map((_, i) => (
+                        <div key={`empty-${i}`} className="bg-slate-50/20 h-24 md:h-32" />
+                      ))}
+
+                      {eachDayOfInterval({
+                        start: startOfMonth(calendarViewDate),
+                        end: endOfMonth(calendarViewDate)
+                      }).map((day, i) => {
+                        const dayKey = format(day, 'yyyy-MM-dd');
+                        const dayEntry = data.journalEntries?.[dayKey];
+                        const isToday = isSameDay(day, new Date());
+                        const isSelected = isSameDay(day, selectedDate);
+
+                        return (
+                          <div 
+                            key={i} 
+                            onClick={() => {
+                              setSelectedDate(day);
+                              setReflectionMode('Daily');
+                            }}
+                            className={`bg-white h-24 md:h-32 p-3 flex flex-col gap-1 cursor-pointer transition-all hover:bg-emerald-50 relative group ${isSelected ? 'ring-2 ring-inset ring-emerald-500 z-10' : ''}`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className={`text-[11px] font-black ${isToday ? 'w-5 h-5 bg-emerald-600 text-white rounded-full flex items-center justify-center' : isSelected ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                {format(day, 'd')}
+                              </span>
+                              {dayEntry?.isCompleted && (
+                                <CheckCircle2 size={12} className="text-emerald-500" />
+                              )}
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto no-scrollbar space-y-0.5 mt-0.5">
+                              {dayEntry?.achievements?.filter(a => a.trim() !== '').slice(0, 3).map((ach, idx) => (
+                                <div key={idx} className="flex items-center gap-1 bg-slate-50/50 p-1 rounded-md border border-slate-100">
+                                  <div className="shrink-0 w-1 h-1 rounded-full bg-emerald-400" />
+                                  <span className="text-[8px] font-bold text-slate-600 truncate leading-none">{ach.replace(/<[^>]*>?/gm, '')}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
