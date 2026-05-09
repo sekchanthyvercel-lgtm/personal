@@ -18,6 +18,8 @@ import {
 import { Student, FilterState, UserRole } from '../types';
 import { format } from 'date-fns';
 
+import { RichTextDiv } from './FloatingToolbar';
+
 const MultilineInput: React.FC<{
   value: string;
   onChange: (val: string) => void;
@@ -25,37 +27,21 @@ const MultilineInput: React.FC<{
   style?: React.CSSProperties;
   placeholder?: string;
 }> = ({ value, onChange, className, style, placeholder }) => {
-  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
-  const [localValue, setLocalValue] = React.useState(value);
-
-  React.useEffect(() => {
-    setLocalValue(value);
-  }, [value]);
-
-  React.useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = '0px';
-      const scrollHeight = textareaRef.current.scrollHeight;
-      textareaRef.current.style.height = Math.max(36, scrollHeight) + 'px';
-    }
-  }, [localValue]);
-
   return (
-    <textarea
-      ref={textareaRef}
-      value={localValue}
-      placeholder={placeholder}
-      onChange={(e) => setLocalValue(e.target.value)}
-      onBlur={() => onChange(localValue)}
-      onKeyDown={(e) => {
+    <div onKeyDown={(e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault();
-          (e.target as HTMLTextAreaElement).blur();
+            e.preventDefault();
+            (e.target as HTMLElement).blur();
         }
-      }}
-      className={className}
-      style={{ ...style, resize: 'none', overflow: 'hidden', display: 'block' }}
-    />
+    }}>
+        <RichTextDiv
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        className={className}
+        style={{ ...style, resize: 'none', overflow: 'hidden', display: 'block', minHeight: '36px' }}
+        />
+    </div>
   );
 };
 

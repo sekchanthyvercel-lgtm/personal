@@ -4,6 +4,7 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay,
 import { CheckCircle2, ChevronLeft, ChevronRight, Calendar as CalendarIcon, BookOpen, Clock, X, Target, Quote, Heart, Sparkles, Footprints, Zap, ShieldCheck, Lightbulb, Activity, Circle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { PAPER_STYLES } from '../src/styles/paperStyles';
+import { RichTextDiv } from './FloatingToolbar';
 
 interface DailyJournalProps {
   data: AppData;
@@ -177,12 +178,11 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
                          <div className="w-6 h-6 border-2 border-emerald-400/30 rounded flex items-center justify-center bg-white/20">
                               {ach.trim() !== '' && <CheckCircle2 size={14} className="text-emerald-600" />}
                          </div>
-                         <input 
-                           type="text" 
+                         <RichTextDiv 
                            value={ach} 
                            onFocus={() => setActiveField(`ach-${idx}`)}
                            onBlur={() => setActiveField(null)}
-                           onChange={(e) => updateAchievement(idx, e.target.value)} 
+                           onChange={(val) => updateAchievement(idx, val)} 
                            placeholder="Type an objective..." 
                            className="flex-1 bg-transparent border-b border-black/10 py-2 outline-none focus:border-emerald-600 transition-all font-bold text-slate-900 placeholder:text-slate-900/20" 
                            style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }}
@@ -194,11 +194,11 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
                 </JournalBlock>
 
                 <JournalBlock title="Today's Positive Affirmation - What truth sets the tone for your day?" icon={<Quote className="text-cyan-600" size={20} />} bgColor={selectedPaper.className}>
-                  <textarea 
+                  <RichTextDiv 
                     value={(localEntry || currentEntry).affirmation} 
                     onFocus={() => setActiveField('affirmation')}
                     onBlur={() => setActiveField(null)}
-                    onChange={(e) => updateEntry('affirmation', e.target.value)} 
+                    onChange={(val) => updateEntry('affirmation', val)} 
                     placeholder="I am capable..." 
                     className="w-full bg-transparent outline-none italic font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-16" 
                     style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }}
@@ -206,11 +206,11 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
                 </JournalBlock>
 
                 <JournalBlock title="What am I grateful for today?" icon={<Heart className="text-rose-600" size={20} />} bgColor={selectedPaper.className}>
-                  <textarea 
+                  <RichTextDiv 
                     value={(localEntry || currentEntry).gratitude} 
                     onFocus={() => setActiveField('gratitude')}
                     onBlur={() => setActiveField(null)}
-                    onChange={(e) => updateEntry('gratitude', e.target.value)} 
+                    onChange={(val) => updateEntry('gratitude', val)} 
                     placeholder="I am grateful for..." 
                     className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-16" 
                     style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }}
@@ -219,12 +219,11 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   < JournalBlock title="How do I choose to feel today?" icon={<Sparkles className="text-amber-600" size={20} />} bgColor={selectedPaper.className}>
-                      <input 
-                        type="text" 
+                      <RichTextDiv 
                         value={(localEntry || currentEntry).feeling} 
                         onFocus={() => setActiveField('feeling')}
                         onBlur={() => setActiveField(null)}
-                        onChange={(e) => updateEntry('feeling', e.target.value)} 
+                        onChange={(val) => updateEntry('feeling', val)} 
                         placeholder="Peaceful, productive..." 
                         className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20" 
                         style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }}
@@ -232,12 +231,11 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
                   </JournalBlock>
 
                   < JournalBlock title="Who am I surprising with appreciation today?" icon={<Footprints className="text-indigo-600" size={20} />} bgColor={selectedPaper.className}>
-                      <input 
-                        type="text" 
+                      <RichTextDiv 
                         value={(localEntry || currentEntry).appreciation} 
                         onFocus={() => setActiveField('appreciation')}
                         onBlur={() => setActiveField(null)}
-                        onChange={(e) => updateEntry('appreciation', e.target.value)} 
+                        onChange={(val) => updateEntry('appreciation', val)} 
                         placeholder="A quick note to..." 
                         className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20" 
                         style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }}
@@ -293,11 +291,11 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
                 </JournalBlock>
 
                 <JournalBlock title="What are the great things that happened today?" icon={<Quote className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
-                  <textarea 
+                  <RichTextDiv 
                     value={(localEntry || currentEntry).inspiration} 
                     onFocus={() => setActiveField('inspiration')}
                     onBlur={() => setActiveField(null)}
-                    onChange={(e) => updateEntry('inspiration', e.target.value)} 
+                    onChange={(val) => updateEntry('inspiration', val)} 
                     placeholder="Moments of joy..."
                     className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-24" 
                     style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }}
@@ -305,11 +303,11 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
                 </JournalBlock>
 
                 <JournalBlock title="What is one thing I learned today?" icon={<Lightbulb className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
-                  <textarea 
+                  <RichTextDiv 
                     value={(localEntry || currentEntry).learning} 
                     onFocus={() => setActiveField('learning')}
                     onBlur={() => setActiveField(null)}
-                    onChange={(e) => updateEntry('learning', e.target.value)} 
+                    onChange={(val) => updateEntry('learning', val)} 
                     placeholder="New insights..."
                     className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-24" 
                     style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }}
@@ -319,59 +317,31 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
             ) : reflectionMode === 'Weekly' ? (
               <motion.div key="weekly" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
                   <JournalBlock title="Weekly Review - Did I work on my goals?" icon={<Target className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
-                    <textarea 
-                      placeholder="Review your goals and progress this week..." 
-                      className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" 
-                      style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }}
-                    />
+                    <RichTextDiv value={""} onChange={() => {}} placeholder="Review your goals and progress this week..." className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }} />
                   </JournalBlock>
                   <JournalBlock title="What needs adjustment for next week?" icon={<Zap className="text-orange-600" size={20} />} bgColor={selectedPaper.className}>
-                    <textarea 
-                      placeholder="Identify changes to stay on track..." 
-                      className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" 
-                      style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }}
-                    />
+                    <RichTextDiv value={""} onChange={() => {}} placeholder="Identify changes to stay on track..." className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }} />
                   </JournalBlock>
                   <JournalBlock title="Key Successes & Learnings this week" icon={<Lightbulb className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
-                    <textarea 
-                      placeholder="What was your biggest win?" 
-                      className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" 
-                      style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }}
-                    />
+                    <RichTextDiv value={""} onChange={() => {}} placeholder="What was your biggest win?" className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }} />
                   </JournalBlock>
               </motion.div>
             ) : reflectionMode === 'Monthly' ? (
               <motion.div key="monthly" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
                 <JournalBlock title="Monthly Master - Key Achievements" icon={<ShieldCheck className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
-                  <textarea 
-                    placeholder="Reflect on your biggest wins this month..." 
-                    className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" 
-                    style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }}
-                  />
+                  <RichTextDiv value={""} onChange={() => {}} placeholder="Reflect on your biggest wins this month..." className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }} />
                 </JournalBlock>
                 <JournalBlock title="Core Growth Area & Major Learnings" icon={<Lightbulb className="text-amber-600" size={20} />} bgColor={selectedPaper.className}>
-                  <textarea 
-                    placeholder="What was the most significant area of maturity this month?" 
-                    className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" 
-                    style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }}
-                  />
+                  <RichTextDiv value={""} onChange={() => {}} placeholder="What was the most significant area of maturity this month?" className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }} />
                 </JournalBlock>
               </motion.div>
             ) : (
               <motion.div key="3month" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
                 <JournalBlock title="90-Day Vision Evolution" icon={<Sparkles className="text-purple-600" size={20} />} bgColor={selectedPaper.className}>
-                  <textarea 
-                    placeholder="How has your 3-month vision shifted since the start?" 
-                    className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" 
-                    style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }}
-                  />
+                  <RichTextDiv value={""} onChange={() => {}} placeholder="How has your 3-month vision shifted since the start?" className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }} />
                 </JournalBlock>
                 <JournalBlock title="The Next Plateau for Peak Performance" icon={<Target className="text-rose-600" size={20} />} bgColor={selectedPaper.className}>
-                  <textarea 
-                    placeholder="What is the next major milestone for the upcoming quarter?" 
-                    className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" 
-                    style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }}
-                  />
+                  <RichTextDiv value={""} onChange={() => {}} placeholder="What is the next major milestone for the upcoming quarter?" className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }} />
                 </JournalBlock>
               </motion.div>
             )}

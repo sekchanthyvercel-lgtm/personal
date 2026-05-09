@@ -59,6 +59,25 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
     { name: 'Clear', value: 'transparent' }
   ];
 
+  const textColors = [
+    { name: 'Slate', value: '#334155' },
+    { name: 'Red', value: '#ef4444' },
+    { name: 'Orange', value: '#f97316' },
+    { name: 'Amber', value: '#f59e0b' },
+    { name: 'Green', value: '#22c55e' },
+    { name: 'Emerald', value: '#10b981' },
+    { name: 'Teal', value: '#14b8a6' },
+    { name: 'Cyan', value: '#06b6d4' },
+    { name: 'Blue', value: '#3b82f6' },
+    { name: 'Indigo', value: '#6366f1' },
+    { name: 'Violet', value: '#8b5cf6' },
+    { name: 'Purple', value: '#a855f7' },
+    { name: 'Fuchsia', value: '#d946ef' },
+    { name: 'Pink', value: '#ec4899' },
+    { name: 'Rose', value: '#f43f5e' },
+    { name: 'Clear', value: 'transparent' }
+  ];
+
   const fontFamilies = [
     { name: 'Modern', value: 'Inter' },
     { name: 'Display (Growth)', value: 'Space Grotesk' },
@@ -110,6 +129,30 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
            setPickerPos(null);
         }
       }, 100);
+    }
+  };
+
+  const applyTextColor = (color: string, selectionProvided: boolean = false) => {
+    const selection = window.getSelection();
+    if (!selection) return;
+
+    if (!selectionProvided) {
+      if (!savedRange.current) return;
+      selection.removeAllRanges();
+      selection.addRange(savedRange.current);
+    }
+    
+    if (color === 'transparent') {
+      document.execCommand('removeFormat', false, undefined);
+    } else {
+      document.execCommand('foreColor', false, color);
+    }
+    
+    // Cleanup
+    if (!selectionProvided) {
+      selection.removeAllRanges();
+      savedRange.current = null;
+      setPickerPos(null);
     }
   };
 
@@ -428,6 +471,25 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
         document.body.removeChild(link);
       }
     }
+
+    if (target.classList?.contains('task-checkbox') && target.getAttribute('contenteditable') === 'false') {
+        const text = target.innerText.trim();
+        const toggles: Record<string, string> = {
+            '⬜': '✅', '✅': '⬜',
+            '[ ]': '[x]', '[x]': '[ ]',
+            '🔳': '✅',
+            '⚪': '🟢', '🟢': '⚪',
+            '🔴': '🟢',
+            '❎': '✅',
+            '✓': '✗', '✗': '✓'
+        };
+        if (toggles[text]) {
+            target.innerText = toggles[text];
+            if (selectedTopic?.id && editorRef.current) {
+                updateTopic(selectedTopic.id, { content: editorRef.current.innerHTML });
+            }
+        }
+    }
   };
 
   const renderTopic = (topic: DPSSTopic, depth = 0) => (
@@ -542,7 +604,7 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
                         <div className="absolute hidden group-hover/list:grid grid-cols-5 gap-1 top-full left-0 bg-white shadow-xl border border-slate-200 p-2 rounded-xl z-[200] w-[180px]">
                            {['•','🌹','⭐','🚗','❤️','✅','✨','🔥','🔮','🍃','🎵','👑','☀️','🌙','💎'].map(marker => (
                              <button key={marker} onClick={() => {
-                                const html = `<ul style="list-style-type: none; padding-left: 20px;"><li>${marker} Item 1</li><li>${marker} Item 2</li></ul><p><br></p>`;
+                                const html = `<ul style="list-style-type: none; padding-left: 20px;"><li>${marker} Item 1</li></ul><div><br></div>`;
                                 document.execCommand('insertHTML', false, html);
                              }} className="p-1 hover:bg-slate-100 rounded text-center text-sm">{marker}</button>
                            ))}
@@ -556,9 +618,9 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
                              <button key={marker.n} onClick={() => {
                                 let html = '';
                                 if (marker.t === 'ol') {
-                                   html = `<ul style="list-style-type: none; padding-left: 20px;"><li>${marker.n.replace('1','1')} Item 1</li><li>${marker.n.replace('1','2')} Item 2</li></ul><p><br></p>`;
+                                   html = `<ul style="list-style-type: none; padding-left: 20px;"><li>${marker.n} Item 1</li></ul><div><br></div>`;
                                 } else {
-                                   html = `<ol style="list-style-type: ${marker.t}; padding-left: 20px;"><li>Item 1</li><li>Item 2</li></ol><p><br></p>`;
+                                   html = `<ol style="list-style-type: ${marker.t}; padding-left: 20px;"><li>Item 1</li></ol><div><br></div>`;
                                 }
                                 document.execCommand('insertHTML', false, html);
                              }} className="p-1 hover:bg-slate-100 rounded text-left text-xs font-bold">{marker.n} Type</button>
@@ -569,9 +631,9 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
                       <div className="relative group/list3 z-[150]">
                         <button className="p-1.5 hover:bg-white rounded transition-colors text-slate-700 font-bold text-xs flex items-center gap-1" title="Checklist"><CheckSquare size={14} /> <span className="text-[10px]">▼</span></button>
                         <div className="absolute hidden group-hover/list3:grid grid-cols-2 gap-1 top-full left-0 bg-white shadow-xl border border-slate-200 p-2 rounded-xl z-[200] w-[140px]">
-                           {['<input type="checkbox" />', '[ ]', '⬜', '🔳', '✅', '❎', '🔴', '🟢', '⚪', '✓'].map((marker, idx) => (
+                           {['⬜', '[ ]', '🔳', '⚪', '🔴', '❎', '✓'].map((marker, idx) => (
                              <button key={idx} onClick={() => {
-                                const html = `<ul style="list-style-type: none; padding-left: 20px;"><li>${marker} Item 1</li><li>${marker} Item 2</li></ul><p><br></p>`;
+                                const html = `<ul style="list-style-type: none; padding-left: 20px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">${marker}</span><span>Task</span></li></ul><div><br></div>`;
                                 document.execCommand('insertHTML', false, html);
                              }} className="p-1 hover:bg-slate-100 rounded text-center text-xs" dangerouslySetInnerHTML={{__html: marker}}></button>
                            ))}
@@ -664,26 +726,56 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
 
                     <div className="h-6 w-px bg-white/30 mx-1" />
 
-                    <div className="flex items-center gap-2 bg-white/40 p-1 px-3 rounded-lg border border-white/40 transition-all">
-                      <Highlighter size={14} className={activeColor ? 'text-orange-500 animate-pulse' : 'text-slate-400'} />
-                      <div className="flex gap-1.5">
-                        {colors.map(c => (
-                          <button
-                            key={c.value}
-                            onClick={() => setActiveColor(activeColor === c.value ? null : c.value)}
-                            className={`w-5 h-5 rounded-full border-2 transition-all hover:scale-110 shadow-sm ${activeColor === c.value ? 'border-orange-500 scale-125' : 'border-white/40'}`}
-                            style={{ backgroundColor: c.value === 'transparent' ? '#f8fafc' : c.value }}
-                            title={c.name}
-                          >
-                            {c.value === 'transparent' && <span className="text-[8px] font-black opacity-30">✕</span>}
-                          </button>
-                        ))}
-                      </div>
-                      {activeColor && (
-                        <button onClick={() => setActiveColor(null)} className="ml-1 text-[9px] font-black bg-white/60 hover:bg-white px-1.5 rounded uppercase tracking-tighter text-slate-500">
-                          Stop
+                    <div className="flex gap-1 bg-white/40 p-1 rounded-lg shrink-0 overflow-visible z-[150]">
+                      <div className="flex items-center gap-2 relative group/textcolor">
+                        <button className="flex items-center gap-1 p-0.5 hover:bg-white rounded transition-colors" title="Font Color">
+                          <Palette size={14} className="text-slate-600" />
+                          <span className="text-[10px] text-slate-500">▼</span>
                         </button>
-                      )}
+                        <div className="absolute hidden group-hover/textcolor:grid grid-cols-4 gap-2 top-full right-0 bg-white shadow-xl border border-slate-200 p-2 rounded-xl w-[130px]">
+                          {textColors.map(c => (
+                            <button
+                              key={c.value}
+                              onClick={() => applyTextColor(c.value, true)} // assuming main toolbar applies to current selection
+                              className={`w-5 h-5 rounded-full border-2 transition-all hover:scale-110 shadow-sm mx-auto border-slate-200`}
+                              style={{ backgroundColor: c.value === 'transparent' ? '#f8fafc' : c.value }}
+                              title={c.name}
+                            >
+                              {c.value === 'transparent' && <span className="text-[8px] font-black opacity-30">✕</span>}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="w-px h-4 bg-white/30 self-center mx-1" />
+
+                      <div className="flex items-center gap-2 relative group/color">
+                        <button className="flex items-center gap-1 p-0.5 hover:bg-white rounded transition-colors" title="Highlight Color">
+                          <Highlighter size={14} className={activeColor ? 'text-orange-500 animate-pulse' : 'text-slate-600'} />
+                          <span className="text-[10px] text-slate-500">▼</span>
+                        </button>
+                        <div className="absolute hidden group-hover/color:grid grid-cols-5 gap-2 top-full right-0 bg-white shadow-xl border border-slate-200 p-2 rounded-xl w-[160px]">
+                          {colors.map(c => (
+                            <button
+                              key={c.value}
+                              onClick={() => {
+                                setActiveColor(activeColor === c.value ? null : c.value);
+                                applyColor(c.value, true); // Apply immediately to selection if any
+                              }}
+                              className={`w-5 h-5 rounded-full border-2 transition-all hover:scale-110 shadow-sm mx-auto ${activeColor === c.value ? 'border-orange-500 scale-125' : 'border-slate-200'}`}
+                              style={{ backgroundColor: c.value === 'transparent' ? '#f8fafc' : c.value }}
+                              title={c.name}
+                            >
+                              {c.value === 'transparent' && <span className="text-[8px] font-black opacity-30">✕</span>}
+                            </button>
+                          ))}
+                        </div>
+                        {activeColor && (
+                          <button onClick={() => setActiveColor(null)} className="text-[9px] font-black bg-white/60 hover:bg-white px-1.5 rounded uppercase tracking-tighter text-slate-500">
+                            Stop
+                          </button>
+                        )}
+                      </div>
                     </div>
                     
                     <div className="h-6 w-px bg-white/30 mx-1" />
@@ -715,10 +807,9 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
                     </div>
                 </div>
 
-                {/* Floating Selection Tooltip */}
                 {pickerPos && (
                   <div 
-                    className="fixed z-50 bg-white/90 backdrop-blur p-2 rounded-2xl shadow-2xl border border-white flex gap-2 animate-in fade-in zoom-in slide-in-from-bottom-2 duration-200"
+                    className="fixed z-50 bg-white/90 backdrop-blur p-2 rounded-2xl shadow-2xl border border-white flex gap-3 animate-in fade-in zoom-in slide-in-from-bottom-2 duration-200"
                     style={{ 
                       left: pickerPos.x, 
                       top: pickerPos.y, 
@@ -726,17 +817,39 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
                     }}
                     onMouseDown={(e) => e.preventDefault()} // Prevent focus loss
                   >
-                    {colors.map(color => (
-                        <button 
-                            key={color.value}
-                            className={`w-6 h-6 rounded-full border border-black/5 hover:scale-110 transition-transform ${color.value === 'transparent' ? 'bg-slate-100 flex items-center justify-center' : ''}`}
-                            style={{ backgroundColor: color.value }}
-                            onClick={() => applyColor(color.value)}
-                            title={color.name}
-                        >
-                          {color.value === 'transparent' && <span className="text-[8px] font-black opacity-40">✕</span>}
-                        </button>
-                    ))}
+                    <div className="flex gap-2 items-center">
+                      <Palette size={14} className="text-slate-400" />
+                      <div className="flex gap-1">
+                        {textColors.map(color => (
+                            <button 
+                                key={color.value}
+                                className={`w-5 h-5 rounded-full border border-black/5 hover:scale-110 transition-transform ${color.value === 'transparent' ? 'bg-slate-100 flex items-center justify-center' : ''}`}
+                                style={{ backgroundColor: color.value }}
+                                onClick={() => applyTextColor(color.value)}
+                                title={color.name}
+                            >
+                              {color.value === 'transparent' && <span className="text-[8px] font-black opacity-40">✕</span>}
+                            </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="w-px h-5 bg-slate-200 self-center" />
+                    <div className="flex gap-2 items-center">
+                      <Highlighter size={14} className="text-slate-400" />
+                      <div className="flex gap-1">
+                        {colors.map(color => (
+                            <button 
+                                key={color.value}
+                                className={`w-5 h-5 rounded-full border border-black/5 hover:scale-110 transition-transform ${color.value === 'transparent' ? 'bg-slate-100 flex items-center justify-center' : ''}`}
+                                style={{ backgroundColor: color.value }}
+                                onClick={() => applyColor(color.value)}
+                                title={color.name}
+                            >
+                              {color.value === 'transparent' && <span className="text-[8px] font-black opacity-40">✕</span>}
+                            </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 )}
 

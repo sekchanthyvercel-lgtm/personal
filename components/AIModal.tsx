@@ -8,7 +8,7 @@ interface Props {
   onClose: () => void;
   onAdd: (data: Partial<Student> | Partial<Student>[]) => void;
   defaults?: Partial<Student>;
-  mode: 'Hall' | 'Finance' | 'Attendance' | 'DailyTask';
+  mode: 'Hall' | 'Finance' | 'Attendance';
 }
 
 export const AIModal: React.FC<Props> = ({ isOpen, onClose, onAdd, defaults, mode }) => {
@@ -86,14 +86,6 @@ export const AIModal: React.FC<Props> = ({ isOpen, onClose, onAdd, defaults, mod
 2- Name (F)
 
 (Simple list of names. Sex (M)/(F) is optional.)`;
-  } else if (mode === 'DailyTask') {
-      title = 'AI Quick Add (Daily Tasks)';
-      placeholderText = `Format:
-Teacher: Souyean & Sreythea
-Level: 1A + (5.1)
-Shift: Morning
-
-(Or paste a teacher assignment table screenshot)`;
   } else if (mode === 'Hall') {
       title = 'AI Quick Add (Hall Study)';
       placeholderText = `Format:

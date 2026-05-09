@@ -10,9 +10,9 @@ import { SettingsModal } from './components/SettingsModal';
 import { SupermanAnimation } from './components/SupermanAnimation';
 import DPSSTable from './components/DPSSTable';
 import SelfLearningTable from './components/SelfLearningTable';
-import { DailyTaskTable } from './components/DailyTaskTable';
 import { RecycleBin } from './components/RecycleBin';
 import Dashboard from './components/Dashboard';
+import { FloatingToolbar } from './components/FloatingToolbar';
 import { AppData, Student, CurrentUser, UserRole, ColumnConfig, Tab, ViewMode, AppSettings, StudentCategory, JournalEntry, ExpenseEntry } from './types';
 import { subscribeToData, saveData } from './services/firebase';
 import { Menu, MessageSquare, X } from 'lucide-react';
@@ -305,17 +305,6 @@ const App: React.FC = () => {
           }
         }
 
-        // 3. Sync Daily Tasks changes
-        const changedTaskStudents = Object.keys(newData.dailyTasks || {}).filter(sid => 
-          JSON.stringify(newData.dailyTasks[sid]) !== JSON.stringify(oldData.dailyTasks?.[sid])
-        );
-        if (changedTaskStudents.length > 0) {
-          const { saveDailyTasksBulk } = await import('./services/firebase');
-          for (const sid of changedTaskStudents) {
-            await saveDailyTasksBulk(currentUser.uid, sid, newData.dailyTasks[sid]);
-          }
-        }
-
         // 4. Sync Daily Notes
         const changedNotes = Object.keys(newData.dailyNotes || {}).filter(date => 
           newData.dailyNotes[date] !== oldData.dailyNotes?.[date]
@@ -424,29 +413,6 @@ const App: React.FC = () => {
     }
   };
 
-  const handleUpdateDailyTasks = async (studentId: string, date: string, slot: 1 | 2, status: string | undefined) => {
-    const dailyTasks = data.dailyTasks || {};
-    const studentTasks = { ...(dailyTasks[studentId] || {}) };
-    const taskKey = `${date}_${slot}`;
-    
-    if (status === undefined) {
-      delete studentTasks[taskKey];
-    } else {
-      studentTasks[taskKey] = status;
-    }
-
-    const newDailyTasks = { ...dailyTasks, [studentId]: studentTasks };
-    const newData = { ...data, dailyTasks: newDailyTasks };
-    
-    setData(newData);
-    localStorage.setItem('dps_data', JSON.stringify(newData));
-
-    if (currentUser?.uid) {
-      const { saveDailyTasks } = await import('./services/firebase');
-      await saveDailyTasks(currentUser.uid, studentId, date, slot, status);
-    }
-  };
-
   const handleUpdateExpense = async (expense: ExpenseEntry, isDelete: boolean = false) => {
     let newExpenses = [...(data.expenses || [])];
     if (isDelete) {
@@ -514,7 +480,7 @@ const App: React.FC = () => {
     const newStudentsBatch = incomingData.map((s, index) => {
         const today = new Date();
         
-        let determinedCategory: StudentCategory = 'DailyTask';
+        let determinedCategory: StudentCategory = 'Reminder';
         
         return {
           id: uuidv4(),
@@ -664,9 +630,7 @@ const App: React.FC = () => {
         isOpen={isAiOpen} 
         onClose={() => setIsAiOpen(false)} 
         onAdd={handleAddStudent} 
-        mode={
-            activeTab === Tab.DailyTask ? 'DailyTask' : 'Hall'
-        } 
+        mode={'Hall'} 
       />
       
       <SettingsModal 
@@ -718,21 +682,6 @@ const App: React.FC = () => {
                 role={currentUser.role}
                 settings={data.settings}
                 onUpdateSettings={(s) => handleUpdate({...data, settings: s})}
-              />
-            )}
-            {activeTab === Tab.DailyTask && (
-              <DailyTaskTable 
-                students={activeStudents} 
-                data={data}
-                onUpdate={handleUpdate} 
-                onUpdateDailyTasks={handleUpdateDailyTasks}
-                onUpdateStudent={handleUpdateStudent}
-                onDeleteStudent={handleDeleteStudent}
-                filters={filters} 
-                setFilters={setFilters}
-                onAddStudent={(defaults) => handleAddStudent(defaults)} 
-                role={currentUser.role}
-                onClearCategory={handleClearCategory}
               />
             )}
             {activeTab === Tab.DPSS && (
@@ -787,6 +736,7 @@ const App: React.FC = () => {
                 onPermanentDeleteTopic={handlePermanentDeleteTopic}
               />
             )}
+            <FloatingToolbar />
           </>
         </div>
       </main>

@@ -3,7 +3,7 @@
 
 export type StudyType = 'FullTime' | 'PartTime' | 'Khmer';
 
-export type StudentCategory = 'Hall' | 'Class' | 'Office' | 'Card' | 'Queue' | 'Penalty' | 'DailyTask' | 'Reminder';
+export type StudentCategory = 'Hall' | 'Class' | 'Office' | 'Card' | 'Queue' | 'Penalty' | 'Reminder';
 
 export type UserRole = 'Admin' | 'Teacher' | 'Finance';
 
@@ -130,7 +130,6 @@ export interface AppData {
   students: Student[];
   settings?: AppSettings;
   attendance: Record<string, Record<string, number>>;
-  dailyTasks?: Record<string, Record<string, string>>;
   dpssTopics?: DPSSTopic[];
   systemLocked?: boolean;
   moduleLocks?: ModuleLocks;
@@ -202,7 +201,6 @@ export interface BackupEntry {
 
 export enum Tab {
   HabitTracker = 'HabitTracker',
-  DailyTask = 'DailyTask',
   Reflections = 'Reflections',
   DailyJournal = 'DailyJournal',
   Reminder = 'Reminder',

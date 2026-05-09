@@ -318,7 +318,7 @@ const calculateDeadline = (startDate: Date, durationStr: string): Date => {
     return addMonths(startDate, amount);
 };
 
-export const parseStudentData = async (inputText: string, imageFile?: File, mode: 'Hall' | 'Finance' | 'Attendance' | 'DailyTask' = 'Hall'): Promise<Partial<Student>[] | null> => {
+export const parseStudentData = async (inputText: string, imageFile?: File, mode: 'Hall' | 'Finance' | 'Attendance' = 'Hall'): Promise<Partial<Student>[] | null> => {
   
   // Attempt secure server proxy first (no image support in simple proxy yet, skip if image)
   if (!imageFile) {
@@ -378,11 +378,6 @@ export const parseStudentData = async (inputText: string, imageFile?: File, mode
       - Teachers (teachers): Names of teachers.
       - Monthly Payments (paymentList): Array of {period: string, status: string}.
       - Duration (duration): How long they paid for.`;
-  } else if (mode === 'DailyTask') {
-      prompt = `EXTRACT Teacher Daily Task assignments from the messy input. 
-      - Teacher Name (name)
-      - Level (level)
-      - Shift (shift): MUST be 'Morning', 'Afternoon', or 'Evening'.`;
   } else {
       prompt = `EXTRACT Attendance list from the messy input. 
       - Full Name (name)

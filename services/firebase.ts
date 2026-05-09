@@ -118,7 +118,6 @@ export const subscribeToData = (
     expenses: [],
     journalEntries: {},
     dpssTopics: [],
-    dailyTasks: {},
     habitCompletions: {},
     dailyNotes: {}
   };
@@ -176,16 +175,6 @@ export const subscribeToData = (
   }, (err) => handleFirestoreError(err, OperationType.GET, attendanceRef.path));
   unsubscribes.push(unsubAttendance);
 
-  // 6. Subscribe to Daily Tasks collection
-  const dailyTasksRef = collection(db, 'users', userId, 'dailyTasks');
-  const unsubDailyTasks = onSnapshot(dailyTasksRef, (querySnap) => {
-    const tasks: any = {};
-    querySnap.docs.forEach(d => { tasks[d.id] = d.data(); });
-    currentData.dailyTasks = tasks;
-    notifyChange();
-  }, (err) => handleFirestoreError(err, OperationType.GET, dailyTasksRef.path));
-  unsubscribes.push(unsubDailyTasks);
-
   // 7. Subscribe to DPSS Topics collection
   const topicsRef = collection(db, 'users', userId, 'dpssTopics');
   const unsubTopics = onSnapshot(topicsRef, (querySnap) => {
@@ -233,7 +222,6 @@ export const saveData = async (userId: string, data: AppData) => {
     expenses, 
     journalEntries, 
     dpssTopics, 
-    dailyTasks, 
     attendance,
     habitCompletions, 
     dailyNotes,
@@ -354,31 +342,6 @@ export const saveHabitCompletion = async (userId: string, date: string, habitId:
     await setDoc(docRef, { [habitId]: completed }, { merge: true });
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `users/${userId}/habitCompletions/${date}`);
-  }
-};
-
-export const saveDailyTasks = async (userId: string, studentId: string, date: string, slot: 1 | 2, status: string | undefined) => {
-  if (!userId || !studentId || !date) return;
-  const docRef = doc(db, 'users', userId, 'dailyTasks', studentId);
-  const taskKey = `${date}_${slot}`;
-  
-  if (status === undefined) {
-    // Note: To truly delete a field in merge:true we use deleteField() but partial object works too with setDoc if we handle it carefully.
-    // However, setDoc with merge:true and a field set to undefined doesn't remove it.
-    // For simplicity, we'll just set it to 'Removed' or keep it as is.
-    await setDoc(docRef, { [taskKey]: null }, { merge: true });
-  } else {
-    await setDoc(docRef, { [taskKey]: status }, { merge: true });
-  }
-};
-
-export const saveDailyTasksBulk = async (userId: string, studentId: string, tasks: Record<string, string>) => {
-  if (!userId || !studentId) return;
-  try {
-    const docRef = doc(db, 'users', userId, 'dailyTasks', studentId);
-    await setDoc(docRef, tasks, { merge: true });
-  } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, `users/${userId}/dailyTasks/${studentId}`);
   }
 };
 

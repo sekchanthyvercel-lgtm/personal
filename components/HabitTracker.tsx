@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { RichTextDiv } from './FloatingToolbar';
 import { AppData, Habit, HabitCompletion } from '../types';
-import { ChevronLeft, ChevronRight, Plus, Trash2, CheckCircle2, Zap, Maximize2, Minimize2, Calendar as CalendarIcon, Edit3, Target, Wand2, RefreshCw } from 'lucide-react';
+import { CheckSquare, ChevronLeft, ChevronRight, Plus, Trash2, CheckCircle2, Zap, Maximize2, Minimize2, Calendar as CalendarIcon, Edit3, Target, Wand2, RefreshCw } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isToday, isSameDay, subDays, startOfWeek, endOfWeek, addMonths, subMonths, isSameMonth } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 import { motion, AnimatePresence } from 'motion/react';
@@ -209,19 +210,22 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
                           </div>
                           <div>
                               <p className="text-[9px] font-black text-orange-500 uppercase tracking-widest leading-none mb-1">Architecture of Resolve</p>
-                              <h3 className="text-xl font-black text-slate-800 uppercase italic tracking-tighter">{format(selectedPlanningDate, 'MMMM do, yyyy')}</h3>
+                              <h3 className="text-xl font-black text-slate-800 uppercase italic tracking-tighter flex items-center gap-3">
+                                  {format(selectedPlanningDate, 'MMMM do, yyyy')}
+                                  <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>List item</span></li></ul><div><br></div>`; const dateKey = format(selectedPlanningDate, 'yyyy-MM-dd'); const newNote = planningNote + html; setPlanningNote(newNote); if (onUpdateDailyNote) { onUpdateDailyNote(dateKey, newNote); } else { onUpdate({ ...data, dailyNotes: { ...(data.dailyNotes || {}), [dateKey]: newNote } }); } }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={20} /></button>
+                              </h3>
                           </div>
                        </div>
                     </div>
-                    <textarea 
+                    <RichTextDiv 
                         value={planningNote}
                         onFocus={() => setIsTyping(true)}
-                        onChange={(e) => setPlanningNote(e.target.value)}
+                        onChange={(val) => setPlanningNote(val)}
                         onBlur={() => {
                           setIsTyping(false);
                           savePlanningNote();
                         }}
-                        className="w-full h-24 bg-white/5 rounded-2xl p-4 text-slate-800 font-bold text-lg outline-none border border-white/10 focus:border-orange-500 transition-all placeholder:text-slate-400 resize-none shadow-inner"
+                        className="w-full h-24 bg-white/5 rounded-2xl p-4 text-slate-800 font-bold text-lg outline-none border border-white/10 focus:border-orange-500 transition-all placeholder:text-slate-400 overflow-y-auto overflow-x-hidden shadow-inner block"
                         placeholder="Define your focus..."
                     />
                  </div>
@@ -379,7 +383,7 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
                       <Edit3 size={18} />
                     </div>
                     <div>
-                      <h3 className="text-sm font-black text-slate-900 tracking-tighter uppercase italic">Strategic Planning</h3>
+                      <h3 className="text-sm font-black text-slate-900 tracking-tighter uppercase italic flex items-center gap-2">Strategic Planning <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>List item</span></li></ul><div><br></div>`; const dateKey = format(selectedPlanningDate, 'yyyy-MM-dd'); const newNote = planningNote + html; setPlanningNote(newNote); if (onUpdateDailyNote) { onUpdateDailyNote(dateKey, newNote); } else { onUpdate({ ...data, dailyNotes: { ...(data.dailyNotes || {}), [dateKey]: newNote } }); } }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></h3>
                       <p className="text-[8px] font-black text-orange-500 uppercase tracking-widest leading-none">{format(selectedPlanningDate, 'MMMM do, yyyy')}</p>
                     </div>
                   </div>
@@ -400,16 +404,16 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
                     ))}
                   </div>
               </div>
-              <textarea 
+              <RichTextDiv 
                  value={planningNote}
                  onFocus={() => setIsTyping(true)}
-                 onChange={(e) => setPlanningNote(e.target.value)}
+                 onChange={(val) => setPlanningNote(val)}
                  onBlur={() => {
                    setIsTyping(false);
                    savePlanningNote();
                  }}
                  placeholder={`Mission goals for tomorrow...`}
-                 className="w-full h-20 bg-white/5 rounded-xl p-4 text-slate-800 font-bold text-sm outline-none border border-transparent focus:border-orange-500/30 transition-all placeholder:text-slate-400 resize-none"
+                 className="w-full h-20 bg-white/5 rounded-xl p-4 text-slate-800 font-bold text-sm outline-none border border-transparent focus:border-orange-500/30 transition-all placeholder:text-slate-400 overflow-y-auto block"
               />
           </div>
 
@@ -449,9 +453,16 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
                  <tr key={habit.id} className="group hover:bg-black/5 transition-colors">
                   <td className="md:sticky left-0 z-10 bg-white/5 backdrop-blur-3xl group-hover:bg-white/10 p-6 border-b border-black/10 flex items-center justify-between shadow-sm">
                     <div className="flex flex-col gap-1">
-                      <span className="text-sm font-black text-black uppercase tracking-tight" style={{ color: habit.color || 'black' }}>
-                        {habit.name}
-                      </span>
+                      <RichTextDiv 
+                        tagName="span"
+                        className="text-sm font-black text-black uppercase tracking-tight" 
+                        style={{ color: habit.color || 'black' }}
+                        value={habit.name}
+                        onChange={(val) => {
+                          const newHabits = data.habits.map(h => h.id === habit.id ? { ...h, name: val } : h);
+                          onUpdate({ ...data, habits: newHabits });
+                        }}
+                      />
                       {streak > 0 && (
                         <div className="flex items-center gap-1.5" style={{ color: habit.color }}>
                           <Zap size={14} className="animate-pulse" />
