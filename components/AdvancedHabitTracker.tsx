@@ -273,7 +273,7 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
 
   // Safe numerical logging
   const handleLogValue = (habitId: string, dayDate: Date, valueStr: string) => {
-    const dateStr = format(dayDate, 'yyyy-MM-DD');
+    const dateStr = format(dayDate, 'yyyy-MM-dd');
     const numericVal = parseFloat(valueStr);
     const finalVal = isNaN(numericVal) ? 0 : Math.max(0, numericVal);
 
@@ -307,7 +307,7 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
   const getWeeklyHabitStats = (habit: AdvancedHabit) => {
     let total = 0;
     const dailyValues = weekDays.map(day => {
-      const dateStr = format(day, 'yyyy-MM-DD');
+      const dateStr = format(day, 'yyyy-MM-dd');
       const val = logs[dateStr]?.[habit.id] || 0;
       total += val;
       return { day, val };
@@ -354,7 +354,7 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
         ...data.settings,
         dopamineFast: {
           isActive: true,
-          startDate: format(new Date(), 'yyyy-MM-DD'),
+          startDate: format(new Date(), 'yyyy-MM-dd'),
           durationDays: days,
           reflections: []
         }
