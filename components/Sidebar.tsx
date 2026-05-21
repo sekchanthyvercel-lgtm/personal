@@ -83,6 +83,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const navItems = [
     { id: Tab.HabitTracker, icon: Zap, label: 'Habit Tracker', roles: ['Admin', 'Teacher', 'Finance'] },
+    { id: Tab.AdvancedHabitTracker, icon: Sparkles, label: 'Advanced Habits', roles: ['Admin', 'Teacher', 'Finance'] },
     { id: Tab.Reflections, icon: LayoutGrid, label: 'Growth Plan', roles: ['Admin', 'Teacher', 'Finance'] },
     { id: Tab.DailyJournal, icon: BookOpen, label: 'Daily Journal', roles: ['Admin', 'Teacher', 'Finance'] },
     { id: Tab.Reminder, icon: Bell, label: 'Reminder Hub', roles: ['Admin', 'Teacher', 'Finance'] },

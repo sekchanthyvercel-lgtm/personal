@@ -22,6 +22,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [currencyMode, setCurrencyMode] = useState<'USD' | 'KHR'>(data.settings?.currency || 'USD');
   const [showCategorySummary, setShowCategorySummary] = useState(true);
+  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
 
   const categories = data.expenseCategories || DEFAULT_CATEGORIES;
   const expenses = data.expenses || [];
@@ -35,12 +36,12 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, 
   });
 
   const quickAmounts = [
+    { label: '3000R', amount: 3000, currency: 'KHR' },
     { label: '4000R', amount: 4000, currency: 'KHR' },
     { label: '5000R', amount: 5000, currency: 'KHR' },
     { label: '10,000R', amount: 10000, currency: 'KHR' },
     { label: '$1', amount: 1, currency: 'USD' },
     { label: '$2', amount: 2, currency: 'USD' },
-    { label: '$5', amount: 5, currency: 'USD' },
   ];
 
   // Get common amounts for specific category from history
@@ -136,13 +137,15 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, 
     if (!newExpense.description || !newExpense.amount) return;
 
     const expense: ExpenseEntry = {
-      id: uuidv4(),
+      id: editingExpenseId ? editingExpenseId : uuidv4(),
       description: newExpense.description,
       amount: parseFloat(newExpense.amount),
       category: newExpense.type === 'Income' ? 'Income' : newExpense.category,
       type: newExpense.type,
       currency: newExpense.currency,
-      date: selectedDate.toISOString()
+      date: editingExpenseId 
+        ? (expenses.find(e => e.id === editingExpenseId)?.date || selectedDate.toISOString())
+        : selectedDate.toISOString()
     };
 
     if (onUpdateExpense) {
@@ -150,7 +153,9 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, 
     } else {
       onUpdate({
         ...data,
-        expenses: [expense, ...expenses]
+        expenses: editingExpenseId
+          ? expenses.map(e => e.id === editingExpenseId ? expense : e)
+          : [expense, ...expenses]
       });
     }
 
@@ -161,6 +166,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, 
       type: 'Expense',
       currency: currencyMode
     });
+    setEditingExpenseId(null);
     setIsAdding(false);
   };
 
@@ -624,20 +630,20 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, 
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           key={expense.id} 
-                           className="group flex items-center justify-between p-6 bg-white/[0.002] hover:bg-white/[0.015] border-b border-white/5 last:border-b-0 transition-all"
+                          className="group flex items-center justify-between p-3 sm:p-6 bg-white/[0.002] hover:bg-white/[0.015] border-b border-white/5 last:border-b-0 transition-all gap-2 sm:gap-6"
                         >
-                            <div className="flex items-center gap-6">
-                                <div className={`p-4 rounded-2xl flex items-center justify-center ${expense.type === 'Income' ? 'bg-emerald-500/5 text-emerald-600' : 'bg-rose-500/5 text-rose-600'}`}>
-                                   {expense.type === 'Income' ? <TrendingUp size={24} /> : <TrendingDown size={24} />}
+                            <div className="flex items-center gap-2 sm:gap-6 min-w-0">
+                                <div className={`p-2.5 sm:p-4 rounded-xl sm:rounded-2xl flex items-center justify-center shrink-0 ${expense.type === 'Income' ? 'bg-emerald-500/5 text-emerald-600' : 'bg-rose-500/5 text-rose-600'}`}>
+                                   {expense.type === 'Income' ? <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6" /> : <TrendingDown className="w-5 h-5 sm:w-6 sm:h-6" />}
                                 </div>
-                                <div>
-                                    <h3 className="text-[17px] font-black text-slate-900 italic tracking-tight">{expense.description}</h3>
-                                    <div className="flex items-center gap-3 mt-1">
-                                        <span className="text-[10px] font-black uppercase tracking-[0.1em] text-slate-900/40 flex items-center gap-1">
+                                <div className="min-w-0">
+                                    <h3 className="text-sm sm:text-[17px] font-black text-slate-900 italic tracking-tight truncate">{expense.description}</h3>
+                                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-3 mt-0.5 sm:mt-1">
+                                        <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.1em] text-slate-900/40 flex items-center gap-1 whitespace-nowrap">
                                             {viewMode === 'Daily' ? `${format(new Date(expense.date), 'MMM dd')} • ${expense.category}` : `${expense.category} • ${(expense as any).count || 1} records`}
                                         </span>
                                         {expense.currency !== currencyMode && (
-                                          <span className="text-[9px] font-black px-2 py-0.5 bg-amber-500/10 text-amber-700 rounded-lg border border-amber-500/10 uppercase italic">
+                                          <span className="text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 bg-amber-500/10 text-amber-700 rounded border border-amber-500/10 uppercase italic">
                                              Saved in {expense.currency}
                                           </span>
                                         )}
@@ -645,17 +651,37 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, 
                                 </div>
                             </div>
                             
-                            <div className="flex items-center gap-6">
-                                <div className={`text-2xl font-black italic tracking-tighter ${expense.type === 'Income' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            <div className="flex items-center gap-2 sm:gap-6 shrink-0">
+                                <div className={`text-base sm:text-2xl font-black italic tracking-tighter ${expense.type === 'Income' ? 'text-emerald-600' : 'text-rose-600'}`}>
                                     {expense.type === 'Income' ? '+' : '-'}{formatCurrency(expense.amount, expense.currency as 'USD' | 'KHR')}
                                 </div>
                                 {viewMode === 'Daily' && (
-                                  <button 
-                                    onClick={() => handleDeleteExpense(expense.id)}
-                                    className="p-2 opacity-0 group-hover:opacity-100 text-slate-900/10 hover:text-rose-600 transition-all"
-                                  >
-                                      <Trash2 size={16} />
-                                  </button>
+                                  <div className="flex items-center gap-0.5 sm:gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all shrink-0">
+                                    <button 
+                                      onClick={() => {
+                                        setNewExpense({
+                                          description: expense.description,
+                                          amount: expense.amount.toString(),
+                                          category: expense.category,
+                                          type: expense.type,
+                                          currency: expense.currency || currencyMode
+                                        });
+                                        setEditingExpenseId(expense.id);
+                                        setIsAdding(true);
+                                      }}
+                                      className="p-1.5 sm:p-2 text-slate-400 hover:text-amber-500 hover:bg-amber-500/5 rounded-xl transition-all"
+                                      title="Edit Record"
+                                    >
+                                        <Edit2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                    </button>
+                                    <button 
+                                      onClick={() => handleDeleteExpense(expense.id)}
+                                      className="p-1.5 sm:p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-500/5 rounded-xl transition-all"
+                                      title="Delete Record"
+                                    >
+                                        <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                    </button>
+                                  </div>
                                 )}
                             </div>
                         </motion.div>
@@ -685,7 +711,9 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, 
                     animate={{ scale: 1, opacity: 1 }}
                     className="bg-white w-full max-w-lg rounded-[40px] p-10 shadow-2xl border border-slate-200 relative"
                   >
-                      <h3 className="text-2xl font-black text-slate-900 mb-8 uppercase italic tracking-tighter">New Record</h3>
+                      <h3 className="text-2xl font-black text-slate-900 mb-8 uppercase italic tracking-tighter">
+                        {editingExpenseId ? 'Edit Record' : 'New Record'}
+                      </h3>
                                          <div className="space-y-6">
                           <div className="flex gap-3 p-1.5 bg-black/5 rounded-[24px]">
                               <button 
@@ -779,8 +807,27 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, 
                           </div>
                       </div>
 
-                      <div className="flex gap-4 mt-12">
-                          <button onClick={() => setIsAdding(false)} className="flex-1 py-4 text-slate-900/30 font-black text-[10px] uppercase tracking-widest">Cancel</button>
+                      <div className="p-4 bg-slate-150/60 border border-slate-200/50 rounded-[20px] text-[11px] font-medium text-slate-650 leading-relaxed mb-6">
+                        💡 <span className="font-extrabold text-slate-800">Correction Tip:</span> Tap the currency code button next to the input to quickly toggle between **USD ($)** and **KHR (Riel)**. You can correct any amount or description at any time by tapping the pencil icon (✏️) on the listed item.
+                      </div>
+
+                      <div className="flex gap-4">
+                          <button 
+                            onClick={() => {
+                              setIsAdding(false);
+                              setEditingExpenseId(null);
+                              setNewExpense({
+                                description: '',
+                                amount: '',
+                                category: categories[0] || 'Others',
+                                type: 'Expense',
+                                currency: currencyMode
+                              });
+                            }} 
+                            className="flex-1 py-4 text-slate-900/30 font-black text-[10px] uppercase tracking-widest"
+                          >
+                            Cancel
+                          </button>
                           <button 
                             onClick={handleAddExpense}
                             className="flex-1 bg-slate-900 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:scale-105 active:scale-95 transition-all"

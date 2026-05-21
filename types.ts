@@ -57,6 +57,7 @@ export interface AppSettings {
   fontColor?: string;
   dateTextColor?: string;
   paperStyle?: string;
+  dopamineFast?: any;
 }
 
 export interface ModuleLocks {
@@ -144,6 +145,32 @@ export interface AppData {
   expenseCategories?: string[];
   selfLearningTopics?: DPSSTopic[];
   dailyNotes?: Record<string, string>;
+  advancedHabits?: AdvancedHabit[];
+  advancedHabitLogs?: Record<string, Record<string, number>>; // Key: YYYY-MM-DD, value: { habitId: value }
+  habitReframers?: HabitReframerRecord[];
+}
+
+export interface HabitReframerRecord {
+  id: string;
+  date: string;
+  thought: string;
+  feeling: string;
+  intention: string;
+  actualOutcome: string;
+  alternativeStrategy: string; // What can I do instead when the problem arises?
+  studentId?: string;
+  studentName?: string;
+}
+
+export interface AdvancedHabit {
+  id: string;
+  name: string;
+  type: 'dopamine' | 'effort'; // dopamine = Instant Gratification/pleasure; effort = High Effort/pain
+  unit: string; // e.g. Minutes, Hours, Pages, Liters, Times
+  weeklyGoal?: number; // target or limit value for weekly total
+  goalType: 'limit' | 'target'; // limit = do not exceed; target = achieve at least
+  color: string; // e.g. emerald, rose, sky, indigo
+  createdAt: string;
 }
 
 export interface ExpenseEntry {
@@ -201,6 +228,7 @@ export interface BackupEntry {
 
 export enum Tab {
   HabitTracker = 'HabitTracker',
+  AdvancedHabitTracker = 'AdvancedHabitTracker',
   Reflections = 'Reflections',
   DailyJournal = 'DailyJournal',
   Reminder = 'Reminder',

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { HabitTracker } from './components/HabitTracker';
 import { DailyJournal } from './components/DailyJournal';
 import { Reflections } from './components/Reflections';
+import { AdvancedHabitTracker } from './components/AdvancedHabitTracker';
 import { ExpenseTracker } from './components/ExpenseTracker';
 import ReminderTable from './components/ReminderTable';
 import { AIModal } from './components/AIModal';
@@ -695,6 +696,12 @@ const App: React.FC = () => {
                 onUpdate={handleUpdate}
                 onUpdateHabitCompletion={handleUpdateHabitCompletion}
                 onUpdateDailyNote={handleUpdateDailyNote}
+              />
+            )}
+            {activeTab === Tab.AdvancedHabitTracker && (
+              <AdvancedHabitTracker 
+                data={data} 
+                onUpdate={handleUpdate}
               />
             )}
             {activeTab === Tab.Reflections && (
