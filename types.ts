@@ -160,6 +160,26 @@ export interface HabitReframerRecord {
   alternativeStrategy: string; // What can I do instead when the problem arises?
   studentId?: string;
   studentName?: string;
+  
+  // D.O.P.A.M.I.N.E. Expanded framework properties
+  isFullDopamineAudit?: boolean;
+  substanceOrBehavior?: string; // D - Data (What)
+  frequencyAndAmount?: string;  // D - Data (How much, how often)
+  objectives?: string;          // O - Objectives (Why)
+  
+  // P - Detailed Problem Checklist fields
+  pNeuroadaptation?: string;    // Neuroadaptation (tolerance, withdrawal, craving)
+  pRelationships?: string;      // Relationship problems
+  pWork?: string;               // Work/School problems
+  pFinancial?: string;          // Financial problems
+  pHealth?: string;             // Health problems
+  pSpiritual?: string;          // Spiritual/Values problems
+  
+  abstinencePlan?: string;      // A - Abstinence
+  mindfulnessNotes?: string;    // M - Mindfulness
+  insightHonesty?: string;      // I - Insight
+  nextStepsPlan?: string;       // N - Next Steps
+  experimentRules?: string;     // E - Experiment
 }
 
 export interface AdvancedHabit {
