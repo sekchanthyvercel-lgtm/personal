@@ -20,8 +20,13 @@ import {
   Gauge,
   Hourglass,
   Sliders,
-  Check
+  Check,
+  Edit,
+  Edit3
 } from 'lucide-react';
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell 
+} from 'recharts';
 import { 
   startOfWeek, 
   addDays, 
@@ -101,6 +106,114 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
     goalType: 'limit' as 'limit' | 'target',
     color: 'amber'
   });
+
+  // Editing habit states
+  const [editingHabit, setEditingHabit] = useState<AdvancedHabit | null>(null);
+  const [editHabitForm, setEditHabitForm] = useState({
+    name: '',
+    type: 'dopamine' as 'dopamine' | 'effort',
+    unit: 'Minutes',
+    weeklyGoal: '',
+    color: 'amber'
+  });
+
+  const handleEditHabitStart = (habit: AdvancedHabit) => {
+    setEditingHabit(habit);
+    setEditHabitForm({
+      name: habit.name,
+      type: habit.type,
+      unit: habit.unit || 'Minutes',
+      weeklyGoal: habit.weeklyGoal !== undefined ? habit.weeklyGoal.toString() : '',
+      color: habit.color || 'amber'
+    });
+  };
+
+  const handleSaveEditedHabit = () => {
+    if (!editingHabit) return;
+    if (!editHabitForm.name.trim()) return;
+
+    const updatedHabits = habits.map(h => {
+      if (h.id === editingHabit.id) {
+        return {
+          ...h,
+          name: editHabitForm.name.trim(),
+          type: editHabitForm.type,
+          unit: editHabitForm.unit,
+          weeklyGoal: editHabitForm.weeklyGoal ? parseFloat(editHabitForm.weeklyGoal) : undefined,
+          goalType: editHabitForm.type === 'dopamine' ? ('limit' as const) : ('target' as const),
+          color: editHabitForm.color
+        };
+      }
+      return h;
+    });
+
+    onUpdate({
+      ...data,
+      advancedHabits: updatedHabits
+    });
+
+    setEditingHabit(null);
+  };
+
+  // Heatmap color mapper helper
+  const getHeatmapColor = (habit: AdvancedHabit, val: number, themeId: string) => {
+    if (val === 0) {
+      if (habit.type === 'dopamine') return 'bg-emerald-500 hover:bg-emerald-600'; // Clean slate!
+      return 'bg-slate-100 hover:bg-slate-200';
+    }
+    
+    if (habit.type === 'dopamine') {
+      const dailyCap = habit.weeklyGoal ? (habit.weeklyGoal / 7) : 0;
+      if (dailyCap > 0 && val > dailyCap) {
+        return 'bg-rose-500 hover:bg-rose-600'; // limit exceeded
+      }
+      return 'bg-amber-400 hover:bg-amber-500'; // moderate use
+    }
+    
+    // Effort type: map to theme color shades
+    const dailyTarget = habit.weeklyGoal ? (habit.weeklyGoal / 7) : 1;
+    const ratio = val / dailyTarget;
+    
+    if (themeId === 'amber') {
+      if (ratio >= 1) return 'bg-amber-600 hover:bg-amber-700';
+      if (ratio >= 0.5) return 'bg-amber-400 hover:bg-amber-500';
+      return 'bg-amber-200 hover:bg-amber-300';
+    }
+    if (themeId === 'emerald') {
+      if (ratio >= 1) return 'bg-emerald-600 hover:bg-emerald-700';
+      if (ratio >= 0.5) return 'bg-emerald-400 hover:bg-emerald-500';
+      return 'bg-emerald-200 hover:bg-emerald-300';
+    }
+    if (themeId === 'rose') {
+      if (ratio >= 1) return 'bg-rose-600 hover:bg-rose-700';
+      if (ratio >= 0.5) return 'bg-rose-400 hover:bg-rose-500';
+      return 'bg-rose-200 hover:bg-rose-300';
+    }
+    if (themeId === 'sky') {
+      if (ratio >= 1) return 'bg-sky-600 hover:bg-sky-700';
+      if (ratio >= 0.5) return 'bg-sky-400 hover:bg-sky-500';
+      return 'bg-sky-200 hover:bg-sky-300';
+    }
+    if (themeId === 'violet') {
+      if (ratio >= 1) return 'bg-violet-600 hover:bg-violet-700';
+      if (ratio >= 0.5) return 'bg-violet-400 hover:bg-violet-500';
+      return 'bg-violet-200 hover:bg-violet-300';
+    }
+    // default indigo
+    if (ratio >= 1) return 'bg-indigo-600 hover:bg-indigo-700';
+    if (ratio >= 0.5) return 'bg-indigo-400 hover:bg-indigo-500';
+    return 'bg-indigo-200 hover:bg-indigo-300';
+  };
+
+  // Generate 30 days interval statically
+  const past30Days = useMemo(() => {
+    const dates = [];
+    const today = startOfDay(new Date());
+    for (let i = 29; i >= 0; i--) {
+      dates.push(subDays(today, i));
+    }
+    return dates;
+  }, []);
 
   // Helper function to color coordinate days of week elegantly from Monday to Sunday
   const getDayStyle = (day: Date, isToday: boolean) => {
@@ -1109,6 +1222,14 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
                         </button>
 
                         <button 
+                          onClick={() => handleEditHabitStart(habit)}
+                          className="p-2 text-slate-300 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors"
+                          title="Edit Metric"
+                        >
+                          <Edit3 size={14} />
+                        </button>
+
+                        <button 
                           onClick={() => handleDeleteHabit(habit.id)}
                           className="p-2 text-slate-300 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors"
                           title="Delete Metric"
@@ -1150,6 +1271,53 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
                           </div>
                         );
                       })}
+                    </div>
+
+                    {/* Heatmap Section */}
+                    <div className="mt-6 mb-2">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">30-Day Completion Heatmap</span>
+                          <span className="text-[9px] text-slate-400 font-bold italic">(Consistency & Detox Heat)</span>
+                        </div>
+                        {/* Heatmap Legend */}
+                        <div className="flex items-center gap-2 text-[9px] font-bold text-slate-400">
+                          <span>Zero</span>
+                          <div className="flex gap-0.5">
+                            <span className="w-2 h-2 rounded bg-slate-100 border border-slate-200" />
+                            {habit.type === 'dopamine' ? (
+                              <>
+                                <span className="w-2 h-2 rounded bg-emerald-500" title="Perfect Detox Cap Keep (0)" />
+                                <span className="w-2 h-2 rounded bg-rose-500" title="Limit Exceeded" />
+                              </>
+                            ) : (
+                              <>
+                                <span className="w-2 h-2 rounded bg-indigo-200" />
+                                <span className="w-2 h-2 rounded bg-indigo-600" />
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-1 p-1.5 rounded-2xl bg-slate-50 border border-slate-100/50 justify-start">
+                        {past30Days.map(day => {
+                          const dateStr = format(day, 'yyyy-MM-dd');
+                          const val = logs[dateStr]?.[habit.id] || 0;
+                          const cellBg = getHeatmapColor(habit, val, theme.id);
+                          return (
+                            <div 
+                              key={dateStr}
+                              className={`w-4.5 h-4.5 rounded-md transition-all cursor-pointer relative group/heatmap ${cellBg}`}
+                              title={`${format(day, 'MMM d, yyyy')}: ${val} ${habit.unit}`}
+                            >
+                              {/* Custom micro-tooltip */}
+                              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 border border-slate-800 text-white rounded-lg px-2 py-1 text-[9px] font-black tracking-wide hidden group-hover/heatmap:block whitespace-nowrap shadow-xl z-50 pointer-events-none">
+                                {format(day, 'MMM d')}: <span className="font-mono text-amber-400">{val}</span> {habit.unit}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
 
                     {/* Footer Calculated totals */}
@@ -1377,6 +1545,63 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
                   </p>
                 </>
               )}
+            </div>
+
+            {/* Pleasure-Pain Balance Ratio Bar Chart */}
+            <div className="mt-8 pt-6 border-t border-slate-100">
+              <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                📊 Neurochemical Ratio Chart
+              </h4>
+              <p className="text-[10px] text-slate-400 font-bold mb-4">
+                Comparing weekly accumulated Dopamine Limits (Pleasure) against Effort Targets (Resilience).
+              </p>
+              <div className="h-56 w-full rounded-2xl bg-slate-50/50 p-4 border border-slate-100">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={[
+                      {
+                        name: 'Pleasure (Dopamine)',
+                        value: Math.round(balanceSums.dopaminePoints * 10) / 10,
+                        fill: '#f43f5e',
+                      },
+                      {
+                        name: 'Effort (Resilience)',
+                        value: Math.round(balanceSums.effortPoints * 10) / 10,
+                        fill: '#10b981',
+                      }
+                    ]}
+                    margin={{ top: 10, right: 30, left: -20, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                    <XAxis 
+                      dataKey="name" 
+                      tick={{ fill: '#64748b', fontSize: 10, fontWeight: '700' }}
+                      axisLine={{ stroke: '#cbd5e1' }}
+                      tickLine={false}
+                    />
+                    <YAxis 
+                      tick={{ fill: '#64748b', fontSize: 10 }}
+                      axisLine={{ stroke: '#cbd5e1' }}
+                      tickLine={false}
+                    />
+                    <Tooltip
+                      contentStyle={{ 
+                        backgroundColor: '#1e293b', 
+                        borderRadius: '12px', 
+                        border: 'none',
+                        color: '#f8fafc',
+                        fontSize: '11px',
+                        fontFamily: 'Inter, sans-serif'
+                      }}
+                      cursor={{ fill: 'rgba(0, 0, 0, 0.02)' }}
+                    />
+                    <Bar dataKey="value" radius={[12, 12, 0, 0]} maxBarSize={50}>
+                      <Cell fill="#f43f5e" />
+                      <Cell fill="#10b981" />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
           {/* DOPAMINE RESET FAST / FAST CHALLENGE CARD */}
@@ -2685,6 +2910,166 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
                   className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-wider transition-all shadow-xl shadow-indigo-600/10"
                 >
                   Create Metric
+                </button>
+              </div>
+
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* QUICK-EDIT MODAL FOR HABIT METRIC TRACKER */}
+      <AnimatePresence>
+        {editingHabit && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[150] bg-black/40 backdrop-blur-xs flex items-center justify-center p-6 font-sans"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-[36px] p-8 md:p-10 w-full max-w-lg border border-slate-200 relative shadow-2xl"
+            >
+              <button 
+                onClick={() => setEditingHabit(null)}
+                className="absolute top-8 right-8 text-slate-400 hover:text-slate-900 p-2 hover:bg-slate-50 rounded-full transition-all"
+              >
+                <X size={20} />
+              </button>
+
+              <h3 className="text-xl font-black text-slate-900 mb-2 uppercase italic tracking-tighter">
+                Quick Edit Metric
+              </h3>
+              <p className="text-[10px] text-slate-400 font-bold mb-6">
+                Update metric settings in real-time. All historic logging data in your calendar remain fully preserved.
+              </p>
+
+              <div className="space-y-5">
+                
+                {/* Metric Name */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-slate-[#1b254b]/40 tracking-wider block ml-3">
+                    Metric Name / Activity
+                  </label>
+                  <input 
+                    value={editHabitForm.name}
+                    onChange={(e) => setEditHabitForm({ ...editHabitForm, name: e.target.value })}
+                    placeholder="e.g. YouTube, Book Reading, Social Scroll, Coding"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 px-6 text-xs font-black text-slate-900 outline-none focus:border-indigo-500 focus:bg-white transition-all font-sans"
+                  />
+                </div>
+
+                {/* Metric Type */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-slate-[#1b254b]/40 tracking-wider block ml-3">
+                    Metaphor Category Type
+                  </label>
+                  <div className="grid grid-cols-2 gap-3 p-1 bg-slate-100 rounded-2xl">
+                    <button 
+                      onClick={() => setEditHabitForm({ ...editHabitForm, type: 'dopamine' })}
+                      className={`py-3.5 rounded-xl font-black text-[10px] uppercase tracking-wider transition-all ${editHabitForm.type === 'dopamine' ? 'bg-rose-500 text-white shadow-md' : 'text-slate-400 hover:text-slate-700'}`}
+                    >
+                      Dopamine Cap
+                    </button>
+                    <button 
+                      onClick={() => setEditHabitForm({ ...editHabitForm, type: 'effort' })}
+                      className={`py-3.5 rounded-xl font-black text-[10px] uppercase tracking-wider transition-all ${editHabitForm.type === 'effort' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-400 hover:text-slate-700'}`}
+                    >
+                      Effort Target
+                    </button>
+                  </div>
+                  <span className="text-[9.5px] text-slate-400 font-bold block ml-3 italic">
+                    {editHabitForm.type === 'dopamine' 
+                      ? '🔴 Pleasure: Low effort instant gratification to limit.'
+                      : '🟢 Pain/Effort: Hard active discipline to target.'
+                    }
+                  </span>
+                </div>
+
+                {/* Metric Sizing Inputs (Goal, Unit) */}
+                <div className="grid grid-cols-2 gap-3">
+                  
+                  {/* Unit */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase text-slate-[#1b254b]/40 tracking-wider block ml-3">
+                      Measurement Unit
+                    </label>
+                    <select 
+                      value={editHabitForm.unit}
+                      onChange={(e) => setEditHabitForm({ ...editHabitForm, unit: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 px-4 text-xs font-black text-slate-900 outline-none focus:border-indigo-500 focus:bg-white transition-all cursor-pointer"
+                    >
+                      <option value="Minutes">Minutes</option>
+                      <option value="Hours">Hours</option>
+                      <option value="Pages">Pages</option>
+                      <option value="Liters">Liters</option>
+                      <option value="Times">Times</option>
+                      <option value="Cups">Cups</option>
+                      <option value="Repetitions">Repetitions</option>
+                    </select>
+                  </div>
+
+                  {/* Weekly Goal value */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase text-slate-[#1b254b]/40 tracking-wider block ml-3">
+                      Weekly Goal ({editHabitForm.type === 'dopamine' ? 'Max' : 'Min'})
+                    </label>
+                    <input 
+                      type="number"
+                      min="1"
+                      value={editHabitForm.weeklyGoal}
+                      onChange={(e) => setEditHabitForm({ ...editHabitForm, weeklyGoal: e.target.value })}
+                      placeholder="e.g. 180"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 px-6 text-xs font-black text-slate-900 outline-none focus:border-indigo-500 focus:bg-white transition-all"
+                    />
+                  </div>
+
+                </div>
+
+                {/* Color Schemes Selection */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-slate-[#1b254b]/40 tracking-wider block ml-3">
+                    Visual Accent Color
+                  </label>
+                  <div className="flex gap-2 ml-3">
+                    {DEFAULT_COLOR_THEMES.map((theme) => (
+                      <button 
+                        key={theme.id}
+                        onClick={() => setEditHabitForm({ ...editHabitForm, color: theme.id })}
+                        className={`w-7 h-7 rounded-full transition-transform hover:scale-125 border-2 ${
+                          editHabitForm.color === theme.id ? 'border-indigo-600 scale-110 shadow-md' : 'border-white'
+                        }`}
+                        style={{ backgroundColor: `var(--color-${theme.id}-500, ${
+                          theme.id === 'rose' ? '#f43f5e' : 
+                          theme.id === 'sky' ? '#0ea5e9' : 
+                          theme.id === 'emerald' ? '#10b981' : 
+                          theme.id === 'amber' ? '#f59e0b' : 
+                          theme.id === 'violet' ? '#8b5cf6' : '#6366f1'
+                        })` }}
+                        title={theme.id}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex gap-4 mt-8">
+                <button 
+                  onClick={() => setEditingHabit(null)} 
+                  className="flex-1 py-4 text-slate-400 font-bold hover:text-slate-750 font-black text-[10px] uppercase tracking-wider text-center font-sans"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleSaveEditedHabit}
+                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-wider transition-all shadow-xl shadow-indigo-600/10"
+                >
+                  Save Changes
                 </button>
               </div>
 

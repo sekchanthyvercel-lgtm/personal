@@ -173,116 +173,111 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
     setSuggestedHabits(prev => prev.filter(h => h !== name));
   };
 
+  if (isFullScreen) {
+    return (
+      <div className="flex-1 flex flex-col p-4 md:p-8 lg:p-12 overflow-y-auto bg-transparent font-sans relative">
+        <div className="max-w-[98dvw] lg:max-w-[90dvw] xl:max-w-7xl mx-auto w-full bg-white/70 backdrop-blur-3xl rounded-[32px] p-6 md:p-10 border border-white/20 shadow-2xl">
+          {/* Full Screen Header */}
+          <div className="flex items-center justify-between mb-8 pb-4 border-b border-black/10">
+             <h2 className="text-2xl md:text-5xl font-black text-slate-800 tracking-tighter uppercase italic flex items-center gap-4">
+                <CalendarIcon style={{ color: data.settings?.dateTextColor || '#ea580c' }} size={32} />
+                Monthly Planner
+             </h2>
+             <button 
+              onClick={() => setIsFullScreen(false)}
+              className="p-3 md:p-4 bg-slate-900 text-white rounded-2xl hover:bg-orange-600 transition-all shadow-xl flex items-center justify-center shrink-0"
+             >
+                <Minimize2 size={24} />
+             </button>
+          </div>
+
+          {/* Top Planning Board */}
+          <div className="mb-8">
+             <div className="bg-slate-50 border border-slate-100 rounded-[32px] p-6 shadow-md relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 blur-3xl -mr-16 -mt-16"></div>
+                <div className="flex items-center justify-between mb-4">
+                   <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500">
+                          <Edit3 size={18} />
+                      </div>
+                      <div>
+                          <p className="text-[9px] font-black text-orange-500 uppercase tracking-widest leading-none mb-1">Architecture of Resolve</p>
+                          <h3 className="text-xl font-black text-slate-800 uppercase italic tracking-tighter flex items-center gap-3">
+                              {format(selectedPlanningDate, 'MMMM do, yyyy')}
+                              <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul><div><br></div>`; const dateKey = format(selectedPlanningDate, 'yyyy-MM-dd'); let safeVal = typeof planningNote === 'string' ? planningNote : ''; if (safeVal === '[object Object]') safeVal = ''; const newNote = safeVal + html; setPlanningNote(newNote); if (onUpdateDailyNote) { onUpdateDailyNote(dateKey, newNote); } else { onUpdate({ ...data, dailyNotes: { ...(data.dailyNotes || {}), [dateKey]: newNote } }); } }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={20} /></button>
+                          </h3>
+                      </div>
+                   </div>
+                </div>
+                <RichTextDiv 
+                    value={planningNote}
+                    onFocus={() => setIsTyping(true)}
+                    onChange={(val) => setPlanningNote(val)}
+                    onBlur={() => {
+                      setIsTyping(false);
+                      savePlanningNote();
+                    }}
+                    className="w-full h-24 bg-white rounded-2xl p-4 text-slate-800 font-bold text-lg outline-none border border-slate-200 focus:border-orange-500 transition-all placeholder:text-slate-400 overflow-y-auto overflow-x-hidden shadow-inner block"
+                    placeholder="Define your focus..."
+                />
+             </div>
+          </div>
+
+          {/* 30 Day Grid View */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 md:gap-4 pb-10">
+            {daysInMonth.map(day => {
+              const dateKey = format(day, 'yyyy-MM-dd');
+              const isSel = isSameDay(day, selectedPlanningDate);
+              const dailyCompletions = habits.reduce((acc, h) => acc + (completions[h.id]?.[dateKey] ? 1 : 0), 0);
+              const dayNote = notes[dateKey];
+              
+              return (
+                <motion.div
+                  key={day.toString()}
+                  whileHover={{ y: -3, backgroundColor: 'rgba(0,0,0,0.02)' }}
+                  onClick={() => setSelectedPlanningDate(day)}
+                  className={`aspect-square rounded-[24px] p-4 cursor-pointer border transition-all relative overflow-hidden flex flex-col justify-between ${isSel ? 'border-orange-500 bg-white shadow-xl scale-[1.05] z-10' : 'border-slate-200/60 bg-slate-50/50 backdrop-blur-md shadow-sm'}`}
+                >
+                  <div className="flex justify-between items-start">
+                    <span className={`text-lg font-black ${isToday(day) ? 'text-orange-600 underline decoration-orange-600/30' : 'text-slate-800 opacity-65'}`}>
+                      {format(day, 'd')}
+                    </span>
+                    <span className="text-[7px] font-black uppercase text-slate-400 tracking-widest">
+                      {format(day, 'EEE')}
+                    </span>
+                  </div>
+
+                  <div className="flex-1 mt-2 overflow-hidden pointer-events-none min-h-[40px]">
+                    {dayNote && (
+                      <div className="text-[10px] font-bold text-slate-700 line-clamp-3 leading-tight italic">
+                        {dayNote.replace(/<[^>]*>/g, '')}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-1.5 mt-2">
+                    {dailyCompletions > 0 && (
+                      <div className="flex items-center gap-1 px-1.5 py-0.5 bg-emerald-500 text-white rounded-lg">
+                        <CheckCircle2 size={8} strokeWidth={4} />
+                        <span className="text-[7px] font-black uppercase tracking-tighter">{dailyCompletions}</span>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className={`flex-1 flex flex-col transition-all duration-500 ${isFullScreen ? 'overflow-hidden' : 'min-h-screen p-4 md:p-8 overflow-y-auto bg-transparent'} font-sans`}>
-      {/* Full Screen Calendar View */}
-      <AnimatePresence>
-        {isFullScreen && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[1000] bg-white/5 backdrop-blur-[60px] p-4 md:p-12 overflow-y-auto"
-          >
-            <div className="max-w-[98dvw] lg:max-w-[90dvw] xl:max-w-7xl mx-auto w-full">
-              {/* Full Screen Header */}
-              <div className="flex items-center justify-between mb-8 pb-4 border-b border-white/10">
-                 <h2 className="text-2xl md:text-5xl font-black text-slate-800 tracking-tighter uppercase italic flex items-center gap-4">
-                    <CalendarIcon style={{ color: data.settings?.dateTextColor || '#ea580c' }} size={32} />
-                    Monthly Planner
-                 </h2>
-                 <button 
-                  onClick={() => setIsFullScreen(false)}
-                  className="p-3 md:p-4 bg-slate-900 text-white rounded-2xl hover:bg-orange-600 transition-all shadow-xl flex items-center justify-center shrink-0"
-                 >
-                   <Minimize2 size={24} />
-                 </button>
-              </div>
-
-              {/* Top Planning Board (Smaller as requested) */}
-              <div className="mb-8">
-                 <div className="bg-white/10 backdrop-blur-3xl rounded-[32px] p-6 border border-white/10 shadow-2xl relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 blur-3xl -mr-16 -mt-16"></div>
-                    <div className="flex items-center justify-between mb-4">
-                       <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center text-orange-500">
-                              <Edit3 size={18} />
-                          </div>
-                          <div>
-                              <p className="text-[9px] font-black text-orange-500 uppercase tracking-widest leading-none mb-1">Architecture of Resolve</p>
-                              <h3 className="text-xl font-black text-slate-800 uppercase italic tracking-tighter flex items-center gap-3">
-                                  {format(selectedPlanningDate, 'MMMM do, yyyy')}
-                                  <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul><div><br></div>`; const dateKey = format(selectedPlanningDate, 'yyyy-MM-dd'); let safeVal = typeof planningNote === 'string' ? planningNote : ''; if (safeVal === '[object Object]') safeVal = ''; const newNote = safeVal + html; setPlanningNote(newNote); if (onUpdateDailyNote) { onUpdateDailyNote(dateKey, newNote); } else { onUpdate({ ...data, dailyNotes: { ...(data.dailyNotes || {}), [dateKey]: newNote } }); } }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={20} /></button>
-                              </h3>
-                          </div>
-                       </div>
-                    </div>
-                    <RichTextDiv 
-                        value={planningNote}
-                        onFocus={() => setIsTyping(true)}
-                        onChange={(val) => setPlanningNote(val)}
-                        onBlur={() => {
-                          setIsTyping(false);
-                          savePlanningNote();
-                        }}
-                        className="w-full h-24 bg-white/5 rounded-2xl p-4 text-slate-800 font-bold text-lg outline-none border border-white/10 focus:border-orange-500 transition-all placeholder:text-slate-400 overflow-y-auto overflow-x-hidden shadow-inner block"
-                        placeholder="Define your focus..."
-                    />
-                 </div>
-              </div>
-
-              {/* 30 Day Grid View - See ALL at once */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 md:gap-4 pb-20">
-                {daysInMonth.map(day => {
-                  const dateKey = format(day, 'yyyy-MM-dd');
-                  const isSel = isSameDay(day, selectedPlanningDate);
-                  const dailyCompletions = habits.reduce((acc, h) => acc + (completions[h.id]?.[dateKey] ? 1 : 0), 0);
-                  const dayNote = notes[dateKey];
-                  
-                  return (
-                    <motion.div
-                      key={day.toString()}
-                      whileHover={{ y: -3, backgroundColor: 'rgba(255,255,255,0.1)' }}
-                      onClick={() => setSelectedPlanningDate(day)}
-                      className={`aspect-square rounded-[24px] p-4 cursor-pointer border transition-all relative overflow-hidden flex flex-col justify-between ${isSel ? 'border-orange-500 bg-white/20 shadow-2xl scale-[1.05] z-10' : 'border-white/10 bg-white/5 backdrop-blur-md shadow-sm'}`}
-                    >
-                      <div className="flex justify-between items-start">
-                        <span className={`text-lg font-black ${isToday(day) ? 'text-orange-600 underline decoration-orange-600/30' : 'text-slate-400 opacity-60'}`}>
-                          {format(day, 'd')}
-                        </span>
-                        <span className="text-[7px] font-black uppercase text-slate-400 tracking-widest">
-                          {format(day, 'EEE')}
-                        </span>
-                      </div>
-
-                      <div className="flex-1 mt-2 overflow-hidden pointer-events-none">
-                        {dayNote && (
-                          <div className="text-[10px] font-bold text-slate-700 line-clamp-4 leading-tight italic">
-                            {dayNote}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-1.5 mt-2">
-                        {dailyCompletions > 0 && (
-                          <div className="flex items-center gap-1 px-1.5 py-0.5 bg-emerald-500/80 text-white rounded-lg">
-                            <CheckCircle2 size={8} strokeWidth={4} />
-                            <span className="text-[7px] font-black uppercase tracking-tighter">{dailyCompletions}</span>
-                          </div>
-                        )}
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+    <div className="flex-1 flex flex-col min-h-screen p-4 md:p-8 overflow-y-auto bg-transparent font-sans">
 
 
       {/* Main View Header */}
-      <div className={`flex flex-col md:flex-row items-center justify-between mb-6 gap-6 shrink-0 ${isFullScreen ? 'hidden' : ''}`}>
+      <div className="flex flex-col md:flex-row items-center justify-between mb-6 gap-6 shrink-0">
         <div className="relative group flex items-center gap-6">
           <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tighter uppercase italic drop-shadow-sm flex items-center gap-3">
             <Target className="text-orange-600" size={28} />
