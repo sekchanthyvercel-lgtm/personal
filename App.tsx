@@ -16,6 +16,7 @@ import Dashboard from './components/Dashboard';
 import { FloatingToolbar } from './components/FloatingToolbar';
 import { AppData, Student, CurrentUser, UserRole, ColumnConfig, Tab, ViewMode, AppSettings, StudentCategory, JournalEntry, ExpenseEntry } from './types';
 import { subscribeToData, saveData } from './services/firebase';
+import { storage } from './services/storage';
 import { Menu, MessageSquare, X } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { addMonths, format } from 'date-fns';
@@ -174,6 +175,22 @@ const App: React.FC = () => {
   }, [activeStudents]);
 
   useEffect(() => {
+    // 1. Asynchronously restore full unlimited data from IndexedDB
+    storage.getItem('dps_data').then((stored) => {
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (parsed && parsed.students) {
+            setData(parsed);
+          }
+        } catch (e) {
+          console.error("IndexedDB restore parse error", e);
+        }
+      }
+    });
+  }, []);
+
+  useEffect(() => {
     if (!currentUser?.uid) {
       setLoading(false);
       return;
@@ -205,7 +222,7 @@ const App: React.FC = () => {
         }
       }
       setData(newData);
-      localStorage.setItem('dps_data', JSON.stringify(newData)); // SYNC to localStorage
+      storage.setItem('dps_data', JSON.stringify(newData)); // SYNC to storage
       setLoading(false);
     }, () => setLoading(false));
     return () => unsubscribe();
@@ -215,7 +232,7 @@ const App: React.FC = () => {
     const updatedStudents = data.students.filter(s => s.id !== id);
     const newData = { ...data, students: updatedStudents };
     setData(newData);
-    localStorage.setItem('dps_data', JSON.stringify(newData));
+    storage.setItem('dps_data', JSON.stringify(newData));
     if (currentUser?.uid) {
       const { deleteStudent } = await import('./services/firebase');
       await deleteStudent(currentUser.uid, id);
@@ -252,7 +269,7 @@ const App: React.FC = () => {
     const updatedTopics = deleteFromTopics(data[field] || []);
     const newData = { ...data, [field]: updatedTopics };
     setData(newData);
-    localStorage.setItem('dps_data', JSON.stringify(newData));
+    storage.setItem('dps_data', JSON.stringify(newData));
 
     if (currentUser?.uid) {
       const { deleteTopic, saveTopic } = await import('./services/firebase');
@@ -276,7 +293,7 @@ const App: React.FC = () => {
       
       const oldData = data;
       setData(newData);
-      localStorage.setItem('dps_data', JSON.stringify(newData));
+      storage.setItem('dps_data', JSON.stringify(newData));
 
       if (currentUser?.uid) {
         const { saveStudent, saveData } = await import('./services/firebase');
@@ -378,7 +395,7 @@ const App: React.FC = () => {
     setHistory(prev => [...prev.slice(-19), data]);
     setRedoStack([]);
     setData(newData);
-    localStorage.setItem('dps_data', JSON.stringify(newData));
+    storage.setItem('dps_data', JSON.stringify(newData));
 
     // Save specifically to the student document in Firestore
     if (currentUser?.uid) {
@@ -392,7 +409,7 @@ const App: React.FC = () => {
     const newData = category === 'dpss' ? { ...data, dpssTopics: updatedTopics } : { ...data, selfLearningTopics: updatedTopics };
     
     setData(newData);
-    localStorage.setItem('dps_data', JSON.stringify(newData));
+    storage.setItem('dps_data', JSON.stringify(newData));
 
     if (currentUser?.uid) {
       const { saveTopic, deleteTopic } = await import('./services/firebase');
@@ -415,7 +432,7 @@ const App: React.FC = () => {
     const newData = { ...data, dailyNotes: newDailyNotes };
     
     setData(newData);
-    localStorage.setItem('dps_data', JSON.stringify(newData));
+    storage.setItem('dps_data', JSON.stringify(newData));
 
     if (currentUser?.uid) {
       const { saveDailyNote } = await import('./services/firebase');
@@ -428,7 +445,7 @@ const App: React.FC = () => {
     const newData = { ...data, journalEntries: newJournalEntries };
     
     setData(newData);
-    localStorage.setItem('dps_data', JSON.stringify(newData));
+    storage.setItem('dps_data', JSON.stringify(newData));
 
     if (currentUser?.uid) {
       const { saveJournalEntry } = await import('./services/firebase');
@@ -443,7 +460,7 @@ const App: React.FC = () => {
     const newData = { ...data, habitCompletions: newCompletions };
     
     setData(newData);
-    localStorage.setItem('dps_data', JSON.stringify(newData));
+    storage.setItem('dps_data', JSON.stringify(newData));
 
     if (currentUser?.uid) {
       const { saveHabitCompletion } = await import('./services/firebase');
@@ -466,7 +483,7 @@ const App: React.FC = () => {
     
     const newData = { ...data, expenses: newExpenses };
     setData(newData);
-    localStorage.setItem('dps_data', JSON.stringify(newData));
+    storage.setItem('dps_data', JSON.stringify(newData));
 
     if (currentUser?.uid) {
       const { saveExpense } = await import('./services/firebase');
@@ -480,7 +497,7 @@ const App: React.FC = () => {
     setRedoStack(prev => [...prev, data]);
     setHistory(prev => prev.slice(0, -1));
     setData(previous);
-    localStorage.setItem('dps_data', JSON.stringify(previous));
+    storage.setItem('dps_data', JSON.stringify(previous));
     if (currentUser?.uid) saveData(currentUser.uid, previous);
   };
 
@@ -490,7 +507,7 @@ const App: React.FC = () => {
     setHistory(prev => [...prev, data]);
     setRedoStack(prev => prev.slice(0, -1));
     setData(next);
-    localStorage.setItem('dps_data', JSON.stringify(next));
+    storage.setItem('dps_data', JSON.stringify(next));
     if (currentUser?.uid) saveData(currentUser.uid, next);
   };
 

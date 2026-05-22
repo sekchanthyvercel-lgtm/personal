@@ -3,6 +3,7 @@ import { getFirestore, doc, onSnapshot, setDoc, deleteDoc, getDocFromServer, col
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth'; 
 import { AppData, BackupEntry, Student } from '../types';
 import firebaseConfig from '../firebase-applet-config.json';
+import { storage } from './storage';
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
@@ -57,8 +58,9 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
     operationType,
     path
   };
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
+  console.warn('Firestore Error (Soft Logged for Vercel/Offline Resilience): ', JSON.stringify(errInfo));
+  isOffline = true;
+  // Graceful no-crash fallback for unauthorized error or offline behavior
 }
 
 const DOC_PATH = 'portal/data';
@@ -358,19 +360,21 @@ export const saveHabitCompletionBulk = async (userId: string, date: string, comp
 export const createCloudBackup = async (data: AppData, type: 'Auto' | 'Manual' = 'Manual') => {
   console.log(`Local backup created (${type})`);
   const historyKey = 'dps_backups_local';
-  const history = JSON.parse(localStorage.getItem(historyKey) || '[]');
+  const stored = await storage.getItem(historyKey);
+  const history = JSON.parse(stored || '[]');
   history.unshift({
     timestamp: new Date().toISOString(),
     data: data,
     type: type,
     id: Math.random().toString(36).substr(2, 9)
   });
-  localStorage.setItem(historyKey, JSON.stringify(history.slice(0, 10)));
+  await storage.setItem(historyKey, JSON.stringify(history.slice(0, 10)));
 };
 
 export const getCloudBackups = async (): Promise<Partial<BackupEntry>[]> => {
   const historyKey = 'dps_backups_local';
-  return JSON.parse(localStorage.getItem(historyKey) || '[]');
+  const stored = await storage.getItem(historyKey);
+  return JSON.parse(stored || '[]');
 };
 
 export const getSyncStatus = () => !isOffline;

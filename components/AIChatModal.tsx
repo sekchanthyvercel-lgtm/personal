@@ -53,7 +53,11 @@ export const AIChatModal: React.FC<AIChatModalProps> = ({ isOpen, onClose, conte
 
   const saveSessions = (newSessions: ChatSession[]) => {
     setSessions(newSessions);
-    localStorage.setItem('dpss_ai_chat_history', JSON.stringify(newSessions));
+    try {
+      localStorage.setItem('dpss_ai_chat_history', JSON.stringify(newSessions));
+    } catch (e) {
+      console.warn("Storage quota exceeded for chat history.", e);
+    }
   };
 
   const activeSession = sessions.find(s => s.id === currentSessionId);
@@ -153,7 +157,11 @@ ${historyText ? `PREVIOUS CONVERSATION HISTORY:\n${historyText}\n\n` : ''}User's
         if (sIdx > -1) {
             updated[sIdx].messages.push({ role: 'model', text: response.text || '' });
             updated[sIdx].updatedAt = Date.now();
-            localStorage.setItem('dpss_ai_chat_history', JSON.stringify(updated));
+            try {
+              localStorage.setItem('dpss_ai_chat_history', JSON.stringify(updated));
+            } catch (err) {
+              console.warn("Storage quota exceeded for chat history.", err);
+            }
         }
         return updated;
       });
@@ -165,7 +173,11 @@ ${historyText ? `PREVIOUS CONVERSATION HISTORY:\n${historyText}\n\n` : ''}User's
         const sIdx = updated.findIndex(s => s.id === sessionId);
         if (sIdx > -1) {
             updated[sIdx].messages.push({ role: 'model', text: "Sorry, I encountered an error. Please try again." });
-            localStorage.setItem('dpss_ai_chat_history', JSON.stringify(updated));
+            try {
+              localStorage.setItem('dpss_ai_chat_history', JSON.stringify(updated));
+            } catch (err) {
+              console.warn("Storage quota exceeded for chat history.", err);
+            }
         }
         return updated;
       });
