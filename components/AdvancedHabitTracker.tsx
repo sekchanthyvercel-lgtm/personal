@@ -40,12 +40,11 @@ interface AdvancedHabitTrackerProps {
 }
 
 const DEFAULT_COLOR_THEMES = [
-  { id: 'rose', bg: 'bg-rose-50 border-rose-100 text-rose-700', activeBg: 'bg-rose-500', barBg: 'bg-rose-200', accent: 'text-rose-600', ring: 'focus:ring-rose-500/20' },
-  { id: 'sky', bg: 'bg-sky-50 border-sky-100 text-sky-700', activeBg: 'bg-sky-500', barBg: 'bg-sky-200', accent: 'text-sky-600', ring: 'focus:ring-sky-500/20' },
-  { id: 'emerald', bg: 'bg-emerald-50 border-emerald-100 text-emerald-700', activeBg: 'bg-emerald-500', barBg: 'bg-emerald-200', accent: 'text-emerald-600', ring: 'focus:ring-emerald-500/20' },
-  { id: 'amber', bg: 'bg-amber-50 border-amber-100 text-amber-700', activeBg: 'bg-amber-500', barBg: 'bg-amber-200', accent: 'text-amber-600', ring: 'focus:ring-amber-500/20' },
-  { id: 'violet', bg: 'bg-violet-50 border-violet-100 text-violet-700', activeBg: 'bg-violet-500', barBg: 'bg-violet-200', accent: 'text-violet-600', ring: 'focus:ring-violet-500/20' },
-  { id: 'indigo', bg: 'bg-indigo-50 border-indigo-100 text-indigo-700', activeBg: 'bg-indigo-500', barBg: 'bg-indigo-200', accent: 'text-indigo-600', ring: 'focus:ring-indigo-500/20' },
+  { id: 'amber', bg: 'bg-amber-50/75 border-amber-200 text-amber-800', activeBg: 'bg-amber-600', barBg: 'bg-amber-200/60', accent: 'text-amber-700', ring: 'focus:ring-amber-500/20' },
+  { id: 'emerald', bg: 'bg-emerald-50/75 border-emerald-200 text-emerald-800', activeBg: 'bg-emerald-600', barBg: 'bg-emerald-200/60', accent: 'text-emerald-700', ring: 'focus:ring-emerald-500/20' },
+  { id: 'rose', bg: 'bg-rose-50/75 border-rose-200 text-rose-800', activeBg: 'bg-rose-600', barBg: 'bg-rose-200/60', accent: 'text-rose-700', ring: 'focus:ring-rose-500/20' },
+  { id: 'slate', bg: 'bg-slate-50/75 border-slate-200 text-slate-800', activeBg: 'bg-slate-700', barBg: 'bg-slate-300/65', accent: 'text-slate-700', ring: 'focus:ring-slate-500/20' },
+  { id: 'bronze', bg: 'bg-[#fcf9f2] border-yellow-300 text-amber-900', activeBg: 'bg-[#ca8a04]', barBg: 'bg-yellow-250', accent: 'text-[#854d0e]', ring: 'focus:ring-[#ca8a04]/20' }
 ];
 
 export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data, onUpdate }) => {
@@ -56,6 +55,11 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
   const [activeFastingTab, setActiveFastingTab] = useState<'tracker' | 'reflections'>('tracker');
   const [newFastRef, setNewFastRef] = useState('');
   const [previewName, setPreviewName] = useState('Self');
+
+  // Dopamine Fast reset history and completion states
+  const [isCompletingFast, setIsCompletingFast] = useState(false);
+  const [finalReflectionText, setFinalReflectionText] = useState('');
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   // CBT Habit Writing states
   const [isAddingReframer, setIsAddingReframer] = useState(false);
@@ -95,8 +99,71 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
     unit: 'Minutes',
     weeklyGoal: '120',
     goalType: 'limit' as 'limit' | 'target',
-    color: 'sky'
+    color: 'amber'
   });
+
+  // Helper function to color coordinate days of week elegantly from Monday to Sunday
+  const getDayStyle = (day: Date, isToday: boolean) => {
+    // Get customized absolute index relative to Monday: Mon=0, Tue=1, ..., Sun=6
+    const dayIndex = (day.getDay() + 6) % 7;
+    
+    if (isToday) {
+      return {
+        bg: 'bg-amber-100/50 border-amber-400 text-amber-950 shadow-inner font-extrabold ring-1 ring-amber-400/30',
+        labelColor: 'text-amber-800 font-extrabold',
+        inputColor: 'text-amber-950 focus:text-amber-700',
+        numColor: 'text-amber-750 font-black'
+      };
+    }
+    
+    // Distinct, gorgeous warm clay / sage / terracotta / gold elements for each weekday
+    const DAY_THEMES = [
+      { // Monday
+        bg: 'bg-[#faf6f0] hover:bg-[#faf4ea] border-amber-200/80 text-amber-900',
+        labelColor: 'text-amber-600 font-bold',
+        inputColor: 'text-slate-900 focus:text-amber-600',
+        numColor: 'text-amber-600'
+      },
+      { // Tuesday
+        bg: 'bg-[#fef5f5] hover:bg-[#fef0f0] border-rose-200/85 text-rose-900',
+        labelColor: 'text-rose-500 font-bold',
+        inputColor: 'text-slate-900 focus:text-rose-600',
+        numColor: 'text-rose-605'
+      },
+      { // Wednesday
+        bg: 'bg-[#f4faf6] hover:bg-[#ebf7ee] border-emerald-200/85 text-emerald-900',
+        labelColor: 'text-emerald-600 font-bold',
+        inputColor: 'text-slate-900 focus:text-emerald-600',
+        numColor: 'text-emerald-600'
+      },
+      { // Thursday
+        bg: 'bg-[#fcf7ee] hover:bg-[#faf2e4] border-orange-200/85 text-amber-900',
+        labelColor: 'text-orange-500 font-bold',
+        inputColor: 'text-slate-900 focus:text-orange-600',
+        numColor: 'text-orange-600'
+      },
+      { // Friday
+        bg: 'bg-[#faf9f2] hover:bg-[#f8f6e8] border-yellow-300 text-yellow-950',
+        labelColor: 'text-amber-700 font-bold',
+        inputColor: 'text-slate-900 focus:text-amber-600',
+        numColor: 'text-amber-600'
+      },
+      { // Saturday
+        bg: 'bg-[#f2faf9] hover:bg-[#e6f5f4] border-teal-200/85 text-teal-900',
+        labelColor: 'text-teal-500 font-bold',
+        inputColor: 'text-slate-900 focus:text-teal-600',
+        numColor: 'text-teal-600'
+      },
+      { // Sunday
+        bg: 'bg-[#fbp6fe]/30 hover:bg-[#f6f2fc]/60 border-purple-200/85 text-purple-900',
+        labelColor: 'text-purple-500 font-bold',
+        inputColor: 'text-slate-900 focus:text-purple-600',
+        numColor: 'text-purple-605'
+      },
+    ];
+    
+    return DAY_THEMES[dayIndex] || DAY_THEMES[0];
+  };
 
   const habits = data.advancedHabits || [];
   const logs = data.advancedHabitLogs || {};
@@ -380,22 +447,412 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
     }
   };
 
-  // Completed Reset Fast
+  // Master triggers for Word & Excel Exporting (fully compatible with local MS Word/Excel printing)
+  const exportCBTToWord = (record: HabitReframerRecord) => {
+    const subjectName = record.studentName || 'Self';
+    const dateFormatted = format(new Date(record.date), 'MMMM dd, yyyy HH:mm');
+    const title = record.isFullDopamineAudit 
+      ? 'D.O.P.A.M.I.N.E. Complete Reset Audit' 
+      : 'Cognitive Trigger & Core Loop Audit';
+
+    let contentHtml = `
+      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+      <head>
+        <title>${title}</title>
+        <style>
+          body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #333333; line-height: 1.6; }
+          h1 { color: #1e293b; font-size: 24px; border-bottom: 2px solid #ca8a04; padding-bottom: 10px; margin-bottom: 5px; text-transform: uppercase; }
+          h2 { color: #334155; font-size: 15px; margin-top: 25px; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; text-transform: uppercase; }
+          .meta { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 30px; }
+          .question-box { background-color: #faf9f6; border-left: 4px solid #ca8a04; padding: 15px; margin-bottom: 20px; border-radius: 4px; }
+          .btn-pivot { background-color: #f0fdf4; border-left: 4px solid #16a34a; padding: 15px; margin-bottom: 20px; border-radius: 4px; }
+          .label { font-weight: bold; font-size: 11px; color: #475569; text-transform: uppercase; margin-bottom: 5px; display: block; }
+          .value { font-size: 13px; font-weight: 500; color: #0f172a; white-space: pre-wrap; }
+          .problem-grid { display: table; width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 25px; }
+          .problem-row { display: table-row; }
+          .problem-cell { display: table-cell; border: 1px solid #e2e8f0; padding: 12px; width: 50%; vertical-align: top; }
+          .problem-title { font-weight: bold; font-size: 11px; color: #e11d48; text-transform: uppercase; margin-bottom: 4px; }
+        </style>
+      </head>
+      <body>
+        <h1>${title}</h1>
+        <div class="meta">Subject: ${subjectName} &bull; Logged: ${dateFormatted}</div>
+    `;
+
+    if (record.isFullDopamineAudit) {
+      contentHtml += `
+        <h2>Step 1: Data (Substance or Behavior)</h2>
+        <div class="question-box">
+          <div class="label">Behavior description:</div>
+          <div class="value">${record.substanceOrBehavior || 'N/A'}</div>
+          ${record.frequencyAndAmount ? `<div class="label" style="margin-top: 10px;">Frequency & logs:</div><div class="value">${record.frequencyAndAmount}</div>` : ''}
+        </div>
+
+        <h2>Step 2: Objectives (Motive of pursuit)</h2>
+        <div class="question-box">
+          <div class="label">Why is it pursued?</div>
+          <div class="value">${record.objectives || 'N/A'}</div>
+        </div>
+
+        <h2>Step 3: Problems Checked (DOPAMINE 6-dimensional analysis)</h2>
+        <div class="problem-grid">
+          <div class="problem-row">
+            <div class="problem-cell">
+              <div class="problem-title">🌀 Neuroadaptation (tolerance & craving)</div>
+              <div class="value">${record.pNeuroadaptation || 'None logged'}</div>
+            </div>
+            <div class="problem-cell">
+              <div class="problem-title">👥 Relationships (impact on boundaries)</div>
+              <div class="value">${record.pRelationships || 'None logged'}</div>
+            </div>
+          </div>
+          <div class="problem-row">
+            <div class="problem-cell">
+              <div class="problem-title">💼 Work & Study problems</div>
+              <div class="value">${record.pWork || 'None logged'}</div>
+            </div>
+            <div class="problem-cell">
+              <div class="problem-title">💳 Financial cost</div>
+              <div class="value">${record.pFinancial || 'None logged'}</div>
+            </div>
+          </div>
+          <div class="problem-row">
+            <div class="problem-cell" style="width:100%;" colspan="2">
+              <div class="problem-title">❤️ Physical health / Sleep problems</div>
+              <div class="value">${record.pHealth || 'None logged'}</div>
+            </div>
+          </div>
+          <div class="problem-row">
+            <div class="problem-cell" style="width:100%;" colspan="2">
+              <div class="problem-title">✨ Spiritual & Values alignment</div>
+              <div class="value">${record.pSpiritual || 'None logged'}</div>
+            </div>
+          </div>
+        </div>
+
+        <h2>Step 4: Abstinence Reset plan (Resetting receptors)</h2>
+        <div class="question-box">
+          <div class="label">Details of standard abstinence rules:</div>
+          <div class="value">${record.abstinencePlan || 'N/A'}</div>
+        </div>
+
+        <h2>Step 5: Mindfulness waves (Craving surfing)</h2>
+        <div class="question-box">
+          <div class="label">How will I cope with withdrawal waves?</div>
+          <div class="value">${record.mindfulnessNotes || 'N/A'}</div>
+        </div>
+
+        <h2>Step 6: Insight & Honesty (Self-deception review)</h2>
+        <div class="question-box">
+          <div class="label">What are my classic rationalizations/excuses?</div>
+          <div class="value">${record.insightHonesty || 'N/A'}</div>
+        </div>
+
+        <h2>Step 7: Next Steps moderated plan</h2>
+        <div class="question-box">
+          <div class="label">Proactive limits after reset:</div>
+          <div class="value">${record.nextStepsPlan || 'N/A'}</div>
+        </div>
+
+        <h2>Step 8: Active Experiment rules (Discipline Pivot)</h2>
+        <div class="btn-pivot">
+          <div class="label" style="color: #16a34a;">My Active Discipline Pivot rules:</div>
+          <div class="value" style="font-weight: bold; color: #14532d;">${record.experimentRules || record.alternativeStrategy || 'N/A'}</div>
+        </div>
+      `;
+    } else {
+      contentHtml += `
+        <h2>Step 1: Automatic Trigger Thought</h2>
+        <div class="question-box">
+          <div class="value">${record.thought || 'N/A'}</div>
+        </div>
+
+        <h2>Step 2: Urges / Emotional Craving core</h2>
+        <div class="question-box">
+          <div class="value">${record.feeling || 'N/A'}</div>
+        </div>
+
+        <h2>Step 3: Original Constructive Intention</h2>
+        <div class="question-box">
+          <div class="value">${record.intention || 'N/A'}</div>
+        </div>
+
+        <h2>Step 4: Actual Outcome</h2>
+        <div class="question-box">
+          <div class="value">${record.actualOutcome || 'N/A'}</div>
+        </div>
+
+        <h2>Step 5: Disciplined Reframed Alternative Pivot (Instead?)</h2>
+        <div class="btn-pivot">
+          <div class="label" style="color: #16a34a;">Next time this arises, I commit to:</div>
+          <div class="value" style="font-weight: bold; color: #14532d;">${record.alternativeStrategy || 'N/A'}</div>
+        </div>
+      `;
+    }
+
+    contentHtml += `
+        <div style="margin-top: 50px; text-align: center; border-open: 1px solid #e2e8f0; padding-top: 20px; font-size: 11px; color: #94a3b8;">
+          Balanced Reset System &bull; Printed from Neurochemical Balance Register Workspace
+        </div>
+      </body>
+      </html>
+    `;
+
+    const blob = new Blob(['\ufeff' + contentHtml], { type: 'application/msword;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${subjectName.replace(/\s+/g, '_')}_CBT_Exercise_${format(new Date(record.date), 'yyyyMMdd_HHmm')}.doc`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportWeeklyStatsToExcel = () => {
+    const formattedWeekStart = format(startOfCurrentWeek, 'yyyy-MM-dd');
+    const formattedWeekEnd = format(addDays(startOfCurrentWeek, 6), 'yyyy-MM-dd');
+    
+    // Header Row
+    const csvRows = [];
+    csvRows.push(`Weekly Habit Logs (Week of ${formattedWeekStart} to ${formattedWeekEnd})`);
+    csvRows.push('');
+    
+    // Table Headers
+    const headers = [
+      'Habit Name',
+      'Neurochemical Type',
+      'Target Goal',
+      'Goal Type',
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+      'Weekly Total',
+      'Unit',
+      'Achieved Goal'
+    ];
+    csvRows.push(headers.join(','));
+
+    habits.forEach(habit => {
+      const stats = getWeeklyHabitStats(habit);
+      const row = [
+        `"${habit.name.replace(/"/g, '""')}"`,
+        habit.type === 'dopamine' ? 'Pleasure/Gratification' : 'Pain/Effort',
+        habit.weeklyGoal || 'No goal',
+        habit.goalType === 'limit' ? 'Limit (Do not exceed)' : 'Min Target (Achieve at least)',
+        stats.dailyValues[0]?.val || '0',
+        stats.dailyValues[1]?.val || '0',
+        stats.dailyValues[2]?.val || '0',
+        stats.dailyValues[3]?.val || '0',
+        stats.dailyValues[4]?.val || '0',
+        stats.dailyValues[5]?.val || '0',
+        stats.dailyValues[6]?.val || '0',
+        stats.total,
+        habit.unit,
+        stats.total >= (habit.weeklyGoal || 0) ? 'YES' : 'NO'
+      ];
+      csvRows.push(row.join(','));
+    });
+
+    const blob = new Blob(['\ufeff' + csvRows.join("\n")], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Weekly_Habit_Spreadsheet_${formattedWeekStart}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportCBTDatabaseToExcel = () => {
+    if (!data.habitReframers || data.habitReframers.length === 0) {
+      alert("No CBT trigger loop items are currently logged to export.");
+      return;
+    }
+    
+    const csvRows = [];
+    csvRows.push('Cognitive Trigger and Core Loop Alignment Ledger');
+    csvRows.push('');
+    
+    const headers = [
+      'Individual Name',
+      'Log Date',
+      'Automatic Thought / Trigger Situation',
+      'Emotional State / Urge Info',
+      'Original Intention',
+      'Actual Outcome',
+      'Alternative Pivot Strategy',
+      'Is Full DOPAMINE Audit?',
+      'Substance / Shortcut Behavior',
+      'Frequency & Logs',
+      'Motive Objectives',
+      'P - Neuroadaptation Response',
+      'P - Relationship Impact',
+      'P - Work/School Impact',
+      'P - Financial Cost',
+      'P - Physical Health/Sleep Impact',
+      'P - Spiritual/Values Cost'
+    ];
+    csvRows.push(headers.join(','));
+
+    data.habitReframers.forEach(record => {
+      const line = [
+        `"${(record.studentName || 'Self').replace(/"/g, '""')}"`,
+        `"${format(new Date(record.date), 'yyyy-MM-dd HH:mm')}"`,
+        `"${(record.thought || '').replace(/"/g, '""')}"`,
+        `"${(record.feeling || '').replace(/"/g, '""')}"`,
+        `"${(record.intention || '').replace(/"/g, '""')}"`,
+        `"${(record.actualOutcome || '').replace(/"/g, '""')}"`,
+        `"${(record.alternativeStrategy || '').replace(/"/g, '""')}"`,
+        record.isFullDopamineAudit ? 'YES' : 'NO',
+        `"${(record.substanceOrBehavior || '').replace(/"/g, '""')}"`,
+        `"${(record.frequencyAndAmount || '').replace(/"/g, '""')}"`,
+        `"${(record.objectives || '').replace(/"/g, '""')}"`,
+        `"${(record.pNeuroadaptation || '').replace(/"/g, '""')}"`,
+        `"${(record.pRelationships || '').replace(/"/g, '""')}"`,
+        `"${(record.pWork || '').replace(/"/g, '""')}"`,
+        `"${(record.pFinancial || '').replace(/"/g, '""')}"`,
+        `"${(record.pHealth || '').replace(/"/g, '""')}"`,
+        `"${(record.pSpiritual || '').replace(/"/g, '""')}"`
+      ];
+      csvRows.push(line.join(','));
+    });
+
+    const blob = new Blob(['\ufeff' + csvRows.join("\n")], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "CBT_Alignment_Spreadsheet.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportFastingToWord = (fast: any) => {
+    const startDateFormatted = fast.startDate;
+    const completedDateFormatted = fast.completedAt;
+    const duration = fast.durationDays;
+    
+    let contentHtml = `
+      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+      <head>
+        <title>Completed Dopamine Reset Fast Archive</title>
+        <style>
+          body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #333333; line-height: 1.6; }
+          h1 { color: #ca8a04; font-size: 24px; border-bottom: 2px solid #ca8a04; padding-bottom: 10px; margin-bottom: 10px; text-transform: uppercase; }
+          .meta { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 35px; }
+          .detail-box { border: 1px solid #e2e8f0; background-color: #fafaf9; padding: 18px; margin-bottom: 25px; border-radius: 8px; }
+          .reflection-box { background-color: #faf9f6; border-left: 4px solid #ca8a04; padding: 15px; margin-bottom: 15px; border-radius: 4px; }
+          .final-box { background-color: #f0fdf4; border-left: 4px solid #16a34a; padding: 20px; margin-top: 30px; border-radius: 6px; }
+          .label { font-weight: bold; font-size: 11px; color: #475569; text-transform: uppercase; margin-bottom: 4px; }
+          .value { font-size: 13px; color: #1e293b; }
+          h2 { color: #0f172a; font-size: 14px; text-transform: uppercase; margin-top: 30px; border-bottom: 1.5px solid #e2e8f0; padding-bottom: 6px; }
+        </style>
+      </head>
+      <body>
+        <h1>Dopamine Reset Fast Report</h1>
+        <div class="meta">Status: Fully Achieved &bull; Saved to Neurohistorical Records</div>
+        
+        <div class="detail-box">
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="width: 33%; font-weight: bold; font-size: 11px; color: #64748b; text-transform: uppercase;">Duration</td>
+              <td style="width: 33%; font-weight: bold; font-size: 11px; color: #64748b; text-transform: uppercase;">Start Date</td>
+              <td style="width: 34%; font-weight: bold; font-size: 11px; color: #64748b; text-transform: uppercase;">Completion Timestamp</td>
+            </tr>
+            <tr>
+              <td style="font-size: 18px; font-weight: bold; color: #ca8a04;">${duration} Daily Cycle(s)</td>
+              <td style="font-size: 13px; color: #334155;">${startDateFormatted}</td>
+              <td style="font-size: 13px; color: #334155;">${completedDateFormatted}</td>
+            </tr>
+          </table>
+        </div>
+
+        <h2>Detox Journal Notes Logged during Fast</h2>
+    `;
+
+    if (!fast.reflections || fast.reflections.length === 0) {
+      contentHtml += `<p style="font-style: italic; color: #64748b;">No intermediate journal entries logged during this period.</p>`;
+    } else {
+      fast.reflections.forEach((ref: any, idx: number) => {
+        contentHtml += `
+          <div class="reflection-box">
+            <div class="label">Log Entry #${idx + 1} &bull; ${ref.date}</div>
+            <div class="value">${ref.content}</div>
+          </div>
+        `;
+      });
+    }
+
+    contentHtml += `
+        <h2>Final Cleansing Reflection summary</h2>
+        <div class="final-box">
+          <div class="label" style="color: #16a34a; font-size: 11px; font-weight: bold;">User Reflection Content</div>
+          <div class="value" style="font-size: 13px; font-weight: 500; color: #14532d; white-space: pre-wrap; margin-top: 5px;">${fast.finalReflection}</div>
+        </div>
+
+        <div style="margin-top: 60px; text-align: center; border-open: 1px solid #e2e8f0; padding-top: 20px; font-size: 11px; color: #94a3b8;">
+          Neurochemical Balance Systems &bull; Printed from Personal Resilience Workspace
+        </div>
+      </body>
+      </html>
+    `;
+
+    const blob = new Blob(['\ufeff' + contentHtml], { type: 'application/msword;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Completed_Dopamine_Fast_Report_${startDateFormatted}.doc`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // Trigger final reflection prompt
   const handleCompleteResetFast = () => {
-    alert('Congratulations! Your dopamine fast is complete. Your neurochemical receptors are starting to downregulate back to baseline baseline. Keep up your deferred effort habits.');
+    setIsCompletingFast(true);
+    setFinalReflectionText('');
+  };
+
+  const handleCompleteResetWithReflection = (text: string) => {
+    const finalReflectionCleaned = text.trim() || 'No final reflection was logged.';
+    const historyEntry = {
+      id: uuidv4(),
+      startDate: fastingState.startDate || format(new Date(), 'yyyy-MM-dd'),
+      completedAt: format(new Date(), 'yyyy-MM-dd HH:mm'),
+      durationDays: fastingState.durationDays,
+      reflections: fastingState.reflections || [],
+      finalReflection: finalReflectionCleaned
+    };
+
+    const currentHistory = data.settings?.dopamineFastsHistory || [];
+    
     onUpdate({
       ...data,
       settings: {
         ...data.settings,
+        dopamineFastsHistory: [...currentHistory, historyEntry],
         dopamineFast: {
           isActive: false,
           startDate: '',
           durationDays: 1,
-          reflections: fastingState.reflections // Keep reflections for history
+          reflections: []
         }
       }
     });
+
+    setIsCompletingFast(false);
+    setFinalReflectionText('');
   };
+
+  // Record daily fast thoughts
 
   // Record daily fast thoughts
   const handleAddFastReflection = () => {
@@ -665,16 +1122,13 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
                     <div id={`daily-slider-grid-${habit.id}`} className="grid grid-cols-7 gap-2 my-4">
                       {dailyValues.map(({ day, val }) => {
                         const isToday = checkIsToday(day);
+                        const style = getDayStyle(day, isToday);
                         return (
                           <div 
                             key={day.toISOString()} 
-                            className={`p-2.5 rounded-2xl flex flex-col items-center justify-between min-h-[75px] border transition-all ${
-                              isToday 
-                                ? 'bg-indigo-50/50 border-indigo-200 text-indigo-950 font-black shadow-inner' 
-                                : 'bg-slate-50/60 border-slate-100 text-slate-700 hover:bg-slate-50'
-                            }`}
+                            className={`p-2.5 rounded-2xl flex flex-col items-center justify-between min-h-[75px] border transition-all ${style.bg}`}
                           >
-                            <span className="text-[9.5px] uppercase font-black tracking-widest opacity-60">
+                            <span className={`text-[9.5px] uppercase font-black tracking-widest ${style.labelColor}`}>
                               {format(day, 'EEE')}
                             </span>
                             
@@ -686,11 +1140,11 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
                                 value={val === 0 ? '' : val}
                                 onChange={(e) => handleLogValue(habit.id, day, e.target.value)}
                                 placeholder="0"
-                                className="w-11 text-center bg-transparent text-sm font-black text-slate-900 outline-none select-all placeholder:text-slate-300 focus:text-indigo-600 font-mono"
+                                className={`w-11 text-center bg-transparent text-sm font-black outline-none select-all placeholder:text-slate-300 font-mono ${style.inputColor}`}
                               />
                             </div>
                             
-                            <span className="text-[8px] font-bold text-slate-400 capitalize truncate w-full text-center">
+                            <span className={`text-[8px] font-bold opacity-75 capitalize truncate w-full text-center ${style.numColor}`}>
                               {format(day, 'MMM d')}
                             </span>
                           </div>
@@ -852,33 +1306,42 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
             <div className="relative h-44 flex flex-col justify-end items-center my-4 overflow-visible">
               
               {/* Balance Beam line */}
-              <div 
-                className="w-full h-1 bg-slate-900 rounded-full transition-transform duration-700 relative origin-center"
-                style={{ transform: `rotate(${tiltAngle}deg)` }}
+              <motion.div 
+                className="w-full h-1 bg-slate-900 rounded-full relative origin-center"
+                animate={{ rotate: tiltAngle }}
+                transition={{ type: 'spring', stiffness: 60, damping: 12 }}
               >
                 
                 {/* Platter Left: Instant Gratification */}
-                <div className="absolute left-4 -top-1 w-fit flex flex-col items-center origin-center" style={{ transform: `rotate(${-tiltAngle}deg)` }}>
-                  <div className="w-1 bg-[#1b254b]/10 h-7" />
+                <motion.div 
+                  className="absolute left-4 -top-1 w-fit flex flex-col items-center origin-center font-sans text-slate-900"
+                  animate={{ rotate: -tiltAngle }}
+                  transition={{ type: 'spring', stiffness: 60, damping: 12 }}
+                >
+                  <div className="w-1 bg-slate-900/10 h-7" />
                   <div className="bg-rose-500 text-white rounded-2xl py-2 px-3 text-[10px] font-black uppercase text-center shadow-md min-w-[75px]">
                     Pleasure
                     <span className="block text-[8px] opacity-75 font-mono">{Math.round(balanceSums.dopaminePoints * 10) / 10} pts</span>
                   </div>
-                </div>
-
+                </motion.div>
+                
                 {/* Platter Right: Long effort */}
-                <div className="absolute right-4 -top-1 w-fit flex flex-col items-center origin-center" style={{ transform: `rotate(${-tiltAngle}deg)` }}>
-                  <div className="w-1 bg-[#1b254b]/10 h-7" />
+                <motion.div 
+                  className="absolute right-4 -top-1 w-fit flex flex-col items-center origin-center font-sans text-slate-900"
+                  animate={{ rotate: -tiltAngle }}
+                  transition={{ type: 'spring', stiffness: 60, damping: 12 }}
+                >
+                  <div className="w-1 bg-slate-900/10 h-7" />
                   <div className="bg-emerald-500 text-white rounded-2xl py-2 px-3 text-[10px] font-black uppercase text-center shadow-md min-w-[75px]">
                     Pain/Effort
                     <span className="block text-[8px] opacity-75 font-mono">{Math.round(balanceSums.effortPoints * 10) / 10} pts</span>
                   </div>
-                </div>
-
+                </motion.div>
+                
                 {/* Arrow Pointer */}
                 <div className="absolute left-1/2 -top-4 w-0.5 h-4 bg-slate-900 -translate-x-1/2 origin-bottom" />
-
-              </div>
+                
+              </motion.div>
 
               {/* Fulcrum base */}
               <div className="w-10 h-10 border-b-[24px] border-b-slate-900 border-x-[16px] border-x-transparent" />
@@ -915,19 +1378,25 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
                 </>
               )}
             </div>
-
           </div>
-
           {/* DOPAMINE RESET FAST / FAST CHALLENGE CARD */}
           <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm relative overflow-hidden">
             
             {/* Background design accents */}
-            <div className="absolute -top-16 -right-16 w-36 h-36 bg-indigo-50 rounded-full -z-10 opacity-30" />
+            <div className="absolute -top-16 -right-16 w-36 h-36 bg-amber-50 rounded-full -z-10 opacity-30" />
 
-            <h3 className="font-black text-[#1b254b] leading-none uppercase text-xs flex items-center gap-2 mb-2">
-              <Hourglass size={16} className="text-indigo-600 animate-spin-slow" />
-              Dopamine Fasting reset
-            </h3>
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="font-black text-[#1b254b] leading-none uppercase text-xs flex items-center gap-2">
+                <Hourglass size={16} className="text-amber-600 animate-spin-slow" />
+                Dopamine Fasting reset
+              </h3>
+              <button 
+                onClick={() => setIsHistoryOpen(true)}
+                className="text-[9px] font-black uppercase text-amber-700 hover:text-amber-800 hover:underline flex items-center gap-1 bg-amber-50 px-2 py-1.5 rounded-xl border border-amber-200/50"
+              >
+                📜 Archive ({data.settings?.dopamineFastsHistory?.length || 0})
+              </button>
+            </div>
             <p className="text-[10px] text-slate-400 font-bold mb-6">
               Do a 24-Hour to 30-Day receptor purification and cure cravings. Avoid scrolling files, junk inputs, and binge habits.
             </p>
@@ -948,7 +1417,7 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
                     <button
                       key={preset.days}
                       onClick={() => handleStartResetFast(preset.days)}
-                      className="py-3 bg-slate-50 border border-slate-200/50 hover:border-indigo-300 hover:bg-slate-100/55 rounded-2xl text-[10px] font-black uppercase text-slate-[#1b254b] transition-all"
+                      className="py-3 bg-slate-50 border border-slate-200/50 hover:border-amber-300 hover:bg-[#fffbeb] rounded-2xl text-[10px] font-black uppercase text-[#1b254b] transition-all"
                     >
                       {preset.label}
                     </button>
@@ -959,12 +1428,12 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
               <div className="space-y-4">
                 
                 {/* Visual Circular Active Fast Indicator */}
-                <div className="p-4 border border-indigo-50 bg-indigo-50/15 rounded-2xl flex items-center justify-between mb-4">
+                <div className="p-4 border border-amber-100 bg-[#fffbeb]/50 rounded-2xl flex items-center justify-between mb-4">
                   <div>
-                    <span className="block text-[8px] font-black uppercase text-indigo-600 tracking-widest">
+                    <span className="block text-[8px] font-black uppercase text-amber-700 tracking-widest">
                       CHALLENGE STATUS
                     </span>
-                    <span className="text-md font-black text-indigo-950 uppercase block mt-0.5">
+                    <span className="text-md font-black text-amber-950 uppercase block mt-0.5">
                       Fast in Progress
                     </span>
                     <span className="text-[11px] font-bold text-slate-500 capitalize block">
@@ -973,8 +1442,8 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
                   </div>
                   
                   {/* Glowing Flame indicator */}
-                  <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center animate-pulse border border-indigo-200">
-                    <Flame className="text-indigo-600" size={20} />
+                  <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center animate-pulse border border-amber-200">
+                    <Flame className="text-amber-600" size={20} />
                   </div>
                 </div>
 
@@ -982,13 +1451,13 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
                 <div className="flex bg-slate-50 p-1 rounded-xl">
                   <button 
                     onClick={() => setActiveFastingTab('tracker')}
-                    className={`flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase ${activeFastingTab === 'tracker' ? 'bg-white text-slate-800 shadow' : 'text-slate-400 hover:text-slate-700'}`}
+                    className={`flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase ${activeFastingTab === 'tracker' ? 'bg-white text-slate-800 shadow' : 'text-slate-400 hover:text-slate-705'}`}
                   >
                     Detox Coach
                   </button>
                   <button 
                     onClick={() => setActiveFastingTab('reflections')}
-                    className={`flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase ${activeFastingTab === 'reflections' ? 'bg-white text-slate-800 shadow' : 'text-slate-400 hover:text-slate-700'}`}
+                    className={`flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase ${activeFastingTab === 'reflections' ? 'bg-white text-slate-800 shadow' : 'text-slate-400 hover:text-slate-705'}`}
                   >
                     Notes ({fastingState.reflections?.length || 0})
                   </button>
@@ -996,11 +1465,11 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
 
                 {activeFastingTab === 'tracker' ? (
                   <div className="space-y-3 pt-2">
-                    <p className="text-[11px] text-slate-500 font-bold leading-normal">
-                      🛡️ <strong className="text-indigo-950 uppercase">Prohibited Inputs during Detox:</strong> Quick gratification videos, adult feeds, gaming apps, gambling logs, binge scrolling formats.
+                    <p className="text-[11px] text-slate-505 font-medium leading-normal">
+                      🛡️ <strong className="text-amber-950 uppercase">Prohibited Inputs during Detox:</strong> Quick gratification videos, adult feeds, gaming apps, gambling logs, binge scrolling formats.
                     </p>
-                    <p className="text-[11px] text-slate-500 font-bold leading-normal">
-                      🔥 <strong className="text-indigo-950 uppercase">Recommended Habits during Detox:</strong> Solid paper books, slow writing, tidying archives, cold nature showers, long endurance walks.
+                    <p className="text-[11px] text-slate-505 font-medium leading-normal">
+                      🔥 <strong className="text-amber-950 uppercase">Recommended Habits during Detox:</strong> Solid paper books, slow writing, tidying archives, cold nature showers, long endurance walks.
                     </p>
 
                     <div className="flex gap-2 pt-2">
@@ -1012,7 +1481,7 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
                       </button>
                       <button 
                         onClick={handleCompleteResetFast}
-                        className="flex-1 py-3 bg-indigo-600 text-white hover:bg-indigo-700 transition-colors uppercase font-black text-[9px] tracking-widest rounded-2xl flex items-center justify-center gap-1 shadow-lg shadow-indigo-600/10"
+                        className="flex-1 py-3 bg-amber-600 text-white hover:bg-amber-700 transition-colors uppercase font-black text-[9px] tracking-widest rounded-2xl flex items-center justify-center gap-1 shadow-lg shadow-amber-600/10"
                       >
                         <Check size={12} /> Succeed Done
                       </button>
@@ -1081,13 +1550,27 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
               Analyze mental triggers, emotions, and original intentions vs actual outcomes. Formulate proactive, actionable alternatives when problems arise to rewire behavioral loops.
             </p>
           </div>
-          <button
-            onClick={() => setIsAddingReframer(true)}
-            className="self-start md:self-center px-5 py-4 bg-slate-900 hover:bg-slate-800 text-white font-black text-[11px] uppercase tracking-widest rounded-2xl flex items-center gap-2 transition-all shadow-xl shadow-slate-900/10 group"
-          >
-            <Plus size={16} className="group-hover:rotate-90 transition-transform" />
-            Analyze Trigger Loop
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={exportWeeklyStatsToExcel}
+              className="px-4 py-3.5 bg-emerald-50 hover:bg-emerald-100/80 text-emerald-800 border border-emerald-200/60 font-black text-[10px] uppercase tracking-wider rounded-2xl flex items-center gap-1.5 transition-all shadow-sm"
+            >
+              📊 Weekly Excel CSV
+            </button>
+            <button
+              onClick={exportCBTDatabaseToExcel}
+              className="px-4 py-3.5 bg-amber-50 hover:bg-amber-100/85 text-amber-850 border border-amber-200/60 font-black text-[10px] uppercase tracking-wider rounded-2xl flex items-center gap-1.5 transition-all shadow-sm"
+            >
+              📥 Ledger CSV
+            </button>
+            <button
+              onClick={() => setIsAddingReframer(true)}
+              className="px-5 py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-black text-[11px] uppercase tracking-widest rounded-2xl flex items-center gap-2 transition-all shadow-xl shadow-slate-900/10 group animate-pulse"
+            >
+              <Plus size={16} className="group-hover:rotate-90 transition-transform" />
+              Analyze Trigger Loop
+            </button>
+          </div>
         </div>
 
         {/* QUESTION SAMPLES EXPLORER */}
@@ -1291,9 +1774,17 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
                                       </p>
                                     </div>
                                   </div>
-                                  <span className="px-3 py-1 bg-slate-100 rounded-full text-[9px] font-black text-slate-500 uppercase">
-                                    Format: {record.isFullDopamineAudit ? '8-Step Workbook' : 'Quick Loop'}
-                                  </span>
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      onClick={() => exportCBTToWord(record)}
+                                      className="px-3 py-1.5 bg-[#fefbeb] hover:bg-amber-100 text-amber-850 font-black text-[9.5px] uppercase tracking-wider rounded-xl border border-amber-200/60 flex items-center gap-1.5 transition-all shadow-sm"
+                                    >
+                                      📥 Export Word
+                                    </button>
+                                    <span className="px-3 py-1 bg-slate-100 rounded-full text-[9px] font-black text-slate-500 uppercase">
+                                      Format: {record.isFullDopamineAudit ? '8-Step Workbook' : 'Quick Loop'}
+                                    </span>
+                                  </div>
                                 </div>
 
                                 {record.isFullDopamineAudit ? (
@@ -1499,8 +1990,14 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
                       </div>
                       <div className="flex items-center gap-1.5">
                         <button
+                          onClick={() => exportCBTToWord(record)}
+                          className="px-2 py-1 bg-[#fffbeb] border border-amber-200 text-amber-800 text-[9px] font-black uppercase rounded-lg flex items-center gap-1 transition-all"
+                        >
+                          Word
+                        </button>
+                        <button
                           onClick={() => setExpandedRecordId(isExpanded ? null : record.id)}
-                          className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase transition-all ${isExpanded ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-700'}`}
+                          className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase transition-all ${isExpanded ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700'}`}
                         >
                           {isExpanded ? 'Collapse' : 'Details'}
                         </button>
@@ -2188,6 +2685,195 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
                   className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-wider transition-all shadow-xl shadow-indigo-600/10"
                 >
                   Create Metric
+                </button>
+              </div>
+
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* DOPAMINE RESET FAST COMPLETION DESIGN MODAL */}
+      <AnimatePresence>
+        {isCompletingFast && (
+          <motion.div 
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4 outline-none select-none font-sans"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div 
+              className="bg-white rounded-[32px] border border-amber-100 shadow-2xl p-6 md:p-8 max-w-lg w-full relative outline-none"
+              initial={{ scale: 0.95, y: 15 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 15 }}
+              transition={{ type: 'spring', duration: 0.4 }}
+            >
+              <div className="absolute top-6 right-6">
+                <button 
+                  onClick={() => setIsCompletingFast(false)}
+                  className="p-1 px-2.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 font-extrabold text-sm"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center">
+                  <Sparkles className="text-amber-600 animate-pulse" size={24} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 leading-none uppercase">
+                    PURIFICATION COMPLETE
+                  </h3>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
+                    Log Your Reset Insight Reflection
+                  </p>
+                </div>
+              </div>
+
+              <p className="text-sm text-slate-600 font-medium leading-relaxed mb-6">
+                Congratulations on completing your Dopamine Reset Fast! Provide a brief reflection on your mental clarity, withdrawal surges, or lessons to preserve baseline receptor sensitivity:
+              </p>
+
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-slate-400 block ml-3">
+                    My Core Takeaways & Next Steps
+                  </label>
+                  <textarea
+                    value={finalReflectionText}
+                    onChange={(e) => setFinalReflectionText(e.target.value)}
+                    placeholder="Describe how your focus shifted, which urges arose, and which positive constraints you will keep..."
+                    className="w-full h-32 bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs font-bold text-slate-900 outline-none focus:border-amber-500 focus:bg-white transition-all resize-none placeholder:text-slate-400 placeholder:italic"
+                  />
+                </div>
+
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => setIsCompletingFast(false)}
+                    className="flex-1 py-4 border border-slate-200 text-slate-500 hover:bg-slate-50 rounded-2xl font-black text-[10px] uppercase tracking-wider text-center"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={() => handleCompleteResetWithReflection(finalReflectionText)}
+                    className="flex-1 bg-amber-600 hover:bg-amber-700 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-wider transition-all shadow-xl shadow-amber-600/10 animate-bounce-slow"
+                  >
+                    🔒 Finalize & Save Fast
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* DOPAMINE RESET FASTS HISTORY ARCHIVE MODAL */}
+      <AnimatePresence>
+        {isHistoryOpen && (
+          <motion.div 
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4 outline-none font-sans"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div 
+              className="bg-white rounded-[36px] border border-amber-100 shadow-2xl p-6 md:p-8 max-w-xl w-full max-h-[85vh] overflow-hidden flex flex-col relative outline-none"
+              initial={{ scale: 0.95, y: 15 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 15 }}
+              transition={{ type: 'spring', duration: 0.4 }}
+            >
+              <div className="absolute top-6 right-6">
+                <button 
+                  onClick={() => setIsHistoryOpen(false)}
+                  className="p-1 px-2.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 font-extrabold text-sm"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="flex items-center gap-3 mb-6 shrink-0">
+                <div className="w-12 h-12 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center">
+                  <Hourglass className="text-amber-600 animate-spin-slow" size={24} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 leading-none uppercase">
+                    Neurochemical reset archives
+                  </h3>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
+                    Completed Dopamine Detoxification logs
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto no-scrollbar space-y-4 pr-1">
+                {(!data.settings?.dopamineFastsHistory || data.settings.dopamineFastsHistory.length === 0) ? (
+                  <div className="p-8 text-center bg-slate-50 border border-slate-100 rounded-[28px] space-y-3">
+                    <p className="text-xs text-slate-400 italic font-bold">
+                      No completed dopamine fasts are currently registered in your permanent archive ledger.
+                    </p>
+                    <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
+                      Embark on your primary Reset Fast protocol inside the Detox panel to restore receptor baseline satisfaction!
+                    </p>
+                  </div>
+                ) : (
+                  data.settings.dopamineFastsHistory.map((fast: any, index: number) => (
+                    <div key={fast.id || index} className="p-5 bg-slate-50 border border-slate-200/60 rounded-3xl space-y-4 relative overflow-hidden transition-all hover:border-amber-300">
+                      
+                      {/* Left border bookmark tag */}
+                      <div className="absolute top-0 left-0 w-2 h-full" style={{ backgroundColor: '#ca8a04' }} />
+                      
+                      <div className="flex justify-between items-start gap-4 pr-1 pl-2">
+                        <div>
+                          <span className="inline-block px-2 py-0.5 bg-amber-100 text-amber-900 border border-amber-200/50 rounded-lg text-[9px] font-black uppercase">
+                            {fast.durationDays} Daily Cycle({fast.durationDays === 1 ? '' : 's'})
+                          </span>
+                          <span className="block text-[10px] font-bold text-slate-400 font-mono mt-1">
+                            Started: {fast.startDate} • Completed: {fast.completedAt}
+                          </span>
+                        </div>
+
+                        <button
+                          onClick={() => exportFastingToWord(fast)}
+                          className="px-2.5 py-1.5 bg-[#fcf9f2] hover:bg-amber-100 border border-yellow-300 text-amber-800 text-[9px] font-black uppercase rounded-xl flex items-center gap-1 transition-all"
+                        >
+                          Word Doc (.doc)
+                        </button>
+                      </div>
+
+                      {fast.reflections && fast.reflections.length > 0 && (
+                        <div className="space-y-1.5 pl-5 border-l-[1.5px] border-amber-200">
+                          <span className="block text-[8.5px] font-black uppercase text-slate-400">Intermediate Detox Journal Notes ({fast.reflections.length})</span>
+                          <div className="space-y-1.5 max-h-[80px] overflow-y-auto pr-1">
+                            {fast.reflections.map((ref: any, rIdx: number) => (
+                              <div key={rIdx} className="text-[11px] text-slate-600 leading-normal font-medium">
+                                <strong className="text-amber-705 font-mono">{ref.date}:</strong> {ref.content}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="p-3.5 bg-white border border-slate-150 rounded-2xl space-y-1 pl-4 ml-2">
+                        <span className="block text-[8.5px] font-black uppercase text-amber-900 tracking-wider">Final Reset Reflection insight</span>
+                        <p className="text-xs font-medium text-slate-800 leading-relaxed whitespace-pre-wrap">
+                          {fast.finalReflection}
+                        </p>
+                      </div>
+
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="pt-4 shrink-0 border-t border-slate-100 flex justify-end">
+                <button 
+                  onClick={() => setIsHistoryOpen(false)}
+                  className="px-6 py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-black text-[10px] uppercase tracking-wider rounded-2xl transition-all"
+                >
+                  Close Archive
                 </button>
               </div>
 

@@ -58,6 +58,7 @@ export interface AppSettings {
   dateTextColor?: string;
   paperStyle?: string;
   dopamineFast?: any;
+  dopamineFastsHistory?: any[];
 }
 
 export interface ModuleLocks {
