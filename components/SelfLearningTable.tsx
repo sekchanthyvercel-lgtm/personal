@@ -18,6 +18,8 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
   const [showMoreTools, setShowMoreTools] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [pickerPos, setPickerPos] = useState<{ x: number, y: number } | null>(null);
+  const [showAllTextColors, setShowAllTextColors] = useState(false);
+  const [showAllHighlightColors, setShowAllHighlightColors] = useState(false);
   const [activeColor, setActiveColor] = useState<string | null>(null);
   const [isAILoading, setIsAILoading] = useState(false);
   const [showAIModal, setShowAIModal] = useState(false);
@@ -123,7 +125,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
           ? container.parentElement?.closest('.synthesis-card-wrapper, .qa-board-wrapper')
           : (container as HTMLElement).closest?.('.synthesis-card-wrapper, .qa-board-wrapper');
 
-        if (!selection.isCollapsed || cardElement) {
+        if (selection && !selection.isCollapsed && selection.toString().trim().length > 0) {
           const rect = range.getBoundingClientRect();
           let x = rect.left + rect.width / 2;
           let y = rect.top - 50;
@@ -1240,36 +1242,56 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                       )}
                       
                       <div className="flex gap-2 items-center">
-                        <Palette size={14} className="text-slate-400" />
-                        <div className="flex gap-1">
-                          {textColors.map(color => (
+                        <Palette size={14} className="text-slate-400 shrink-0" />
+                        <div className="flex gap-1 flex-wrap items-center">
+                          {(showAllTextColors ? textColors : textColors.slice(0, 6)).map(color => (
                               <button 
                                   key={color.value}
-                                  className={`w-5 h-5 rounded-full border border-black/5 hover:scale-110 transition-transform ${color.value === 'transparent' ? 'bg-slate-100 flex items-center justify-center' : ''}`}
-                                  style={{ backgroundColor: color.value }}
+                                  className={`w-5 h-5 rounded-full border border-black/5 hover:scale-110 transition-transform cursor-pointer shrink-0 ${color.value === 'transparent' ? 'bg-slate-100 flex items-center justify-center' : ''}`}
+                                  style={{ backgroundColor: color.value === 'transparent' ? 'transparent' : color.value }}
                                   onClick={() => applyTextColor(color.value)}
                                   title={color.name}
                               >
                                 {color.value === 'transparent' && <span className="text-[8px] font-black opacity-40">✕</span>}
                               </button>
                           ))}
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setShowAllTextColors(!showAllTextColors);
+                            }}
+                            className="text-[9px] font-black uppercase text-slate-500 hover:text-indigo-600 bg-slate-100/80 hover:bg-slate-100 px-1.5 py-0.5 rounded-md transition-all shrink-0 ml-1 cursor-pointer"
+                            title={showAllTextColors ? "Show Less" : "Show More Colors"}
+                          >
+                            {showAllTextColors ? 'Less' : 'More+'}
+                          </button>
                         </div>
                       </div>
-                      <div className="w-px h-5 bg-slate-200 self-center" />
+                      <div className="w-px h-5 bg-slate-200 self-center shrink-0" />
                       <div className="flex gap-2 items-center">
-                        <Highlighter size={14} className="text-slate-400" />
-                        <div className="flex gap-1">
-                          {colors.map(color => (
+                        <Highlighter size={14} className="text-slate-400 shrink-0" />
+                        <div className="flex gap-1 flex-wrap items-center">
+                          {(showAllHighlightColors ? colors : colors.slice(0, 6)).map(color => (
                               <button 
                                   key={color.value}
-                                  className={`w-5 h-5 rounded-full border border-black/5 hover:scale-110 transition-transform ${color.value === 'transparent' ? 'bg-slate-100 flex items-center justify-center' : ''}`}
-                                  style={{ backgroundColor: color.value }}
+                                  className={`w-5 h-5 rounded-full border border-black/5 hover:scale-110 transition-transform cursor-pointer shrink-0 ${color.value === 'transparent' ? 'bg-slate-100 flex items-center justify-center' : ''}`}
+                                  style={{ backgroundColor: color.value === 'transparent' ? 'transparent' : color.value }}
                                   onClick={() => applyColor(color.value)}
                                   title={color.name}
                               >
                                 {color.value === 'transparent' && <span className="text-[8px] font-black opacity-40">✕</span>}
                               </button>
                           ))}
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setShowAllHighlightColors(!showAllHighlightColors);
+                            }}
+                            className="text-[9px] font-black uppercase text-slate-500 hover:text-indigo-600 bg-slate-100/80 hover:bg-slate-100 px-1.5 py-0.5 rounded-md transition-all shrink-0 ml-1 cursor-pointer"
+                            title={showAllHighlightColors ? "Show Less" : "Show More Colors"}
+                          >
+                            {showAllHighlightColors ? 'Less' : 'More+'}
+                          </button>
                         </div>
                       </div>
                     </div>

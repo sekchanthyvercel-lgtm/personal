@@ -337,7 +337,7 @@ export const saveDailyNote = async (userId: string, date: string, content: strin
   }
 };
 
-export const saveHabitCompletion = async (userId: string, date: string, habitId: string, completed: boolean) => {
+export const saveHabitCompletion = async (userId: string, date: string, habitId: string, completed: boolean | number) => {
   if (!userId || !date || !habitId) return;
   try {
     const docRef = doc(db, 'users', userId, 'habitCompletions', date);
@@ -347,7 +347,7 @@ export const saveHabitCompletion = async (userId: string, date: string, habitId:
   }
 };
 
-export const saveHabitCompletionBulk = async (userId: string, date: string, completions: Record<string, boolean>) => {
+export const saveHabitCompletionBulk = async (userId: string, date: string, completions: Record<string, boolean | number>) => {
   if (!userId || !date) return;
   try {
     const docRef = doc(db, 'users', userId, 'habitCompletions', date);

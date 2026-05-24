@@ -10,7 +10,7 @@ import { callNeuralEngine } from '../services/neuralEngine';
 interface HabitTrackerProps {
   data: AppData;
   onUpdate: (newData: AppData) => void;
-  onUpdateHabitCompletion?: (date: string, habitId: string, completed: boolean) => void;
+  onUpdateHabitCompletion?: (date: string, habitId: string, completed: boolean | number) => void;
   onUpdateDailyNote?: (date: string, content: string) => void;
 }
 
@@ -19,6 +19,9 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
   const [selectedPlanningDate, setSelectedPlanningDate] = useState(new Date());
   const [isAddingHabit, setIsAddingHabit] = useState(false);
   const [newHabitName, setNewHabitName] = useState('');
+  const [isNumericHabit, setIsNumericHabit] = useState(false);
+  const [habitTargetValue, setHabitTargetValue] = useState<number>(2);
+  const [habitUnit, setHabitUnit] = useState<string>('liters');
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [planningNote, setPlanningNote] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -78,11 +81,17 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
       id: uuidv4(),
       name: newHabitName.trim(),
       order: habits.length,
-      color: habitColor
+      color: habitColor,
+      isNumeric: isNumericHabit,
+      targetValue: isNumericHabit ? habitTargetValue : undefined,
+      unit: isNumericHabit ? habitUnit.trim() : undefined
     };
     
     onUpdate({ ...data, habits: [...habits, newHabit] });
     setNewHabitName('');
+    setIsNumericHabit(false);
+    setHabitTargetValue(2);
+    setHabitUnit('liters');
     setIsAddingHabit(false);
   };
 
@@ -95,7 +104,48 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
     }
   };
 
+  const isHabitCompletedOnDay = (habit: Habit | undefined, dateKey: string): boolean => {
+    if (!habit) return false;
+    const comp = completions[dateKey]?.[habit.id];
+    if (comp === undefined || comp === null) return false;
+    if (habit.isNumeric) {
+      const target = habit.targetValue || 0;
+      return typeof comp === 'number' ? comp >= target : !!comp;
+    }
+    return !!comp;
+  };
+
+  const adjustNumericValue = (habitId: string, day: Date, amount: number) => {
+    const dateKey = format(day, 'yyyy-MM-dd');
+    const newCompletions = { ...completions };
+    
+    if (!newCompletions[dateKey]) {
+      newCompletions[dateKey] = {};
+    }
+    
+    const habit = habits.find(h => h.id === habitId);
+    if (!habit) return;
+    
+    const currentVal = typeof newCompletions[dateKey][habitId] === 'number' 
+      ? (newCompletions[dateKey][habitId] as number) 
+      : (newCompletions[dateKey][habitId] ? (habit.targetValue || 1) : 0);
+      
+    let newVal = Math.max(0, currentVal + amount);
+    newVal = Math.round(newVal * 10) / 10;
+    
+    newCompletions[dateKey][habitId] = newVal;
+    
+    if (onUpdateHabitCompletion) {
+      onUpdateHabitCompletion(dateKey, habitId, newVal);
+    } else {
+      onUpdate({ ...data, habitCompletions: newCompletions });
+    }
+  };
+
   const getStreak = (habitId: string) => {
+    const habit = habits.find(h => h.id === habitId);
+    if (!habit) return 0;
+    
     let currentStreak = 0;
     const today = new Date();
     
@@ -106,8 +156,8 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
     let dateToCheck = today;
     
     // If today is not completed, check if yesterday was. If neither, streak is 0.
-    if (!completions[todayKey]?.[habitId]) {
-      if (!completions[yesterdayKey]?.[habitId]) {
+    if (!isHabitCompletedOnDay(habit, todayKey)) {
+      if (!isHabitCompletedOnDay(habit, yesterdayKey)) {
         return 0;
       }
       dateToCheck = subDays(today, 1);
@@ -115,7 +165,7 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
     
     while (true) {
       const dateKey = format(dateToCheck, 'yyyy-MM-dd');
-      if (completions[dateKey]?.[habitId]) {
+      if (isHabitCompletedOnDay(habit, dateKey)) {
         currentStreak++;
         dateToCheck = subDays(dateToCheck, 1);
       } else {
@@ -228,7 +278,7 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
             {daysInMonth.map(day => {
               const dateKey = format(day, 'yyyy-MM-dd');
               const isSel = isSameDay(day, selectedPlanningDate);
-              const dailyCompletions = habits.reduce((acc, h) => acc + (completions[h.id]?.[dateKey] ? 1 : 0), 0);
+              const dailyCompletions = habits.reduce((acc, h) => acc + (isHabitCompletedOnDay(h, dateKey) ? 1 : 0), 0);
               const dayNote = notes[dateKey];
               
               return (
@@ -475,7 +525,63 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
                   </td>
                   {daysInMonth.map(day => {
                     const dateKey = format(day, 'yyyy-MM-dd');
-                    const isCompleted = completions[dateKey]?.[habit.id];
+                    
+                    if (habit.isNumeric) {
+                      const progressVal = typeof completions[dateKey]?.[habit.id] === 'number' 
+                        ? (completions[dateKey]?.[habit.id] as number) 
+                        : (completions[dateKey]?.[habit.id] ? (habit.targetValue || 1) : 0);
+                      const isFullDone = progressVal >= (habit.targetValue || 0);
+
+                      return (
+                        <td key={day.toString()} className="p-2 border-b border-black/10 text-center">
+                          <div className="flex flex-col items-center justify-center gap-1 select-none w-16 mx-auto">
+                            <span className="text-[8px] font-black text-slate-400 tracking-tighter leading-none mb-0.5" style={{ color: isFullDone ? (habit.color || '#10b981') : '' }}>
+                              {isFullDone ? '✅ DONE' : '🏃 GOAL'}
+                            </span>
+                            <div className="flex items-center gap-1 bg-white/40 border border-slate-200/50 p-1 rounded-full shadow-sm">
+                              <button 
+                                onClick={() => adjustNumericValue(habit.id, day, -0.5)}
+                                onDoubleClick={(e) => { e.stopPropagation(); adjustNumericValue(habit.id, day, -1); }}
+                                className="w-5 h-5 rounded-full bg-slate-100 hover:bg-slate-250 text-[10px] font-black flex items-center justify-center cursor-pointer border border-slate-200/60"
+                                title="Subtract 0.5 (Double-click: -1)"
+                              >
+                                -
+                              </button>
+                              
+                              <div 
+                                onClick={() => adjustNumericValue(habit.id, day, isFullDone ? -progressVal : (habit.targetValue || 2) - progressVal)}
+                                className={`px-1.5 py-0.5 rounded-full text-[9px] font-black cursor-pointer transition-all ${
+                                  isFullDone
+                                    ? 'text-white font-extrabold shadow-sm'
+                                    : 'text-slate-700 hover:bg-slate-100'
+                                }`}
+                                style={{
+                                  backgroundColor: isFullDone ? (habit.color || '#ea580c') : '',
+                                  border: `1px solid ${habit.color || '#ea580c'}40`
+                                }}
+                                title="Click to auto-adjust to goal magnitude"
+                              >
+                                {progressVal}
+                              </div>
+
+                              <button 
+                                onClick={() => adjustNumericValue(habit.id, day, 0.5)}
+                                onDoubleClick={(e) => { e.stopPropagation(); adjustNumericValue(habit.id, day, 1); }}
+                                className="w-5 h-5 rounded-full bg-slate-100 hover:bg-slate-250 text-[10px] font-black flex items-center justify-center cursor-pointer border border-slate-200/60"
+                                title="Add 0.5 (Double-click: +1)"
+                              >
+                                +
+                              </button>
+                            </div>
+                            <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest leading-none truncate max-w-[55px] mt-0.5">
+                              {habit.targetValue} {habit.unit || 'units'}
+                            </span>
+                          </div>
+                        </td>
+                      );
+                    }
+
+                    const isCompleted = !!completions[dateKey]?.[habit.id];
                     return (
                       <td key={day.toString()} className="p-4 border-b border-black/10 text-center">
                         <button 
@@ -548,15 +654,67 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
               className="bg-white w-full max-w-md rounded-[32px] p-10 shadow-2xl"
             >
               <h3 className="text-2xl font-black text-slate-900 mb-6 uppercase tracking-tight">New Mastery Habit</h3>
-              <input 
-                autoFocus
-                type="text"
-                value={newHabitName}
-                onChange={e => setNewHabitName(e.target.value)}
-                placeholder="e.g., Get up at 6:00 AM"
-                className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-lg font-bold outline-none focus:border-indigo-500 transition-all mb-8"
-                onKeyDown={e => e.key === 'Enter' && handleAddHabit()}
-              />
+              
+              <div className="space-y-6 mb-8">
+                <div>
+                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-2">Habit Name</label>
+                  <input 
+                    autoFocus
+                    type="text"
+                    value={newHabitName}
+                    onChange={e => setNewHabitName(e.target.value)}
+                    placeholder="e.g., Drink water"
+                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-base font-bold outline-none focus:border-indigo-500 transition-all"
+                    onKeyDown={e => e.key === 'Enter' && handleAddHabit()}
+                  />
+                </div>
+
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col gap-4">
+                  <div className="flex items-center justify-between cursor-pointer" onClick={() => setIsNumericHabit(!isNumericHabit)}>
+                    <div>
+                      <span className="text-xs font-black text-slate-800 uppercase tracking-tight block">Numerical Goal?</span>
+                      <span className="text-[9px] text-slate-400 font-bold block">Track counts or levels (e.g. 2 liters of water)</span>
+                    </div>
+                    <button 
+                      type="button"
+                      className={`w-12 h-6 flex items-center rounded-full p-1 cursor-pointer transition-all ${isNumericHabit ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                    >
+                      <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-all ${isNumericHabit ? 'translate-x-6' : 'translate-x-0'}`} />
+                    </button>
+                  </div>
+
+                  {isNumericHabit && (
+                    <motion.div 
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-200/50"
+                    >
+                      <div>
+                        <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider block mb-1">Daily Target</label>
+                        <input 
+                          type="number"
+                          value={habitTargetValue}
+                          onChange={e => setHabitTargetValue(Math.max(0.1, parseFloat(e.target.value) || 1))}
+                          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold outline-none focus:border-indigo-500 transition-all"
+                          min="0.1"
+                          step="0.5"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider block mb-1">Unit</label>
+                        <input 
+                          type="text"
+                          value={habitUnit}
+                          onChange={e => setHabitUnit(e.target.value)}
+                          placeholder="e.g. liters, pages, reps"
+                          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold outline-none focus:border-indigo-500 transition-all"
+                        />
+                      </div>
+                    </motion.div>
+                  )}
+                </div>
+              </div>
+
               <div className="flex gap-4">
                 <button 
                   onClick={() => setIsAddingHabit(false)}

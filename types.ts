@@ -122,10 +122,13 @@ export interface Habit {
   name: string;
   color?: string;
   order: number;
+  isNumeric?: boolean;
+  targetValue?: number;
+  unit?: string;
 }
 
 export interface HabitCompletion {
-  [habitId: string]: boolean;
+  [habitId: string]: boolean | number;
 }
 
 export interface AppData {

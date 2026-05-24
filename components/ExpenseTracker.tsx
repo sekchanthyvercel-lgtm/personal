@@ -66,6 +66,52 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, 
       });
   };
 
+  const [suggestedCategory, setSuggestedCategory] = useState<string | null>(null);
+
+  const getSuggestedCategory = (desc: string): string | null => {
+    if (!desc || desc.trim().length === 0) return null;
+    const cleanDesc = desc.trim().toLowerCase();
+
+    // 1. Try to find an exact matching description in previous expenses
+    const historyMatch = expenses.find(e => e.description.trim().toLowerCase() === cleanDesc && e.type === 'Expense');
+    if (historyMatch && categories.includes(historyMatch.category)) {
+      return historyMatch.category;
+    }
+
+    // 2. Try to find a partial description keyword match in history
+    const partialMatch = expenses.find(e => 
+      e.type === 'Expense' && 
+      (cleanDesc.includes(e.description.trim().toLowerCase()) || e.description.trim().toLowerCase().includes(cleanDesc))
+    );
+    if (partialMatch && categories.includes(partialMatch.category)) {
+      return partialMatch.category;
+    }
+
+    // 3. Fallback to predefined smart keyword matches
+    const ruleMappings: Record<string, string[]> = {
+      'Rice': ['rice', 'cooked rice', 'bai', 'pork rice', 'chicken rice'],
+      'Noodle': ['noodle', 'ramen', 'soup', 'mee', 'kuy teav', 'pad thai'],
+      'Water': ['water', 'vital', 'dasani', 'evian', 'aquafina', 'ice'],
+      'Gasoline': ['gasoline', 'gas', 'fuel', 'diesel', 'petrol', 'refuel', 'moto', 'car', 'taxi'],
+      'Coffee': ['coffee', 'cappuccino', 'latte', 'espresso', 'starbucks', 'cafe', 'macha', 'americano', 'brown coffee'],
+      'Tea': ['tea', 'green tea', 'lemon tea', 'matcha'],
+      'Clothes': ['clothes', 'shirt', 'pants', 'shoes', 'jacket', 't-shirt', 'jean', 'dress', 'shop', 'skirt'],
+      'Milk Shake': ['milk', 'shake', 'boba', 'bubble tea', 'yogurt'],
+      'Food': ['food', 'snack', 'bread', 'cake', 'pizza', 'burger', 'kfc', 'lunch', 'dinner', 'restaurant', 'meal', 'fruit', 'apple', 'banana', 'coconut']
+    };
+
+    for (const [cat, words] of Object.entries(ruleMappings)) {
+      const targetCat = categories.find(c => c.toLowerCase() === cat.toLowerCase());
+      if (targetCat) {
+        if (words.some(word => cleanDesc.includes(word))) {
+          return targetCat;
+        }
+      }
+    }
+
+    return null;
+  };
+
   const categorySuggestions = useMemo(() => {
     if (!newExpense.category) return [];
     return getCategorySuggestions(newExpense.category);
@@ -166,6 +212,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, 
       type: 'Expense',
       currency: currencyMode
     });
+    setSuggestedCategory(null);
     setEditingExpenseId(null);
     setIsAdding(false);
   };
@@ -734,7 +781,16 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, 
                              <label className="text-[10px] font-black uppercase tracking-widest text-slate-900/40 ml-4">Description</label>
                              <input 
                                 value={newExpense.description}
-                                onChange={(e) => setNewExpense({...newExpense, description: e.target.value})}
+                                onChange={(e) => {
+                                   const val = e.target.value;
+                                   const suggestion = getSuggestedCategory(val);
+                                   setSuggestedCategory(suggestion);
+                                   setNewExpense(prev => ({
+                                     ...prev,
+                                     description: val,
+                                     category: (suggestion && prev.type === 'Expense') ? suggestion : prev.category
+                                   }));
+                                 }}
                                 placeholder="What is this for?"
                                 className="w-full bg-slate-50 border border-slate-200 rounded-[28px] py-6 px-8 text-[15px] text-slate-900 font-bold outline-none focus:border-amber-500 focus:bg-white transition-all font-sans"
                              />
@@ -790,7 +846,14 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, 
                                 )}
                               </div>
                               <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-900/40 ml-4">Category</label>
+                                <div className="flex items-center justify-between ml-4 mr-2">
+                                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-900/40">Category</label>
+                                  {suggestedCategory && (
+                                    <span className="text-[9px] font-black text-amber-600 flex items-center gap-1 bg-amber-50 border border-amber-200/50 px-2.5 py-0.5 rounded-full select-none animate-pulse">
+                                      ✨ Auto-categorized
+                                    </span>
+                                  )}
+                                </div>
                                 <select 
                                     value={newExpense.category}
                                     disabled={newExpense.type === 'Income'}
@@ -816,6 +879,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, 
                             onClick={() => {
                               setIsAdding(false);
                               setEditingExpenseId(null);
+                              setSuggestedCategory(null);
                               setNewExpense({
                                 description: '',
                                 amount: '',

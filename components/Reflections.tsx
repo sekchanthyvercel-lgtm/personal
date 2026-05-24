@@ -3,6 +3,7 @@ import { AppData, ReflectionData, ReflectionEntry } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { Calendar, Target, Compass, Award, Flag, Wand2, Loader2, RefreshCw, CheckSquare, Palette } from 'lucide-react';
 import { PAPER_STYLES } from '../src/styles/paperStyles';
+import { format, subDays, eachDayOfInterval, startOfWeek } from 'date-fns';
 import { callNeuralEngine } from '../services/neuralEngine';
 import { RichTextDiv } from './FloatingToolbar';
 
@@ -107,6 +108,36 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
     oneYearVision: { id: '1year', title: '1-Year Vision', content: '' },
     archives: []
   };
+
+  // Generate rolling 365 days grouped by weeks (columns)
+  const heatmapWeeks = React.useMemo(() => {
+    try {
+      const today = new Date();
+      const startDate = subDays(today, 364); // 52 rolling weeks
+      const startOfFirstWeek = startOfWeek(startDate); // Align to Sunday
+      const allDays = eachDayOfInterval({ start: startOfFirstWeek, end: today });
+      
+      const weeks: Date[][] = [];
+      let currentWeek: Date[] = [];
+      
+      allDays.forEach(day => {
+        currentWeek.push(day);
+        if (currentWeek.length === 7) {
+          weeks.push(currentWeek);
+          currentWeek = [];
+        }
+      });
+      
+      if (currentWeek.length > 0) {
+        weeks.push(currentWeek);
+      }
+      
+      return weeks;
+    } catch (e) {
+      console.error("Error generating heatmap:", e);
+      return [];
+    }
+  }, [data.journalEntries]);
 
   // Sync prop data to local state when not focused
   React.useEffect(() => {
@@ -218,6 +249,101 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
           >
             {showHistory ? 'View Master Plan' : 'View Motivation Archives'}
           </button>
+        </div>
+      </div>
+
+      {/* Visual Journal Consistency Heatmap */}
+      <div className="relative overflow-hidden rounded-[36px] p-6 bg-slate-50 border border-slate-200/60 shadow-sm mb-10">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+          <div>
+            <h2 className="text-lg font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
+              <Calendar size={18} className="text-orange-500 animate-pulse" />
+              Journal Consistency Heatmap
+            </h2>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Your daily reflections log over the rolling 365 days</p>
+          </div>
+          
+          <div className="flex items-center gap-3 text-[10px] font-black uppercase text-slate-500 bg-white border border-slate-200/50 p-2 rounded-xl">
+            <span>Less</span>
+            <div className="flex gap-1.5">
+              <div className="w-3.5 h-3.5 rounded-sm bg-slate-200/50 border border-slate-100/50" />
+              <div className="w-3.5 h-3.5 rounded-sm bg-orange-200" />
+              <div className="w-3.5 h-3.5 rounded-sm bg-orange-300" style={{ backgroundColor: '#fdba74' }} />
+              <div className="w-3.5 h-3.5 rounded-sm bg-orange-400" />
+              <div className="w-3.5 h-3.5 rounded-sm bg-orange-600" />
+            </div>
+            <span>More Entries</span>
+          </div>
+        </div>
+
+        {/* Calendar Grid Container */}
+        <div className="overflow-x-auto custom-scrollbar-orange pb-2">
+          <div className="flex gap-1.5 min-w-[750px] select-none">
+            {/* Days labels */}
+            <div className="flex flex-col justify-between pr-2 text-[8px] font-black text-slate-400 uppercase tracking-tighter h-[98px] py-1">
+              <span>Sun</span>
+              <span>Tue</span>
+              <span>Thu</span>
+              <span>Sat</span>
+            </div>
+
+            {/* Weeks columns */}
+            {heatmapWeeks.map((week, weekIdx) => (
+              <div key={weekIdx} className="flex flex-col gap-1.5 justify-between">
+                {week.map(day => {
+                  const dateKey = format(day, 'yyyy-MM-dd');
+                  const entry = data.journalEntries?.[dateKey];
+                  
+                  // Level algorithm
+                  let level = 0; // standard uncompleted
+                  let tooltip = `${format(day, 'MMM do, yyyy')}: No entry`;
+                  
+                  if (entry) {
+                    level = 1;
+                    tooltip = `${format(day, 'MMM do, yyyy')}: Journal Entry present!`;
+                    
+                    const ratingCount = [
+                      entry.energyRating,
+                      entry.focusRating,
+                      entry.productivityRating,
+                      entry.stressRating,
+                      entry.gratitudeRating,
+                      entry.vitalityRating
+                    ].filter(Boolean).length;
+
+                    if (ratingCount >= 4) {
+                      level = 4;
+                      tooltip = `${format(day, 'MMM do, yyyy')}: Deep reflection journal completed! ⭐`;
+                    } else if (ratingCount >= 2) {
+                      level = 3;
+                      tooltip = `${format(day, 'MMM do, yyyy')}: High-quality reflection log!`;
+                    } else if (entry.isCompleted) {
+                      level = 2;
+                      tooltip = `${format(day, 'MMM do, yyyy')}: Journal logged!`;
+                    }
+                  }
+
+                  const getCellBg = (lvl: number) => {
+                    switch (lvl) {
+                      case 1: return 'bg-orange-200 border border-orange-300/30 hover:scale-125';
+                      case 2: return 'bg-orange-300 border border-orange-400/30 hover:scale-125';
+                      case 3: return 'bg-orange-400 hover:scale-125';
+                      case 4: return 'bg-orange-600 hover:scale-125 shadow-sm shadow-orange-500/20';
+                      default: return 'bg-slate-200/50 hover:bg-slate-350/60 border border-slate-100/50';
+                    }
+                  };
+
+                  return (
+                    <div 
+                      key={day.toString()}
+                      className={`w-[11px] h-[11px] rounded-[3px] transition-all duration-150 cursor-pointer ${getCellBg(level)}`}
+                      title={tooltip}
+                    />
+                  );
+                })}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 

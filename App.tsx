@@ -453,7 +453,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleUpdateHabitCompletion = async (date: string, habitId: string, completed: boolean) => {
+  const handleUpdateHabitCompletion = async (date: string, habitId: string, completed: boolean | number) => {
     const completions = data.habitCompletions || {};
     const dayCompletions = { ...(completions[date] || {}), [habitId]: completed };
     const newCompletions = { ...completions, [date]: dayCompletions };
