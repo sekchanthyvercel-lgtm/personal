@@ -1,10 +1,12 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Plus, Trash2, Calendar, AlignLeft, AlignCenter, AlignRight, Highlighter, MousePointer2, Minus, Layout, Square, Quote, Settings2, FileUp, Image as ImageIcon, Video, Music, FileText, Loader2, Wand2, Menu, ChevronLeft, GraduationCap, ChevronRight, Table, Grid3X3, Columns, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Palette, Italic, Underline, Strikethrough, Indent, Outdent, List, ListOrdered, CheckSquare, ChevronDown, MoreHorizontal } from 'lucide-react';
+import { Plus, Trash2, Calendar, AlignLeft, AlignCenter, AlignRight, Highlighter, MousePointer2, Minus, Layout, Square, Quote, Settings2, FileUp, FileDown, Image as ImageIcon, Video, Music, FileText, Loader2, Wand2, Menu, ChevronLeft, GraduationCap, ChevronRight, Table, Grid3X3, Columns, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Palette, Italic, Underline, Strikethrough, Indent, Outdent, List, ListOrdered, CheckSquare, ChevronDown, MoreHorizontal, Download } from 'lucide-react';
 import { AppData, DPSSTopic } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { callNeuralEngine } from '../services/neuralEngine';
 import { AISelfLearningModal } from './AISelfLearningModal';
 import { PAPER_STYLES } from '../src/styles/paperStyles';
+// @ts-ignore
+import html2pdf from 'html2pdf.js';
 
 interface SelfLearningTableProps {
   data: AppData;
@@ -17,6 +19,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
   const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
   const [showMoreTools, setShowMoreTools] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
   const [pickerPos, setPickerPos] = useState<{ x: number, y: number } | null>(null);
   const [showAllTextColors, setShowAllTextColors] = useState(false);
   const [showAllHighlightColors, setShowAllHighlightColors] = useState(false);
@@ -27,6 +30,61 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
   const [sidebarWidth, setSidebarWidth] = useState(window.innerWidth < 768 ? 200 : 300);
   const isResizing = useRef(false);
   const editorRef = useRef<HTMLDivElement>(null);
+
+  const exportPDF = async () => {
+    if (!editorRef.current) return;
+    const originalBorder = editorRef.current.style.border;
+    const originalShadow = editorRef.current.style.boxShadow;
+    const originalOverflow = editorRef.current.style.overflow;
+    const originalMaxHeight = editorRef.current.style.maxHeight;
+    const originalHeight = editorRef.current.style.height;
+    
+    editorRef.current.style.border = 'none';
+    editorRef.current.style.boxShadow = 'none';
+    editorRef.current.style.overflow = 'visible';
+    editorRef.current.style.maxHeight = 'none';
+    editorRef.current.style.height = 'auto';
+
+    const element = editorRef.current;
+    const opt = {
+      margin:       10,
+      filename:     `${selectedTopic?.title || 'Self-Learning-Notes'}.pdf`,
+      image:        { type: 'jpeg' as 'jpeg', quality: 1 },
+      html2canvas:  { scale: 2, useCORS: true, logging: false },
+      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    try {
+      await html2pdf().set(opt).from(element).save();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      editorRef.current.style.border = originalBorder;
+      editorRef.current.style.boxShadow = originalShadow;
+      editorRef.current.style.overflow = originalOverflow;
+      editorRef.current.style.maxHeight = originalMaxHeight;
+      editorRef.current.style.height = originalHeight;
+    }
+  };
+
+  const exportWord = () => {
+    if (!editorRef.current) return;
+    const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' " +
+      "xmlns:w='urn:schemas-microsoft-com:office:word' " +
+      "xmlns='http://www.w3.org/TR/REC-html40'>" +
+      "<head><meta charset='utf-8'><title>Export HTML to Word</title></head><body>";
+    const footer = "</body></html>";
+    const sourceHTML = header + editorRef.current.innerHTML + footer;
+    
+    const source = 'data:application/vnd.ms-word;charset=utf-8,' + encodeURIComponent(sourceHTML);
+    const fileDownload = document.createElement("a");
+    document.body.appendChild(fileDownload);
+    fileDownload.href = source;
+    fileDownload.download = `${selectedTopic?.title || 'Self-Learning-Notes'}.doc`;
+    fileDownload.click();
+    document.body.removeChild(fileDownload);
+  };
+
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -1171,6 +1229,39 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                             </div>
                           )}
                         </div>
+                        <div className="relative z-[200]">
+                          <button 
+                            onClick={() => setShowExportMenu(!showExportMenu)}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg text-xs font-bold shadow-sm transition-all font-sans"
+                            title="Export notes"
+                          >
+                            <Download size={14} />
+                            Export
+                            <ChevronDown size={12} className={`transition-transform duration-200 ${showExportMenu ? 'rotate-180' : ''}`} />
+                          </button>
+                          
+                          {showExportMenu && (
+                            <div className="absolute right-0 top-full mt-2 z-[250] w-[180px] bg-white rounded-2xl shadow-2xl border border-slate-200 p-2 flex flex-col gap-1 animate-in slide-in-from-top-2 duration-150">
+                              <button 
+                                onClick={() => { exportWord(); setShowExportMenu(false); }}
+                                className="flex items-center justify-between w-full text-left px-3 py-2 hover:bg-blue-50 text-slate-700 hover:text-blue-700 rounded-xl transition-colors font-bold text-xs"
+                              >
+                                <span className="flex items-center gap-2">
+                                  <FileText size={14} className="text-blue-500" /> MS Word (.doc)
+                                </span>
+                              </button>
+                              <button 
+                                onClick={() => { exportPDF(); setShowExportMenu(false); }}
+                                className="flex items-center justify-between w-full text-left px-3 py-2 hover:bg-red-50 text-slate-700 hover:text-red-700 rounded-xl transition-colors font-bold text-xs"
+                              >
+                                <span className="flex items-center gap-2">
+                                  <FileDown size={14} className="text-red-500" /> PDF Document
+                                </span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
                         <button onClick={insertDate} className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-emerald-500 to-orange-500 text-white rounded-lg text-xs font-bold hover:from-emerald-600 hover:to-orange-600 shadow-sm transition-colors">
                           <Calendar size={14} /> Insert Date
                         </button>

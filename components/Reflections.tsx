@@ -253,43 +253,46 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
       </div>
 
       {/* Visual Journal Consistency Heatmap */}
-      <div className="relative overflow-hidden rounded-[36px] p-6 bg-slate-50 border border-slate-200/60 shadow-sm mb-10">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+      <div className="relative overflow-visible rounded-[38px] p-8 bg-white/95 border-2 border-slate-200 shadow-xl mb-10">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
           <div>
-            <h2 className="text-lg font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
-              <Calendar size={18} className="text-orange-500 animate-pulse" />
+            <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
+              <Calendar size={22} className="text-orange-500 animate-pulse" />
               Journal Consistency Heatmap
             </h2>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Your daily reflections log over the rolling 365 days</p>
+            <p className="text-[11px] text-slate-500 font-extrabold uppercase tracking-wider mt-0.5">Your daily reflections log over the rolling 365 days</p>
           </div>
           
-          <div className="flex items-center gap-3 text-[10px] font-black uppercase text-slate-500 bg-white border border-slate-200/50 p-2 rounded-xl">
+          <div className="flex items-center gap-3 text-[10px] font-black uppercase text-slate-600 bg-slate-50 border border-slate-200 p-2.5 rounded-2xl shadow-sm">
             <span>Less</span>
             <div className="flex gap-1.5">
-              <div className="w-3.5 h-3.5 rounded-sm bg-slate-200/50 border border-slate-100/50" />
-              <div className="w-3.5 h-3.5 rounded-sm bg-orange-200" />
-              <div className="w-3.5 h-3.5 rounded-sm bg-orange-300" style={{ backgroundColor: '#fdba74' }} />
-              <div className="w-3.5 h-3.5 rounded-sm bg-orange-400" />
-              <div className="w-3.5 h-3.5 rounded-sm bg-orange-600" />
+              <div className="w-4 h-4 rounded-sm bg-slate-200 border border-slate-300" title="No journal logged" />
+              <div className="w-4 h-4 rounded-sm bg-orange-100 border border-orange-200" title="1-2 ratings / simple journal present" />
+              <div className="w-4 h-4 rounded-sm bg-orange-200 border border-orange-300" title="Journal logged" />
+              <div className="w-4 h-4 rounded-sm bg-orange-400 border border-orange-500" title="High-quality reflection log" />
+              <div className="w-4 h-4 rounded-sm bg-orange-600 border border-orange-700 shadow-sm shadow-orange-500/20" title="Deep reflection completed (4+ ratings)" />
             </div>
             <span>More Entries</span>
           </div>
         </div>
 
         {/* Calendar Grid Container */}
-        <div className="overflow-x-auto custom-scrollbar-orange pb-2">
-          <div className="flex gap-1.5 min-w-[750px] select-none">
-            {/* Days labels */}
-            <div className="flex flex-col justify-between pr-2 text-[8px] font-black text-slate-400 uppercase tracking-tighter h-[98px] py-1">
-              <span>Sun</span>
-              <span>Tue</span>
-              <span>Thu</span>
-              <span>Sat</span>
+        <div className="overflow-x-auto custom-scrollbar-orange pb-4">
+          <div className="flex gap-2 min-w-[850px] select-none items-start pt-1">
+            {/* Days labels using matching 7-row layout for absolute alignment */}
+            <div className="grid grid-rows-7 gap-1.5 pr-2 w-8 text-[9px] font-black text-slate-400 uppercase tracking-tighter text-right">
+              <span className="h-3.5 flex items-center justify-end">Sun</span>
+              <span className="h-3.5 flex items-center justify-end"></span>
+              <span className="h-3.5 flex items-center justify-end">Tue</span>
+              <span className="h-3.5 flex items-center justify-end"></span>
+              <span className="h-3.5 flex items-center justify-end">Thu</span>
+              <span className="h-3.5 flex items-center justify-end"></span>
+              <span className="h-3.5 flex items-center justify-end">Sat</span>
             </div>
 
             {/* Weeks columns */}
             {heatmapWeeks.map((week, weekIdx) => (
-              <div key={weekIdx} className="flex flex-col gap-1.5 justify-between">
+              <div key={weekIdx} className="grid grid-rows-7 gap-1.5">
                 {week.map(day => {
                   const dateKey = format(day, 'yyyy-MM-dd');
                   const entry = data.journalEntries?.[dateKey];
@@ -325,18 +328,18 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
 
                   const getCellBg = (lvl: number) => {
                     switch (lvl) {
-                      case 1: return 'bg-orange-200 border border-orange-300/30 hover:scale-125';
-                      case 2: return 'bg-orange-300 border border-orange-400/30 hover:scale-125';
-                      case 3: return 'bg-orange-400 hover:scale-125';
-                      case 4: return 'bg-orange-600 hover:scale-125 shadow-sm shadow-orange-500/20';
-                      default: return 'bg-slate-200/50 hover:bg-slate-350/60 border border-slate-100/50';
+                      case 1: return 'bg-orange-100 border border-orange-200 text-orange-700 hover:scale-130 hover:shadow-md';
+                      case 2: return 'bg-orange-200 border border-orange-300 text-orange-850 hover:scale-130 hover:shadow-md';
+                      case 3: return 'bg-orange-400 border border-orange-500 hover:scale-130 hover:shadow-md';
+                      case 4: return 'bg-orange-600 border border-orange-700 hover:scale-130 hover:shadow-lg shadow-orange-500/30';
+                      default: return 'bg-slate-200 border border-slate-350/60 hover:bg-slate-300 hover:scale-130 hover:border-slate-400';
                     }
                   };
 
                   return (
                     <div 
                       key={day.toString()}
-                      className={`w-[11px] h-[11px] rounded-[3px] transition-all duration-150 cursor-pointer ${getCellBg(level)}`}
+                      className={`w-3.5 h-3.5 rounded-[3.5px] transition-all duration-150 cursor-pointer ${getCellBg(level)}`}
                       title={tooltip}
                     />
                   );
@@ -507,6 +510,21 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
         }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
           background: rgba(255, 255, 255, 0.3);
+        }
+        .custom-scrollbar-orange::-webkit-scrollbar {
+          height: 10px;
+        }
+        .custom-scrollbar-orange::-webkit-scrollbar-track {
+          background: rgba(249, 115, 22, 0.05);
+          border-radius: 6px;
+        }
+        .custom-scrollbar-orange::-webkit-scrollbar-thumb {
+          background: rgba(249, 115, 22, 0.35);
+          border-radius: 6px;
+          border: 2px solid white;
+        }
+        .custom-scrollbar-orange::-webkit-scrollbar-thumb:hover {
+          background: rgba(249, 115, 22, 0.55);
         }
       `}</style>
     </div>
