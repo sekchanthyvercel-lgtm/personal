@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Plus, Trash2, Calendar, AlignLeft, AlignCenter, AlignRight, Highlighter, Type, Settings2, MousePointer2, Minus, Layout, Square, Quote, FileUp, Loader2, Wand2, Menu, ChevronLeft, FileText, ChevronDown, ChevronRight, Table, Grid3X3, Columns, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Palette, Italic, Underline, Strikethrough, Indent, Outdent, List, ListOrdered, CheckSquare } from 'lucide-react';
+import { Plus, Trash2, Calendar, AlignLeft, AlignCenter, AlignRight, Highlighter, Type, Settings2, MousePointer2, Minus, Layout, Square, Quote, FileUp, Loader2, Wand2, Menu, ChevronLeft, FileText, ChevronDown, ChevronRight, Table, Grid3X3, Columns, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Palette, Italic, Underline, Strikethrough, Indent, Outdent, List, ListOrdered, CheckSquare, MoreHorizontal } from 'lucide-react';
 import { AppData, DPSSTopic } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { callNeuralEngine } from '../services/neuralEngine';
@@ -19,6 +19,7 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
   const [isAILoading, setIsAILoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showMoreTools, setShowMoreTools] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(window.innerWidth < 768 ? 200 : 300);
   const isResizing = useRef(false);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -110,17 +111,31 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
 
   const handleSelection = () => {
     const selection = window.getSelection();
-    if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+    if (selection && selection.rangeCount > 0) {
       const range = selection.getRangeAt(0);
       
       // Ensure the selection is within our editor
       if (editorRef.current && editorRef.current.contains(range.commonAncestorContainer)) {
         savedRange.current = range.cloneRange();
-        const rect = range.getBoundingClientRect();
-        setPickerPos({
-          x: rect.left + rect.width / 2,
-          y: rect.top - 50
-        });
+        
+        const container = range.commonAncestorContainer;
+        const cardElement = container.nodeType === Node.TEXT_NODE 
+          ? container.parentElement?.closest('.synthesis-card-wrapper, .qa-board-wrapper')
+          : (container as HTMLElement).closest?.('.synthesis-card-wrapper, .qa-board-wrapper');
+
+        if (!selection.isCollapsed || cardElement) {
+          const rect = range.getBoundingClientRect();
+          let x = rect.left + rect.width / 2;
+          let y = rect.top - 50;
+          if ((rect.width === 0 || rect.height === 0) && cardElement) {
+            const cardRect = (cardElement as HTMLElement).getBoundingClientRect();
+            x = cardRect.left + cardRect.width / 2;
+            y = cardRect.top - 40;
+          }
+          setPickerPos({ x, y });
+        } else {
+          setPickerPos(null);
+        }
       }
     } else {
       // Don't clear immediately if we're clicking the picker
@@ -328,6 +343,201 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
     }
   };
 
+  const insertSynthesisCard = (theme = 'blue') => {
+    if (!selectedTopic) return;
+    const configs: Record<string, { border: string; bg: string; title: string; desc: string; inner: string }> = {
+      blue: { border: '#bfdbfe', bg: '#f0f7ff', title: '#1d4ed8', desc: '#1e3a8a', inner: '#bfdbfe' },
+      emerald: { border: '#bbf7d0', bg: '#f0fdf4', title: '#047857', desc: '#064e3b', inner: '#bbf7d0' },
+      rose: { border: '#fecdd3', bg: '#fff1f2', title: '#be123c', desc: '#881337', inner: '#fecdd3' },
+      gold: { border: '#fef08a', bg: '#fefce8', title: '#a16207', desc: '#713f12', inner: '#fef08a' },
+      violet: { border: '#ddd6fe', bg: '#f5f3ff', title: '#6d28d9', desc: '#4c1d95', inner: '#ddd6fe' },
+      orange: { border: '#fed7aa', bg: '#fff7ed', title: '#c2410c', desc: '#7c2d12', inner: '#fed7aa' },
+      teal: { border: '#99f6e4', bg: '#f0fdfa', title: '#0f766e', desc: '#115e59', inner: '#99f6e4' },
+      fuchsia: { border: '#f5d0fe', bg: '#fdf4ff', title: '#a21caf', desc: '#701a75', inner: '#f5d0fe' },
+      sky: { border: '#bae6fd', bg: '#f0f9ff', title: '#0369a1', desc: '#0c4a6e', inner: '#bae6fd' },
+      slate: { border: '#cbd5e1', bg: '#f8fafc', title: '#334155', desc: '#0f172a', inner: '#cbd5e1' }
+    };
+    const c = configs[theme] || configs.blue;
+
+    const cardHtml = `
+<div class="synthesis-card-wrapper" style="border: 1.5px solid ${c.border}; background-color: ${c.bg}; border-radius: 20px; padding: 20px; margin: 18px 0; font-family: sans-serif; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.04); text-align: left;">
+  <div style="font-weight: 955; color: ${c.title}; text-transform: uppercase; font-size: 13px; letter-spacing: 0.05em; margin-bottom: 6px;">
+    SYNTHESIS & ACTION PLAN
+  </div>
+  <div style="font-size: 12px; color: ${c.desc}; font-weight: 700; margin-bottom: 12px; line-height: 1.5;">
+    Based on the 7-day audit, define one "Friction Rule" (e.g., "No gaming before 8 PM" or "Delete mobile apps on weekdays") to regain control over your attention.
+  </div>
+  <div style="background-color: #ffffff; border: 1.5px solid ${c.inner}; border-radius: 12px; padding: 14px; min-height: 70px; color: #0f172a; font-size: 13px;" class="synthesis-box">
+    &nbsp;
+  </div>
+</div>
+<p><br></p>
+`;
+
+    if (editorRef.current) {
+      editorRef.current.focus();
+      if (savedRange.current) {
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(savedRange.current);
+      } else {
+        const range = document.createRange();
+        range.selectNodeContents(editorRef.current);
+        range.collapse(false);
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+      }
+      document.execCommand('insertHTML', false, cardHtml);
+      updateTopic(selectedTopic.id, { content: editorRef.current.innerHTML });
+    }
+  };
+
+  const insertQABoard = (theme = 'slate') => {
+    if (!selectedTopic) return;
+    const configs: Record<string, { border: string; bg: string; title: string; desc: string; inner: string }> = {
+      slate: { border: '#e2e8f0', bg: '#f8fafc', title: '#475569', desc: '#64748b', inner: '#cbd5e1' },
+      emerald: { border: '#bbf7d0', bg: '#f0fdf4', title: '#047857', desc: '#059669', inner: '#86efac' },
+      indigo: { border: '#c7d2fe', bg: '#f5f7ff', title: '#4338ca', desc: '#4f46e5', inner: '#a5b4fc' },
+      amber: { border: '#fde68a', bg: '#fefce8', title: '#b45309', desc: '#d97706', inner: '#fcd34d' },
+      purple: { border: '#e9d5ff', bg: '#faf5ff', title: '#7e22ce', desc: '#9333ea', inner: '#d8b4fe' },
+      rose: { border: '#fecdd3', bg: '#fff1f2', title: '#be123c', desc: '#e11d48', inner: '#fda4af' },
+      sky: { border: '#bae6fd', bg: '#f0f9ff', title: '#0369a1', desc: '#0284c7', inner: '#7dd3fc' },
+      teal: { border: '#99f6e4', bg: '#f0fdfa', title: '#0f766e', desc: '#0d9488', inner: '#5eead4' },
+      orange: { border: '#fed7aa', bg: '#fff7ed', title: '#c2410c', desc: '#ea580c', inner: '#fdba74' },
+      cyan: { border: '#a5f3fc', bg: '#ecfeff', title: '#0e7490', desc: '#0891b2', inner: '#67e8f9' }
+    };
+    const c = configs[theme] || configs.slate;
+
+    const qaHtml = `
+<div class="qa-board-wrapper" style="border: 1.5px solid ${c.border}; background-color: ${c.bg}; border-radius: 20px; padding: 20px; margin: 18px 0; font-family: sans-serif; box-shadow: 0 4px 12px rgba(148, 163, 184, 0.03); text-align: left;">
+  <div style="font-weight: 955; color: ${c.title}; text-transform: uppercase; font-size: 13px; letter-spacing: 0.05em; margin-bottom: 6px;">
+    CRITICAL QUESTION & ANSWER BOARD
+  </div>
+  <div style="font-size: 11px; color: ${c.desc}; font-weight: 600; margin-bottom: 14px;">
+    Use this modular layout to establish friction, debug your behaviors, and verify progression criteria.
+  </div>
+  <div style="display: grid; grid-template-columns: 1fr; gap: 14px;">
+    <div style="background-color: #ffffff; border: 1px solid ${c.inner}; border-radius: 14px; padding: 14px;">
+      <div style="font-weight: 800; color: #0f172a; font-size: 11px; margin-bottom: 6px; text-transform: uppercase;">Question or Core Prompt</div>
+      <div style="font-size: 12px; color: #475569; font-style: italic; margin-bottom: 10px; border-bottom: 1px dashed #e2e8f0; padding-bottom: 6px;">
+        Define your prompt here (e.g., "What was the single biggest trigger today?")
+      </div>
+      <div style="min-height: 40px; font-size: 13px; color: #0f172a;" class="qa-box">
+        Write your response here...
+      </div>
+    </div>
+  </div>
+</div>
+<p><br></p>
+`;
+
+    if (editorRef.current) {
+      editorRef.current.focus();
+      if (savedRange.current) {
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(savedRange.current);
+      } else {
+        const range = document.createRange();
+        range.selectNodeContents(editorRef.current);
+        range.collapse(false);
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+      }
+      document.execCommand('insertHTML', false, qaHtml);
+      updateTopic(selectedTopic.id, { content: editorRef.current.innerHTML });
+    }
+  };
+
+  const getActiveCardElement = (): { element: HTMLElement; type: 'synthesis' | 'qa' } | null => {
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      const container = range.commonAncestorContainer;
+      const element = container.nodeType === Node.TEXT_NODE 
+        ? container.parentElement?.closest('.synthesis-card-wrapper, .qa-board-wrapper')
+        : (container as HTMLElement).closest?.('.synthesis-card-wrapper, .qa-board-wrapper');
+      
+      if (element) {
+        const isSynth = element.classList.contains('synthesis-card-wrapper');
+        return {
+          element: element as HTMLElement,
+          type: isSynth ? 'synthesis' : 'qa'
+        };
+      }
+    }
+    return null;
+  };
+
+  const applyCardColor = (element: HTMLElement, type: 'synthesis' | 'qa', theme: string) => {
+    if (type === 'synthesis') {
+      const configs: Record<string, { border: string; bg: string; header: string; desc: string; innerBorder: string }> = {
+        blue: { border: '#bfdbfe', bg: '#f0f7ff', header: '#1d4ed8', desc: '#1e3a8a', innerBorder: '#bfdbfe' },
+        emerald: { border: '#bbf7d0', bg: '#f0fdf4', header: '#047857', desc: '#064e3b', innerBorder: '#bbf7d0' },
+        rose: { border: '#fecdd3', bg: '#fff1f2', header: '#be123c', desc: '#881337', innerBorder: '#fecdd3' },
+        gold: { border: '#fef08a', bg: '#fefce8', header: '#a16207', desc: '#713f12', innerBorder: '#fef08a' },
+        violet: { border: '#ddd6fe', bg: '#f5f3ff', header: '#6d28d9', desc: '#4c1d95', innerBorder: '#ddd6fe' },
+        orange: { border: '#fed7aa', bg: '#fff7ed', header: '#c2410c', desc: '#7c2d12', innerBorder: '#fed7aa' },
+        teal: { border: '#99f6e4', bg: '#f0fdfa', header: '#0f766e', desc: '#115e59', innerBorder: '#99f6e4' },
+        fuchsia: { border: '#f5d0fe', bg: '#fdf4ff', header: '#a21caf', desc: '#701a75', innerBorder: '#f5d0fe' },
+        sky: { border: '#bae6fd', bg: '#f0f9ff', header: '#0369a1', desc: '#0c4a6e', innerBorder: '#bae6fd' },
+        slate: { border: '#cbd5e1', bg: '#f8fafc', header: '#334155', desc: '#0f172a', innerBorder: '#cbd5e1' }
+      };
+      const c = configs[theme];
+      if (c) {
+        element.style.borderColor = c.border;
+        element.style.backgroundColor = c.bg;
+        
+        const headerDiv = element.children[0] as HTMLElement;
+        if (headerDiv) headerDiv.style.color = c.header;
+        
+        const descDiv = element.children[1] as HTMLElement;
+        if (descDiv) descDiv.style.color = c.desc;
+        
+        const innerBox = element.querySelector('.synthesis-box') as HTMLElement;
+        if (innerBox) {
+          innerBox.style.borderColor = c.innerBorder;
+        }
+      }
+    } else if (type === 'qa') {
+      const configs: Record<string, { border: string; bg: string; header: string; desc: string; innerBorder: string }> = {
+        slate: { border: '#e2e8f0', bg: '#f8fafc', header: '#475569', desc: '#64748b', innerBorder: '#cbd5e1' },
+        emerald: { border: '#bbf7d0', bg: '#f0fdf4', header: '#047857', desc: '#059669', innerBorder: '#86efac' },
+        indigo: { border: '#c7d2fe', bg: '#f5f7ff', header: '#4338ca', desc: '#4f46e5', innerBorder: '#a5b4fc' },
+        amber: { border: '#fde68a', bg: '#fefce8', header: '#b45309', desc: '#d97706', innerBorder: '#fcd34d' },
+        purple: { border: '#e9d5ff', bg: '#faf5ff', header: '#7e22ce', desc: '#9333ea', innerBorder: '#d8b4fe' },
+        rose: { border: '#fecdd3', bg: '#fff1f2', header: '#be123c', desc: '#e11d48', innerBorder: '#fda4af' },
+        sky: { border: '#bae6fd', bg: '#f0f9ff', header: '#0369a1', desc: '#0284c7', innerBorder: '#7dd3fc' },
+        teal: { border: '#99f6e4', bg: '#f0fdfa', header: '#0f766e', desc: '#0d9488', innerBorder: '#5eead4' },
+        orange: { border: '#fed7aa', bg: '#fff7ed', header: '#c2410c', desc: '#ea580c', innerBorder: '#fdba74' },
+        cyan: { border: '#a5f3fc', bg: '#ecfeff', header: '#0e7490', desc: '#0891b2', innerBorder: '#67e8f9' }
+      };
+      const c = configs[theme];
+      if (c) {
+        element.style.borderColor = c.border;
+        element.style.backgroundColor = c.bg;
+        
+        const headerDiv = element.children[0] as HTMLElement;
+        if (headerDiv) headerDiv.style.color = c.header;
+        
+        const descDiv = element.children[1] as HTMLElement;
+        if (descDiv) descDiv.style.color = c.desc;
+        
+        const innerBoxes = element.querySelectorAll('div[style*="background-color: #ffffff"], div[style*="background-color: rgb(255, 255, 255)"], .qa-box');
+        innerBoxes.forEach((box) => {
+          const hBox = box as HTMLElement;
+          hBox.style.borderColor = c.innerBorder;
+        });
+      }
+    }
+
+    if (selectedTopic?.id && editorRef.current) {
+      updateTopic(selectedTopic.id, { content: editorRef.current.innerHTML });
+    }
+  };
+
   const [isTableModalOpen, setIsTableModalOpen] = useState(false);
   const [tableConfig, setTableConfig] = useState({ rows: 5, cols: 2, hasHeader: true, theme: '#f97316', headerTitle: 'New Table' });
 
@@ -431,19 +641,53 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
 
   const enhanceWithAI = async () => {
     if (!selectedTopic || isAILoading) return;
+
+    const selection = window.getSelection();
+    let selectedText = '';
+    let range: Range | null = null;
+    let isSelectionMode = false;
+
+    if (selection && selection.rangeCount > 0) {
+      const r = selection.getRangeAt(0);
+      if (editorRef.current && editorRef.current.contains(r.commonAncestorContainer)) {
+        selectedText = r.toString().trim();
+        if (selectedText.length > 0) {
+          range = r;
+          isSelectionMode = true;
+        }
+      }
+    }
+
     setIsAILoading(true);
     try {
+        let promptText = '';
+        if (isSelectionMode) {
+          promptText = `Enhance ONLY this selected part of the note. Improve clarity, fix spelling/grammar, structure cleanly, and expand slightly if helpful. Return the improved version as HTML formatted snippet. Output ONLY valid HTML formatted text without any markdown or code block wrappers. Selected text: ${selectedText}`;
+        } else {
+          promptText = `Enhance this note. Improve structure, fix grammar, and expand slightly if it helps clarity. Return HTML formatted string only. Current content: ${selectedTopic.content}`;
+        }
+
         const result = await callNeuralEngine(
             'gemini-3-flash-preview',
-            `Enhance this note. Improve structure, fix grammar, and expand slightly if it helps clarity. Return HTML formatted string only. Current content: ${selectedTopic.content}`,
-            "You are a helpful note-taking assistant. Output ONLY valid HTML."
+            promptText,
+            "You are a helpful note-taking assistant. Output ONLY valid HTML formatted text."
         );
         let improved = result.text.trim();
         improved = improved.replace(/^`{3}(html)?\n?/i, '').replace(/`{3}$/, '').trim();
         
-        updateTopic(selectedTopic.id, { content: improved });
-        if (editorRef.current) {
-            editorRef.current.innerHTML = improved;
+        if (isSelectionMode && range && selection) {
+          selection.removeAllRanges();
+          selection.addRange(range);
+          document.execCommand('insertHTML', false, improved);
+          
+          if (editorRef.current) {
+            updateTopic(selectedTopic.id, { content: editorRef.current.innerHTML });
+          }
+        } else {
+          updateTopic(selectedTopic.id, { content: improved });
+          if (editorRef.current) {
+              editorRef.current.innerHTML = improved;
+          }
         }
     } catch(e) {
         console.error(e);
@@ -590,7 +834,7 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
                   />
                 </div>
                 
-                <div className='flex flex-wrap gap-2 p-2 border-b border-white/20 items-center sticky top-0 bg-white/30 backdrop-blur-xl z-20 rounded-xl overflow-x-auto no-scrollbar'>
+                <div className='flex flex-wrap gap-2 p-2 border-b border-white/20 items-center sticky top-0 bg-white/30 backdrop-blur-xl z-20 rounded-xl'>
                     <div className="flex gap-1 bg-white/40 p-1 rounded-lg shrink-0 items-center">
                       <select 
                         onChange={(e) => {
@@ -851,62 +1095,203 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
                       </label>
                     </div>
 
-                    <div className="ml-auto flex items-center gap-2">
-                      <button onClick={enhanceWithAI} disabled={isAILoading} className="flex items-center gap-2 px-3 py-1.5 bg-indigo-500 text-white rounded-lg text-xs font-bold hover:bg-indigo-600 shadow-sm transition-colors disabled:opacity-50">
+                    <div className="ml-auto flex items-center gap-2 flex-wrap justify-end">
+                      <button 
+                        onClick={enhanceWithAI} 
+                        disabled={isAILoading} 
+                        className="flex items-center gap-2 px-3 py-1.5 bg-indigo-500 text-white rounded-lg text-xs font-bold hover:bg-indigo-600 shadow-sm transition-colors disabled:opacity-50 font-sans"
+                        title="Highlight/select some text first to only enhance that selection, or do not select anything to enhance the entire note."
+                      >
                         {isAILoading ? <Loader2 size={14} className="animate-spin" /> : <Wand2 size={14} />}
                         AI Enhance
                       </button>
+                      <div className="relative z-[200]">
+                        <button 
+                          onClick={() => setShowMoreMenu(!showMoreMenu)}
+                          className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg text-xs font-bold shadow-sm transition-all font-sans"
+                          title="More rich layouts & templates"
+                        >
+                          <MoreHorizontal size={14} />
+                          More
+                          <ChevronDown size={12} className={`transition-transform duration-200 ${showMoreMenu ? 'rotate-180' : ''}`} />
+                        </button>
+                        
+                        {showMoreMenu && (
+                          <div className="absolute right-0 top-full mt-2 z-[250] w-[210px] bg-white rounded-2xl shadow-2xl border border-slate-200 p-4 flex flex-col gap-4 animate-in slide-in-from-top-2 duration-150">
+                            <div>
+                              <div className="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2 flex items-center gap-1.5">
+                                <Layout size={12} className="text-blue-500" />
+                                Insert Synthesis Card
+                              </div>
+                              <div className="grid grid-cols-5 gap-1.5">
+                                {[
+                                  { key: 'blue', color: 'bg-blue-500', border: 'border-blue-200', bg: 'bg-blue-50', name: 'Blue' },
+                                  { key: 'emerald', color: 'bg-emerald-500', border: 'border-emerald-200', bg: 'bg-emerald-50', name: 'Emerald' },
+                                  { key: 'rose', color: 'bg-rose-500', border: 'border-rose-200', bg: 'bg-rose-50', name: 'Rose' },
+                                  { key: 'gold', color: 'bg-yellow-500', border: 'border-yellow-200', bg: 'bg-yellow-50', name: 'Gold' },
+                                  { key: 'violet', color: 'bg-purple-500', border: 'border-purple-200', bg: 'bg-purple-50', name: 'Violet' },
+                                  { key: 'orange', color: 'bg-orange-500', border: 'border-orange-200', bg: 'bg-orange-50', name: 'Orange' },
+                                  { key: 'teal', color: 'bg-teal-500', border: 'border-teal-200', bg: 'bg-teal-50', name: 'Teal' },
+                                  { key: 'fuchsia', color: 'bg-fuchsia-500', border: 'border-fuchsia-200', bg: 'bg-fuchsia-50', name: 'Fuchsia' },
+                                  { key: 'sky', color: 'bg-sky-500', border: 'border-sky-200', bg: 'bg-sky-50', name: 'Sky' },
+                                  { key: 'slate', color: 'bg-slate-500', border: 'border-slate-300', bg: 'bg-slate-50', name: 'Slate' }
+                                ].map((theme) => (
+                                  <button 
+                                    key={theme.key}
+                                    onClick={() => { insertSynthesisCard(theme.key); setShowMoreMenu(false); }}
+                                    className={`w-7 h-7 rounded-full border ${theme.border} ${theme.bg} flex items-center justify-center hover:scale-110 active:scale-95 transition-all animate-in zoom-in-50 duration-200`}
+                                    title={`${theme.name} Synthesis Card`}
+                                  >
+                                    <span className={`w-3 h-3 rounded-full ${theme.color}`} />
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="h-px bg-slate-100" />
+
+                            <div>
+                              <div className="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2 flex items-center gap-1.5">
+                                <CheckSquare size={12} className="text-slate-600" />
+                                Insert Q&A Board
+                              </div>
+                              <div className="grid grid-cols-5 gap-1.5">
+                                {[
+                                  { key: 'slate', color: 'bg-slate-500', border: 'border-slate-200', bg: 'bg-slate-50', name: 'Slate' },
+                                  { key: 'emerald', color: 'bg-emerald-500', border: 'border-emerald-200', bg: 'bg-emerald-50', name: 'Emerald' },
+                                  { key: 'indigo', color: 'bg-indigo-500', border: 'border-indigo-200', bg: 'bg-indigo-50', name: 'Indigo' },
+                                  { key: 'amber', color: 'bg-amber-500', border: 'border-amber-200', bg: 'bg-amber-50', name: 'Amber' },
+                                  { key: 'purple', color: 'bg-purple-500', border: 'border-purple-200', bg: 'bg-purple-50', name: 'Purple' },
+                                  { key: 'rose', color: 'bg-rose-500', border: 'border-rose-200', bg: 'bg-rose-50', name: 'Rose' },
+                                  { key: 'sky', color: 'bg-sky-505', border: 'bg-sky-50', name: 'Sky' },
+                                  { key: 'teal', color: 'bg-teal-500', border: 'border-teal-200', bg: 'bg-teal-50', name: 'Teal' },
+                                  { key: 'orange', color: 'bg-orange-500', border: 'border-orange-200', bg: 'bg-orange-50', name: 'Orange' },
+                                  { key: 'cyan', color: 'bg-cyan-505', border: 'bg-cyan-50', name: 'Cyan' }
+                                ].map((theme) => (
+                                  <button 
+                                    key={theme.key}
+                                    onClick={() => { insertQABoard(theme.key); setShowMoreMenu(false); }}
+                                    className={`w-7 h-7 rounded-full border ${theme.border} ${theme.bg} flex items-center justify-center hover:scale-110 active:scale-95 transition-all animate-in zoom-in-50 duration-200`}
+                                    title={`${theme.name} Q&A Board`}
+                                  >
+                                    <span className={`w-3 h-3 rounded-full ${theme.color}`} />
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                       <button onClick={insertDate} className="flex items-center gap-2 px-3 py-1.5 bg-orange-500 text-white rounded-lg text-xs font-bold hover:bg-orange-600 shadow-sm transition-colors">
                         <Calendar size={14} /> Insert Date
                       </button>
                     </div>
                 </div>
 
-                {pickerPos && (
-                  <div 
-                    className="fixed z-50 bg-white/90 backdrop-blur p-2 rounded-2xl shadow-2xl border border-white flex gap-3 animate-in fade-in zoom-in slide-in-from-bottom-2 duration-200"
-                    style={{ 
-                      left: pickerPos.x, 
-                      top: pickerPos.y, 
-                      transform: 'translateX(-50%)' 
-                    }}
-                    onMouseDown={(e) => e.preventDefault()} // Prevent focus loss
-                  >
-                    <div className="flex gap-2 items-center">
-                      <Palette size={14} className="text-slate-400" />
-                      <div className="flex gap-1">
-                        {textColors.map(color => (
-                            <button 
-                                key={color.value}
-                                className={`w-5 h-5 rounded-full border border-black/5 hover:scale-110 transition-transform ${color.value === 'transparent' ? 'bg-slate-100 flex items-center justify-center' : ''}`}
-                                style={{ backgroundColor: color.value }}
-                                onClick={() => applyTextColor(color.value)}
-                                title={color.name}
-                            >
-                              {color.value === 'transparent' && <span className="text-[8px] font-black opacity-40">✕</span>}
-                            </button>
-                        ))}
+                {pickerPos && (() => {
+                  const activeCard = getActiveCardElement();
+                  return (
+                    <div 
+                      className="fixed z-50 bg-white/95 backdrop-blur p-2.5 rounded-2xl shadow-2xl border border-slate-100 flex gap-3 animate-in fade-in zoom-in slide-in-from-bottom-2 duration-200 items-center"
+                      style={{ 
+                        left: pickerPos.x, 
+                        top: pickerPos.y, 
+                        transform: 'translateX(-50%)' 
+                      }}
+                      onMouseDown={(e) => e.preventDefault()} // Prevent focus loss
+                    >
+                      {activeCard && (
+                        <>
+                          <div className="flex gap-2 items-center">
+                            <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Card Color</span>
+                            <div className="grid grid-cols-5 gap-1">
+                              {activeCard.type === 'synthesis' ? (
+                                <>
+                                  {[
+                                    { key: 'blue', color: 'bg-blue-500', name: 'Blue (Default)' },
+                                    { key: 'emerald', color: 'bg-emerald-500', name: 'Emerald' },
+                                    { key: 'rose', color: 'bg-rose-500', name: 'Rose' },
+                                    { key: 'gold', color: 'bg-yellow-400', name: 'Gold' },
+                                    { key: 'violet', color: 'bg-purple-500', name: 'Violet' },
+                                    { key: 'orange', color: 'bg-orange-500', name: 'Orange' },
+                                    { key: 'teal', color: 'bg-teal-500', name: 'Teal' },
+                                    { key: 'fuchsia', color: 'bg-fuchsia-500', name: 'Fuchsia' },
+                                    { key: 'sky', color: 'bg-sky-500', name: 'Sky' },
+                                    { key: 'slate', color: 'bg-slate-500', name: 'Slate' }
+                                  ].map((theme) => (
+                                    <button
+                                      key={theme.key}
+                                      onClick={() => applyCardColor(activeCard.element, 'synthesis', theme.key)}
+                                      className={`w-5 h-5 rounded-full border border-black/10 ${theme.color} hover:scale-115 transition-all`}
+                                      title={theme.name}
+                                    />
+                                  ))}
+                                </>
+                              ) : (
+                                <>
+                                  {[
+                                    { key: 'slate', color: 'bg-slate-500', name: 'Slate (Default)' },
+                                    { key: 'emerald', color: 'bg-emerald-500', name: 'Emerald' },
+                                    { key: 'indigo', color: 'bg-indigo-500', name: 'Indigo' },
+                                    { key: 'amber', color: 'bg-amber-500', name: 'Amber' },
+                                    { key: 'purple', color: 'bg-purple-500', name: 'Purple' },
+                                    { key: 'rose', color: 'bg-rose-500', name: 'Rose' },
+                                    { key: 'sky', color: 'bg-sky-500', name: 'Sky' },
+                                    { key: 'teal', color: 'bg-teal-500', name: 'Teal' },
+                                    { key: 'orange', color: 'bg-orange-500', name: 'Orange' },
+                                    { key: 'cyan', color: 'bg-cyan-500', name: 'Cyan' }
+                                  ].map((theme) => (
+                                    <button
+                                      key={theme.key}
+                                      onClick={() => applyCardColor(activeCard.element, 'qa', theme.key)}
+                                      className={`w-5 h-5 rounded-full border border-black/10 ${theme.color} hover:scale-115 transition-all`}
+                                      title={theme.name}
+                                    />
+                                  ))}
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          <div className="w-px h-5 bg-slate-200 self-center" />
+                        </>
+                      )}
+                      
+                      <div className="flex gap-2 items-center">
+                        <Palette size={14} className="text-slate-400" />
+                        <div className="flex gap-1">
+                          {textColors.map(color => (
+                              <button 
+                                  key={color.value}
+                                  className={`w-5 h-5 rounded-full border border-black/5 hover:scale-110 transition-transform ${color.value === 'transparent' ? 'bg-slate-100 flex items-center justify-center' : ''}`}
+                                  style={{ backgroundColor: color.value }}
+                                  onClick={() => applyTextColor(color.value)}
+                                  title={color.name}
+                              >
+                                {color.value === 'transparent' && <span className="text-[8px] font-black opacity-40">✕</span>}
+                              </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="w-px h-5 bg-slate-200 self-center" />
+                      <div className="flex gap-2 items-center">
+                        <Highlighter size={14} className="text-slate-400" />
+                        <div className="flex gap-1">
+                          {colors.map(color => (
+                              <button 
+                                  key={color.value}
+                                  className={`w-5 h-5 rounded-full border border-black/5 hover:scale-110 transition-transform ${color.value === 'transparent' ? 'bg-slate-100 flex items-center justify-center' : ''}`}
+                                  style={{ backgroundColor: color.value }}
+                                  onClick={() => applyColor(color.value)}
+                                  title={color.name}
+                              >
+                                {color.value === 'transparent' && <span className="text-[8px] font-black opacity-40">✕</span>}
+                              </button>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                    <div className="w-px h-5 bg-slate-200 self-center" />
-                    <div className="flex gap-2 items-center">
-                      <Highlighter size={14} className="text-slate-400" />
-                      <div className="flex gap-1">
-                        {colors.map(color => (
-                            <button 
-                                key={color.value}
-                                className={`w-5 h-5 rounded-full border border-black/5 hover:scale-110 transition-transform ${color.value === 'transparent' ? 'bg-slate-100 flex items-center justify-center' : ''}`}
-                                style={{ backgroundColor: color.value }}
-                                onClick={() => applyColor(color.value)}
-                                title={color.name}
-                            >
-                              {color.value === 'transparent' && <span className="text-[8px] font-black opacity-40">✕</span>}
-                            </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 <div 
                     ref={editorRef}
