@@ -353,10 +353,10 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
       <AnimatePresence>
         {summary && (
           <motion.div 
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="mb-10 bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-3xl p-8 rounded-[40px] border border-white/10 shadow-2xl relative overflow-hidden"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="mb-10 bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-3xl p-8 rounded-[40px] border border-white/10 shadow-2xl relative"
           >
             <div className="absolute top-4 right-4">
               <button 

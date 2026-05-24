@@ -510,9 +510,24 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
                         }}
                       />
                       {streak > 0 && (
-                        <div className="flex items-center gap-1.5" style={{ color: habit.color }}>
-                          <Zap size={14} className="animate-pulse" />
-                          <span className="text-xs font-bold">{streak} Day Streak</span>
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1.5" style={{ color: habit.color }}>
+                            <Zap size={14} className="animate-pulse" />
+                            <span className="text-xs font-bold">{streak} Day Streak</span>
+                          </div>
+                          {streak >= 100 ? (
+                            <div className="px-2 py-0.5 rounded-full bg-yellow-400/20 text-yellow-700 text-[10px] font-black uppercase shadow-sm border border-yellow-400/30 flex items-center gap-1 shadow-yellow-400/10" title="100+ Day Streak">
+                               <span className="text-[10px]">👑</span> Centurion
+                            </div>
+                          ) : streak >= 30 ? (
+                            <div className="px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600 text-[10px] font-black uppercase shadow-sm border border-purple-500/20 flex items-center gap-1" title="30+ Day Streak">
+                               <span className="text-[10px]">🏆</span> Champion
+                            </div>
+                          ) : streak >= 7 ? (
+                            <div className="px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-600 text-[10px] font-black uppercase shadow-sm border border-orange-500/20 flex items-center gap-1" title="7+ Day Streak">
+                               <span className="text-[10px]">🔥</span> On Fire
+                            </div>
+                          ) : null}
                         </div>
                       )}
                     </div>
