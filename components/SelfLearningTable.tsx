@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Plus, Trash2, Calendar, AlignLeft, AlignCenter, AlignRight, Highlighter, MousePointer2, Minus, Layout, Square, Quote, Settings2, FileUp, FileDown, Image as ImageIcon, Video, Music, FileText, Loader2, Wand2, Menu, ChevronLeft, GraduationCap, ChevronRight, Table, Grid3X3, Columns, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Palette, Italic, Underline, Strikethrough, Indent, Outdent, List, ListOrdered, CheckSquare, ChevronDown, MoreHorizontal, Download } from 'lucide-react';
+import { Plus, Trash2, Calendar, AlignLeft, AlignCenter, AlignRight, Highlighter, MousePointer2, Minus, Layout, Square, Quote, Settings2, FileUp, FileDown, Image as ImageIcon, Video, Music, FileText, Loader2, Wand2, Menu, ChevronLeft, GraduationCap, ChevronRight, Table, Grid3X3, Columns, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Palette, Italic, Underline, Strikethrough, Indent, Outdent, List, ListOrdered, CheckSquare, ChevronDown, MoreHorizontal, Download, Maximize2, Minimize2 } from 'lucide-react';
 import { AppData, DPSSTopic } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { callNeuralEngine } from '../services/neuralEngine';
@@ -20,6 +20,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
   const [showMoreTools, setShowMoreTools] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [isToolbarHidden, setIsToolbarHidden] = useState(false);
   const [pickerPos, setPickerPos] = useState<{ x: number, y: number } | null>(null);
   const [showAllTextColors, setShowAllTextColors] = useState(false);
   const [showAllHighlightColors, setShowAllHighlightColors] = useState(false);
@@ -51,7 +52,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
       filename:     `${selectedTopic?.title || 'Self-Learning-Notes'}.pdf`,
       image:        { type: 'jpeg' as 'jpeg', quality: 1 },
       html2canvas:  { scale: 2, useCORS: true, logging: false },
-      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' as 'portrait' }
     };
 
     try {
@@ -909,12 +910,20 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                   <input 
                       value={selectedTopic.title} 
                       onChange={(e) => updateTopic(selectedTopic.id, { title: e.target.value })}
-                      className="flex-1 text-2xl md:text-4xl font-black text-slate-900 bg-transparent outline-none p-2 border-b-2 border-emerald-500/20 focus:border-emerald-500 transition-all font-sans"
+                      className="flex-1 text-2xl md:text-4xl font-black text-slate-900 bg-transparent outline-none p-2 border-b-2 border-emerald-500/20 focus:border-emerald-500 transition-all font-sans min-w-0"
                       placeholder="Topic Title..."
                   />
+                  <button
+                    onClick={() => setIsToolbarHidden(!isToolbarHidden)}
+                    className={`p-2 shrink-0 ${isToolbarHidden ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200' : 'bg-white/50 text-slate-500 hover:bg-white'} rounded-xl transition-all shadow-sm`}
+                    title={isToolbarHidden ? "Show Toolbar" : "Full Screen (Hide Toolbar)"}
+                  >
+                    {isToolbarHidden ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+                  </button>
                 </div>
                 
-                <div className='flex flex-wrap gap-2 p-2 border-b border-white/20 items-center sticky top-0 bg-white/30 backdrop-blur-xl z-20 rounded-xl'>
+                {!isToolbarHidden && (
+                  <div className='flex flex-wrap gap-2 p-2 border-b border-white/20 items-center sticky top-0 bg-white/30 backdrop-blur-xl z-20 rounded-xl'>
                     <div className="flex gap-1 bg-white/40 p-1 rounded-lg shrink-0">
                       <button className="p-1.5 hover:bg-white rounded transition-colors" title="Italic" onClick={() => document.execCommand('italic')}><Italic size={14} /></button>
                       <button className="p-1.5 hover:bg-white rounded transition-colors" title="Underline" onClick={() => document.execCommand('underline')}><Underline size={14} /></button>
@@ -1267,6 +1276,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                         </button>
                     </div>
                 </div>
+                )}
 
                 {pickerPos && (() => {
                   const activeCard = getActiveCardElement();
