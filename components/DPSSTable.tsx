@@ -647,15 +647,36 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
     let range: Range | null = null;
     let isSelectionMode = false;
 
+    // Try to get range from active input selection first
+    let r: Range | null = null;
     if (selection && selection.rangeCount > 0) {
-      const r = selection.getRangeAt(0);
-      if (editorRef.current && editorRef.current.contains(r.commonAncestorContainer)) {
-        selectedText = r.toString().trim();
-        if (selectedText.length > 0) {
-          range = r;
-          isSelectionMode = true;
-        }
+      const activeRange = selection.getRangeAt(0);
+      if (editorRef.current && editorRef.current.contains(activeRange.commonAncestorContainer) && !activeRange.collapsed && activeRange.toString().trim().length > 0) {
+        r = activeRange;
       }
+    }
+
+    // Fall back to savedRange.current if active selection got blurred or cleared
+    if (!r && savedRange.current) {
+      if (editorRef.current && editorRef.current.contains(savedRange.current.commonAncestorContainer) && !savedRange.current.collapsed && savedRange.current.toString().trim().length > 0) {
+        r = savedRange.current;
+      }
+    }
+
+    if (r) {
+      selectedText = r.toString().trim();
+      if (selectedText.length > 0) {
+        range = r;
+        isSelectionMode = true;
+      }
+    }
+
+    if (!isSelectionMode) {
+      const confirmAll = window.confirm(
+        "💡 Tip: To keep your old lessons and summary, highlight (select) a specific paragraph or sentence first to enhance ONLY that selected part.\n\n" +
+        "You currently haven't highlighted any text. Do you want to proceed and AI-enhance the ENTIRE note?"
+      );
+      if (!confirmAll) return;
     }
 
     setIsAILoading(true);
@@ -1098,6 +1119,7 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
                     <div className="ml-auto flex items-center gap-2 flex-wrap justify-end">
                       <button 
                         onClick={enhanceWithAI} 
+                        onMouseDown={(e) => e.preventDefault()}
                         disabled={isAILoading} 
                         className="flex items-center gap-2 px-3 py-1.5 bg-indigo-500 text-white rounded-lg text-xs font-bold hover:bg-indigo-600 shadow-sm transition-colors disabled:opacity-50 font-sans"
                         title="Highlight/select some text first to only enhance that selection, or do not select anything to enhance the entire note."
