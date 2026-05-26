@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AppData, JournalEntry, ReflectionData } from '../types';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, addDays, subMonths, addMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, addDays, subMonths, addMonths, startOfWeek, endOfWeek } from 'date-fns';
 import { CheckCircle2, ChevronLeft, ChevronRight, Calendar as CalendarIcon, BookOpen, Clock, X, Target, Quote, Heart, Sparkles, Footprints, Zap, ShieldCheck, Lightbulb, Activity, Circle, CheckSquare, Palette } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { PAPER_STYLES } from '../src/styles/paperStyles';
@@ -112,24 +112,51 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           {icon}
-          <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{label}</span>
+          <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{label}</span>
         </div>
-        <span className={`text-lg font-black text-${color}-600`}>{value || 0}/10</span>
+        <span className={`text-lg font-black text-${color}-600 dark:text-${color}-400`}>{value || 0}/10</span>
       </div>
       <div className="flex gap-1">
         {[1,2,3,4,5,6,7,8,9,10].map(num => (
           <button 
             key={num}
             onClick={() => onChange(num)}
-            className={`flex-1 h-8 rounded-lg transition-all border ${value === num ? `bg-${color}-500 border-${color}-600 shadow-lg shadow-${color}-500/20` : 'bg-white border-slate-200 hover:bg-slate-50'}`}
+            className={`flex-1 h-8 rounded-lg transition-all border ${value === num ? `bg-${color}-500 border-${color}-600 shadow-lg shadow-${color}-500/20` : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
           />
         ))}
       </div>
     </div>
   );
 
+  const getWeeklyDigest = () => {
+    const start = startOfWeek(new Date(), { weekStartsOn: 1 });
+    const end = endOfWeek(new Date(), { weekStartsOn: 1 });
+    const days = eachDayOfInterval({ start, end });
+    
+    let weeklyAchievements: string[] = [];
+    let weeklyGratitudes: string[] = [];
+    
+    days.forEach(day => {
+      const dateKey = format(day, 'yyyy-MM-dd');
+      const entry = data.journalEntries?.[dateKey];
+      if (entry) {
+        if (entry.achievements && entry.achievements.length > 0) {
+          const validAch = entry.achievements.filter(a => a && a.trim() !== '' && !a.includes('[object Object]')).map(a => a.replace(/<[^>]*>?/gm, '').trim());
+          weeklyAchievements.push(...validAch);
+        }
+        if (entry.gratitude && entry.gratitude.trim() !== '') {
+          weeklyGratitudes.push(entry.gratitude.replace(/<[^>]*>?/gm, '').trim());
+        }
+      }
+    });
+
+    return { achievements: weeklyAchievements.filter(Boolean), gratitudes: weeklyGratitudes.filter(Boolean) };
+  };
+
+  const weeklyDigest = getWeeklyDigest();
+
   return (
-    <div className="flex-1 flex flex-col h-full bg-white/[0.01] backdrop-blur-3xl p-3 md:p-8 overflow-y-auto md:overflow-hidden font-sans text-slate-900">
+    <div className="flex-1 flex flex-col h-full bg-white/[0.01] backdrop-blur-3xl p-3 md:p-8 overflow-y-auto md:overflow-hidden font-sans text-slate-900 transition-colors">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4 px-4 md:px-8 pt-8">
         <div>
           <div className="flex items-center gap-2">
@@ -307,7 +334,7 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
                   </div>
                 </JournalBlock>
 
-                <JournalBlock title={<span className="flex items-center gap-2">What are the great things that happened today? <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul><div><br></div>`; let val = (localEntry || currentEntry).inspiration || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateEntry('inspiration', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Quote className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
+                <JournalBlock title={<span className="flex items-center gap-2">What are the great things that happened today? <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul>`; let val = (localEntry || currentEntry).inspiration || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateEntry('inspiration', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Quote className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
                   <RichTextDiv 
                     value={(localEntry || currentEntry).inspiration || ''} 
                     onFocus={() => setActiveField('inspiration')}
@@ -319,7 +346,7 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
                   />
                 </JournalBlock>
 
-                <JournalBlock title={<span className="flex items-center gap-2">What is one thing I learned today? <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul><div><br></div>`; let val = (localEntry || currentEntry).learning || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateEntry('learning', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Lightbulb className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
+                <JournalBlock title={<span className="flex items-center gap-2">What is one thing I learned today? <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul>`; let val = (localEntry || currentEntry).learning || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateEntry('learning', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Lightbulb className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
                   <RichTextDiv 
                     value={(localEntry || currentEntry).learning || ''} 
                     onFocus={() => setActiveField('learning')}
@@ -333,31 +360,67 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
               </motion.div>
             ) : reflectionMode === 'Weekly' ? (
               <motion.div key="weekly" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
-                  <JournalBlock title={<span className="flex items-center gap-2">Weekly Review - Did I work on my goals? <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul><div><br></div>`; let val = data.reflections?.weeklyReview?.content || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateReflection('weeklyReview', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Target className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
+                  {/* Weekly Digest Autogenerated */}
+                  <JournalBlock title="Weekly Digest (Auto-Generated)" icon={<Sparkles className="text-amber-500" size={20} />} bgColor={selectedPaper.className}>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                       <div>
+                          <h4 className="text-[10px] uppercase font-black tracking-widest text-emerald-600 mb-3 border-b border-emerald-500/20 pb-2">Achievements & Priorities</h4>
+                          {weeklyDigest.achievements.length > 0 ? (
+                            <ul className="space-y-2 list-none">
+                              {weeklyDigest.achievements.map((ach, i) => (
+                                <li key={i} className="flex items-start gap-2 text-sm text-slate-700 bg-white/40 p-2 rounded-lg border border-slate-100">
+                                  <CheckCircle2 size={14} className="text-emerald-500 shrink-0 mt-0.5" />
+                                  <span>{ach}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-xs text-slate-400 italic">No achievements logged this week.</p>
+                          )}
+                       </div>
+                       <div>
+                          <h4 className="text-[10px] uppercase font-black tracking-widest text-rose-600 mb-3 border-b border-rose-500/20 pb-2">Gratitude Notes</h4>
+                          {weeklyDigest.gratitudes.length > 0 ? (
+                            <ul className="space-y-2 list-none">
+                              {weeklyDigest.gratitudes.map((grat, i) => (
+                                <li key={i} className="flex items-start gap-2 text-sm text-slate-700 bg-white/40 p-2 rounded-lg border border-slate-100">
+                                  <Heart size={14} className="text-rose-500 shrink-0 mt-0.5" />
+                                  <span>{grat}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-xs text-slate-400 italic">No gratitude notes logged this week.</p>
+                          )}
+                       </div>
+                    </div>
+                  </JournalBlock>
+
+                  <JournalBlock title={<span className="flex items-center gap-2">Weekly Review - Did I work on my goals? <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul>`; let val = data.reflections?.weeklyReview?.content || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateReflection('weeklyReview', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Target className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
                     <RichTextDiv value={data.reflections?.weeklyReview?.content || ''} onChange={(val) => updateReflection('weeklyReview', val)} placeholder="Review your goals and progress this week..." className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }} />
                   </JournalBlock>
-                  <JournalBlock title={<span className="flex items-center gap-2">What needs adjustment for next week? <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul><div><br></div>`; let val = data.reflections?.sixMonthVision?.content || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateReflection('sixMonthVision', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Zap className="text-orange-600" size={20} />} bgColor={selectedPaper.className}>
+                  <JournalBlock title={<span className="flex items-center gap-2">What needs adjustment for next week? <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul>`; let val = data.reflections?.sixMonthVision?.content || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateReflection('sixMonthVision', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Zap className="text-orange-600" size={20} />} bgColor={selectedPaper.className}>
                     <RichTextDiv value={data.reflections?.sixMonthVision?.content || ''} onChange={(val) => updateReflection('sixMonthVision', val)} placeholder="Identify changes to stay on track..." className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }} />
                   </JournalBlock>
-                  <JournalBlock title={<span className="flex items-center gap-2">Key Successes & Learnings this week <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul><div><br></div>`; let val = data.reflections?.oneYearVision?.content || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateReflection('oneYearVision', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Lightbulb className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
+                  <JournalBlock title={<span className="flex items-center gap-2">Key Successes & Learnings this week <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul>`; let val = data.reflections?.oneYearVision?.content || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateReflection('oneYearVision', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Lightbulb className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
                     <RichTextDiv value={data.reflections?.oneYearVision?.content || ''} onChange={(val) => updateReflection('oneYearVision', val)} placeholder="What was your biggest win?" className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }} />
                   </JournalBlock>
               </motion.div>
             ) : reflectionMode === 'Monthly' ? (
               <motion.div key="monthly" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
-                <JournalBlock title={<span className="flex items-center gap-2">Monthly Master - Key Achievements <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul><div><br></div>`; let val = data.reflections?.monthlyChallenge?.content || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateReflection('monthlyChallenge', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<ShieldCheck className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
+                <JournalBlock title={<span className="flex items-center gap-2">Monthly Master - Key Achievements <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul>`; let val = data.reflections?.monthlyChallenge?.content || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateReflection('monthlyChallenge', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<ShieldCheck className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
                   <RichTextDiv value={data.reflections?.monthlyChallenge?.content || ''} onChange={(val) => updateReflection('monthlyChallenge', val)} placeholder="Reflect on your biggest wins this month..." className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }} />
                 </JournalBlock>
-                <JournalBlock title={<span className="flex items-center gap-2">Core Growth Area & Major Learnings <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul><div><br></div>`; let val = data.reflections?.threeMonthVision?.content || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateReflection('threeMonthVision', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Lightbulb className="text-amber-600" size={20} />} bgColor={selectedPaper.className}>
+                <JournalBlock title={<span className="flex items-center gap-2">Core Growth Area & Major Learnings <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul>`; let val = data.reflections?.threeMonthVision?.content || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateReflection('threeMonthVision', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Lightbulb className="text-amber-600" size={20} />} bgColor={selectedPaper.className}>
                   <RichTextDiv value={data.reflections?.threeMonthVision?.content || ''} onChange={(val) => updateReflection('threeMonthVision', val)} placeholder="What was the most significant area of maturity this month?" className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }} />
                 </JournalBlock>
               </motion.div>
             ) : reflectionMode === '3Month' ? (
               <motion.div key="3month" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
-                <JournalBlock title={<span className="flex items-center gap-2">90-Day Vision Evolution <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul><div><br></div>`; let val = data.reflections?.threeMonthVision?.content || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateReflection('threeMonthVision', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Sparkles className="text-purple-600" size={20} />} bgColor={selectedPaper.className}>
+                <JournalBlock title={<span className="flex items-center gap-2">90-Day Vision Evolution <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul>`; let val = data.reflections?.threeMonthVision?.content || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateReflection('threeMonthVision', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Sparkles className="text-purple-600" size={20} />} bgColor={selectedPaper.className}>
                   <RichTextDiv value={data.reflections?.threeMonthVision?.content || ''} onChange={(val) => updateReflection('threeMonthVision', val)} placeholder="How has your 3-month vision shifted since the start?" className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }} />
                 </JournalBlock>
-                <JournalBlock title={<span className="flex items-center gap-2">The Next Plateau for Peak Performance <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul><div><br></div>`; let val = data.reflections?.sixMonthVision?.content || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateReflection('sixMonthVision', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Target className="text-rose-600" size={20} />} bgColor={selectedPaper.className}>
+                <JournalBlock title={<span className="flex items-center gap-2">The Next Plateau for Peak Performance <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul>`; let val = data.reflections?.sixMonthVision?.content || ''; if(typeof val !== 'string' || val === '[object Object]') val = ''; updateReflection('sixMonthVision', val + html); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<Target className="text-rose-600" size={20} />} bgColor={selectedPaper.className}>
                   <RichTextDiv value={data.reflections?.sixMonthVision?.content || ''} onChange={(val) => updateReflection('sixMonthVision', val)} placeholder="What is the next major milestone for the upcoming quarter?" className="w-full bg-transparent outline-none font-bold text-slate-900 placeholder:text-slate-900/20 resize-none h-32" style={{ fontFamily: textFontFamily, fontSize: `${textFontSize}px` }} />
                 </JournalBlock>
               </motion.div>

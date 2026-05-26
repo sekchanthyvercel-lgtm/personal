@@ -23,31 +23,12 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
   const [habitTargetValue, setHabitTargetValue] = useState<number>(2);
   const [habitUnit, setHabitUnit] = useState<string>('liters');
   const [isFullScreen, setIsFullScreen] = useState(false);
-  const [planningNote, setPlanningNote] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [suggestedHabits, setSuggestedHabits] = useState<string[]>([]);
 
   const habits = data.habits || [];
   const completions = data.habitCompletions || {};
   const notes = data.dailyNotes || {}; 
-
-  useEffect(() => {
-    if (!isTyping) {
-      const dateKey = format(selectedPlanningDate, 'yyyy-MM-dd');
-      setPlanningNote(notes[dateKey] || '');
-    }
-  }, [selectedPlanningDate, notes, isTyping]);
-
-  const savePlanningNote = () => {
-    const dateKey = format(selectedPlanningDate, 'yyyy-MM-dd');
-    const newNotes = { ...notes, [dateKey]: planningNote };
-    if (onUpdateDailyNote) {
-      onUpdateDailyNote(dateKey, planningNote);
-    } else {
-      onUpdate({ ...data, dailyNotes: newNotes });
-    }
-  };
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
@@ -163,7 +144,9 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
       dateToCheck = subDays(today, 1);
     }
     
-    while (true) {
+    let safetyLimit = 1000;
+    while (safetyLimit > 0) {
+      safetyLimit--;
       const dateKey = format(dateToCheck, 'yyyy-MM-dd');
       if (isHabitCompletedOnDay(habit, dateKey)) {
         currentStreak++;
@@ -254,18 +237,31 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
                           <p className="text-[9px] font-black text-orange-500 uppercase tracking-widest leading-none mb-1">Architecture of Resolve</p>
                           <h3 className="text-xl font-black text-slate-800 uppercase italic tracking-tighter flex items-center gap-3">
                               {format(selectedPlanningDate, 'MMMM do, yyyy')}
-                              <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul><div><br></div>`; const dateKey = format(selectedPlanningDate, 'yyyy-MM-dd'); let safeVal = typeof planningNote === 'string' ? planningNote : ''; if (safeVal === '[object Object]') safeVal = ''; const newNote = safeVal + html; setPlanningNote(newNote); if (onUpdateDailyNote) { onUpdateDailyNote(dateKey, newNote); } else { onUpdate({ ...data, dailyNotes: { ...(data.dailyNotes || {}), [dateKey]: newNote } }); } }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={20} /></button>
+                              <button onClick={() => { 
+                                const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul>`; 
+                                const dateKey = format(selectedPlanningDate, 'yyyy-MM-dd'); 
+                                let safeVal = notes[dateKey] || ''; 
+                                if (typeof safeVal !== 'string' || safeVal === '[object Object]') safeVal = ''; 
+                                const newNote = safeVal + html; 
+                                if (onUpdateDailyNote) { 
+                                  onUpdateDailyNote(dateKey, newNote); 
+                                } else { 
+                                  onUpdate({ ...data, dailyNotes: { ...(data.dailyNotes || {}), [dateKey]: newNote } }); 
+                                } 
+                              }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={20} /></button>
                           </h3>
                       </div>
                    </div>
                 </div>
                 <RichTextDiv 
-                    value={planningNote}
-                    onFocus={() => setIsTyping(true)}
-                    onChange={(val) => setPlanningNote(val)}
-                    onBlur={() => {
-                      setIsTyping(false);
-                      savePlanningNote();
+                    value={notes[format(selectedPlanningDate, 'yyyy-MM-dd')] || ''}
+                    onChange={(val) => {
+                      const dateKey = format(selectedPlanningDate, 'yyyy-MM-dd');
+                      if (onUpdateDailyNote) {
+                        onUpdateDailyNote(dateKey, val);
+                      } else {
+                        onUpdate({ ...data, dailyNotes: { ...(data.dailyNotes || {}), [dateKey]: val } });
+                      }
                     }}
                     className="w-full h-24 bg-white rounded-2xl p-4 text-slate-800 font-bold text-lg outline-none border border-slate-200 focus:border-orange-500 transition-all placeholder:text-slate-400 overflow-y-auto overflow-x-hidden shadow-inner block"
                     placeholder="Define your focus..."
@@ -297,11 +293,12 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
                     </span>
                   </div>
 
-                  <div className="flex-1 mt-2 overflow-hidden pointer-events-none min-h-[40px]">
+                  <div className="flex-1 mt-1.5 overflow-hidden pointer-events-none min-h-[44px] max-h-[64px] text-[9px] text-slate-700 leading-tight">
                     {dayNote && (
-                      <div className="text-[10px] font-bold text-slate-700 line-clamp-3 leading-tight italic">
-                        {dayNote.replace(/<[^>]*>/g, '')}
-                      </div>
+                      <div 
+                        className="line-clamp-3 overflow-hidden text-[9px] mini-planner-note select-none text-left" 
+                        dangerouslySetInnerHTML={{ __html: dayNote }} 
+                      />
                     )}
                   </div>
 
@@ -428,7 +425,21 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
                       <Edit3 size={18} />
                     </div>
                     <div>
-                      <h3 className="text-sm font-black text-slate-900 tracking-tighter uppercase italic flex items-center gap-2">Strategic Planning <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul><div><br></div>`; const dateKey = format(selectedPlanningDate, 'yyyy-MM-dd'); let safeVal = typeof planningNote === 'string' ? planningNote : ''; if (safeVal === '[object Object]') safeVal = ''; const newNote = safeVal + html; setPlanningNote(newNote); if (onUpdateDailyNote) { onUpdateDailyNote(dateKey, newNote); } else { onUpdate({ ...data, dailyNotes: { ...(data.dailyNotes || {}), [dateKey]: newNote } }); } }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></h3>
+                      <h3 className="text-sm font-black text-slate-900 tracking-tighter uppercase italic flex items-center gap-2">
+                        Strategic Planning 
+                        <button onClick={() => { 
+                          const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul>`; 
+                          const dateKey = format(selectedPlanningDate, 'yyyy-MM-dd'); 
+                          let safeVal = notes[dateKey] || ''; 
+                          if (typeof safeVal !== 'string' || safeVal === '[object Object]') safeVal = ''; 
+                          const newNote = safeVal + html; 
+                          if (onUpdateDailyNote) { 
+                            onUpdateDailyNote(dateKey, newNote); 
+                          } else { 
+                            onUpdate({ ...data, dailyNotes: { ...(data.dailyNotes || {}), [dateKey]: newNote } }); 
+                          } 
+                        }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button>
+                      </h3>
                       <p className="text-[8px] font-black text-orange-500 uppercase tracking-widest leading-none">{format(selectedPlanningDate, 'MMMM do, yyyy')}</p>
                     </div>
                   </div>
@@ -450,12 +461,14 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
                   </div>
               </div>
               <RichTextDiv 
-                 value={planningNote}
-                 onFocus={() => setIsTyping(true)}
-                 onChange={(val) => setPlanningNote(val)}
-                 onBlur={() => {
-                   setIsTyping(false);
-                   savePlanningNote();
+                 value={notes[format(selectedPlanningDate, 'yyyy-MM-dd')] || ''}
+                 onChange={(val) => {
+                   const dateKey = format(selectedPlanningDate, 'yyyy-MM-dd');
+                   if (onUpdateDailyNote) {
+                     onUpdateDailyNote(dateKey, val);
+                   } else {
+                     onUpdate({ ...data, dailyNotes: { ...(data.dailyNotes || {}), [dateKey]: val } });
+                   }
                  }}
                  placeholder={`Mission goals for tomorrow...`}
                  className="w-full h-20 bg-white/5 rounded-xl p-4 text-slate-800 font-bold text-sm outline-none border border-transparent focus:border-orange-500/30 transition-all placeholder:text-slate-400 overflow-y-auto block"
@@ -635,7 +648,7 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
         </div>
       </div>
 
-      {/* Styled scrollbar css */}
+      {/* Styled scrollbar and planning checklist css */}
       <style>{`
         .custom-scrollbar-orange::-webkit-scrollbar {
           height: 10px;
@@ -652,6 +665,23 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
         }
         .custom-scrollbar-orange::-webkit-scrollbar-thumb:hover {
           background: rgba(249, 115, 22, 0.5);
+        }
+        .mini-planner-note ul {
+          list-style-type: none !important;
+          padding-left: 0 !important;
+          margin: 0 !important;
+        }
+        .mini-planner-note li {
+          display: flex !important;
+          align-items: flex-start !important;
+          gap: 4px !important;
+          margin: 1px 0 !important;
+          padding: 0 !important;
+          font-size: 8px !important;
+          line-height: 1.15 !important;
+        }
+        .mini-planner-note .task-checkbox {
+          font-size: 8px !important;
         }
       `}</style>
 

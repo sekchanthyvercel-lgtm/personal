@@ -194,19 +194,8 @@ const ReminderTable: React.FC<ReminderTableProps> = ({
             <thead className="sticky top-0 z-40 bg-white/10 backdrop-blur-xl">
               <tr className="border-b border-white/20">
                 <th className="w-16 h-14 text-[10px] font-black text-slate-900 uppercase tracking-widest">#</th>
-                <th className="w-64 text-left px-4 text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2 pt-5">
-                  Task / Item 
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => { 
-                      const firstReminder = filteredReminders[0];
-                      if (firstReminder) {
-                        const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul><div><br></div>`;
-                        updateField(firstReminder.id, 'name', (firstReminder.name || '') + html);
-                      }
-                    }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist to first task">
-                      <CheckSquare size={14} />
-                    </button>
-                  </div>
+                <th className="w-[300px] text-left px-4 text-[10px] font-black text-slate-900 uppercase tracking-widest pt-5">
+                  Task / Item
                 </th>
                 <th className="w-40 text-center text-[10px] font-black text-slate-900 uppercase tracking-widest">Deadline</th>
                 <th className="w-40 text-center text-[10px] font-black text-slate-900 uppercase tracking-widest">Status</th>
@@ -220,17 +209,29 @@ const ReminderTable: React.FC<ReminderTableProps> = ({
                 .map((s, idx) => (
                 <tr key={s.id} className={`group hover:bg-white/30 transition-all h-11 ${getRowBg(idx)} ${s.isHidden ? 'opacity-50' : ''}`}>
                   <td className="text-center text-[10px] font-bold text-slate-400">{idx + 1}</td>
-                  <td className="px-4">
-                    <MultilineInput 
-                      value={s.name} 
-                      onChange={val => updateField(s.id, 'name', val)}
-                      placeholder="Enter task name..."
-                      style={{ 
-                        fontFamily: settings?.fontFamily || "Inter, sans-serif",
-                        fontSize: `${settings?.fontSize || 12}px`
-                      }}
-                      className="w-full bg-transparent font-black text-slate-900 outline-none placeholder:text-slate-500"
-                    />
+                  <td className="px-4 group/cell">
+                    <div className="flex items-center justify-between gap-2">
+                      <MultilineInput 
+                        value={s.name || ''} 
+                        onChange={val => updateField(s.id, 'name', val)}
+                        placeholder="Enter task name..."
+                        style={{ 
+                          fontFamily: settings?.fontFamily || "Inter, sans-serif",
+                          fontSize: `${settings?.fontSize || 12}px`
+                        }}
+                        className="flex-1 bg-transparent font-black text-slate-900 outline-none placeholder:text-slate-500"
+                      />
+                      <button 
+                        onClick={() => {
+                          const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul><div><br></div>`;
+                          updateField(s.id, 'name', (s.name || '') + html);
+                        }}
+                        className="opacity-0 group-hover/cell:opacity-100 text-slate-400 hover:text-emerald-600 transition-all shrink-0 p-1 rounded hover:bg-slate-100"
+                        title="Add Checklist Item to this specific task"
+                      >
+                        <CheckSquare size={14} />
+                      </button>
+                    </div>
                   </td>
                   <td className="px-4">
                     <div className="flex items-center justify-center gap-2 px-3 py-1.5 bg-white/30 rounded-lg border border-white/20">

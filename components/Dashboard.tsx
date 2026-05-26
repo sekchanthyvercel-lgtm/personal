@@ -13,6 +13,41 @@ interface DashboardProps {
 
 const COLORS = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#06b6d4'];
 
+const calculateStreak = (habit: any, completions: any) => {
+  let currentStreak = 0;
+  const today = new Date();
+  const todayKey = format(today, 'yyyy-MM-dd');
+  const yesterdayKey = format(subDays(today, 1), 'yyyy-MM-dd');
+
+  const isCompleted = (dateKey: string) => {
+    const comp = completions[dateKey]?.[habit.id];
+    if (comp === undefined || comp === null) return false;
+    if (habit.isNumeric) {
+      return typeof comp === 'number' ? comp >= (habit.targetValue || 0) : !!comp;
+    }
+    return !!comp;
+  };
+
+  let dateToCheck = today;
+  if (!isCompleted(todayKey)) {
+    if (!isCompleted(yesterdayKey)) return 0;
+    dateToCheck = subDays(today, 1);
+  }
+
+  let safetyLimit = 1000;
+  while (safetyLimit > 0) {
+    safetyLimit--;
+    const dateKey = format(dateToCheck, 'yyyy-MM-dd');
+    if (isCompleted(dateKey)) {
+      currentStreak++;
+      dateToCheck = subDays(dateToCheck, 1);
+    } else {
+      break;
+    }
+  }
+  return currentStreak;
+};
+
 const Dashboard: React.FC<DashboardProps> = ({ data }) => {
   // 1. Habit Completion Data (Last 7 days)
   const habitData = useMemo(() => {
@@ -93,8 +128,16 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
     };
   }, [data.expenses, data.settings?.exchangeRate]);
 
+  // 5. Habit Streaks Data
+  const streakData = useMemo(() => {
+    return (data.habits || []).map(habit => ({
+      name: habit.name.length > 15 ? habit.name.substring(0, 15) + '...' : habit.name,
+      streak: calculateStreak(habit, data.habitCompletions || {})
+    })).sort((a, b) => b.streak - a.streak).slice(0, 10); // Show top 10
+  }, [data.habits, data.habitCompletions]);
+
   return (
-    <div className="h-full overflow-y-auto custom-scrollbar-amber p-4 md:p-8 bg-slate-50/50">
+    <div className="h-full overflow-y-auto custom-scrollbar-amber p-4 md:p-8 bg-slate-50/50 dark:bg-slate-900/50 transition-colors">
       <div className="max-w-7xl mx-auto space-y-8">
         
         {/* Header Section */}
@@ -201,6 +244,22 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
                  ))}
               </div>
             </div>
+          </ChartContainer>
+
+          {/* Long-Term Habit Streaks */}
+          <ChartContainer title="Long-Term Habit Streaks" icon={Target} color="emerald" className="lg:col-span-2">
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={streakData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
+                <XAxis type="number" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700, fill: '#64748b'}} />
+                <YAxis type="category" dataKey="name" width={120} axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700, fill: '#64748b'}} />
+                <Tooltip 
+                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontWeight: 'bold' }}
+                  cursor={{ fill: '#f8fafc' }}
+                />
+                <Bar dataKey="streak" name="Current Streak (Days)" fill="#10b981" radius={[0, 6, 6, 0]} barSize={20} />
+              </BarChart>
+            </ResponsiveContainer>
           </ChartContainer>
 
           {/* Performance Tracking */}

@@ -845,6 +845,54 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
     }
   }, [selectedTopic?.id, selectedTopic?.content]);
 
+  const generateStudyPlan = async () => {
+    if (isAILoading) return;
+    
+    // gather all topics
+    const topicTitles = topics.map(t => t.title).join(', ');
+    if (!topicTitles) {
+      alert("Please add some self-learning topics first.");
+      return;
+    }
+
+    setIsAILoading(true);
+    try {
+      const prompt = `Analyze my current self-learning topics: [${topicTitles}]. Generate a 4-week structured study plan with clear milestones and suggested daily tasks to help me master these topics. Use professional HTML formatting, using tables for weekly breakdowns, bullet points for daily tasks, and clear headings. Do NOT include any markdown code wrappers (like \`\`\`html) in your output, just the raw HTML.`;
+
+      const result = await callNeuralEngine(
+        'gemini-3-flash-preview',
+        prompt,
+        "You are an expert curriculum designer and high-performance coach. Output ONLY valid HTML."
+      );
+      
+      let htmlOutput = result.text.trim();
+      htmlOutput = htmlOutput.replace(/^`{3}(html)?\n?/i, '').replace(/`{3}$/, '').trim();
+
+      // create new topic
+      const newTopic: DPSSTopic = { 
+        id: uuidv4(), 
+        title: '🎯 4-Week Study Plan', 
+        content: htmlOutput, 
+        alignment: 'left' 
+      };
+      
+      const updatedTopics = [...data.selfLearningTopics || [], newTopic];
+      
+      if (onUpdateTopic) {
+        onUpdateTopic(updatedTopics, newTopic);
+      } else {
+        onUpdate({ ...data, selfLearningTopics: updatedTopics });
+      }
+      setSelectedTopicId(newTopic.id);
+      
+    } catch(e) {
+      console.error(e);
+      alert('Failed to generate study plan.');
+    } finally {
+      setIsAILoading(false);
+    }
+  };
+
   return (
     <div className="flex flex-col md:flex-row h-full md:h-[90vh] p-2 gap-0 overflow-hidden relative">
       {/* Sidebar Panel - Mobile Slide-in Overlay */}
@@ -858,7 +906,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
           ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         `}
       >
-        <div className="flex items-center justify-between mb-4 shrink-0">
+        <div className="flex items-center justify-between mb-2 shrink-0">
           <h2 className="text-xl font-black text-slate-800 tracking-tight whitespace-nowrap">Self-Learning</h2>
           <button 
             onClick={() => setIsSidebarOpen(false)} 
@@ -868,14 +916,23 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
           </button>
         </div>
 
-        <button 
-          onClick={() => {
-            addTopic();
-          }} 
-          className="w-full py-4 bg-gradient-to-r from-emerald-500 to-orange-500 text-white rounded-2xl text-[10px] font-black flex items-center justify-center gap-2 hover:from-emerald-600 hover:to-orange-600 shadow-xl shadow-emerald-500/20 active:scale-95 transition-all shrink-0 whitespace-nowrap"
-        >
-          <Plus size={18} /> Add New Topic
-        </button>
+        <div className="flex flex-col gap-2 shrink-0">
+          <button 
+            onClick={() => addTopic()} 
+            className="w-full py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-2xl text-[10px] font-black flex items-center justify-center gap-2 hover:from-emerald-600 hover:to-emerald-700 shadow-xl shadow-emerald-500/20 active:scale-95 transition-all whitespace-nowrap"
+          >
+            <Plus size={16} /> Add Topic
+          </button>
+          
+          <button 
+            onClick={generateStudyPlan}
+            disabled={isAILoading}
+            className="w-full py-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-2xl text-[10px] font-black flex items-center justify-center gap-2 hover:from-indigo-600 hover:to-purple-600 shadow-xl shadow-indigo-500/20 active:scale-95 transition-all whitespace-nowrap disabled:opacity-50"
+          >
+            {isAILoading ? <Loader2 size={16} className="animate-spin" /> : <Wand2 size={16} />}
+            Generate Study Plan
+          </button>
+        </div>
 
         <div className="flex-1 overflow-y-auto pr-2 space-y-1 custom-scrollbar">
             {topics.map(t => renderTopic(t))}

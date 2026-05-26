@@ -1,11 +1,14 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import { AppData, ReflectionData, ReflectionEntry } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { Calendar, Target, Compass, Award, Flag, Wand2, Loader2, RefreshCw, CheckSquare, Palette } from 'lucide-react';
+import { Calendar, Target, Compass, Award, Flag, Wand2, Loader2, RefreshCw, CheckSquare, Palette, Download, FileText, FileDown, ChevronDown } from 'lucide-react';
 import { PAPER_STYLES } from '../src/styles/paperStyles';
 import { format, subDays, eachDayOfInterval, startOfWeek } from 'date-fns';
 import { callNeuralEngine } from '../services/neuralEngine';
 import { RichTextDiv } from './FloatingToolbar';
+// @ts-ignore
+import html2pdf from 'html2pdf.js';
+import Markdown from 'react-markdown';
 
 interface ReflectionsProps {
   data: AppData;
@@ -95,6 +98,65 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
   // Local state for auto-syncing inputs to prevent cursor jumping
   const [localReflections, setLocalReflections] = React.useState<Record<string, string>>({});
   const [activeField, setActiveField] = React.useState<string | null>(null);
+  const [showExportMenu, setShowExportMenu] = React.useState(false);
+  const summaryRef = useRef<HTMLDivElement>(null);
+
+  const exportPDF = async () => {
+    if (!summaryRef.current) return;
+    const element = summaryRef.current;
+    
+    // Create a wrapper for export styling
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = element.innerHTML;
+    wrapper.style.color = '#000';
+    wrapper.style.padding = '20px';
+    wrapper.style.backgroundColor = '#fff';
+    wrapper.querySelectorAll('*').forEach((el: any) => {
+        el.style.color = '#000';
+    });
+
+    const opt = {
+      margin:       10,
+      filename:     `Strategic_Summary.pdf`,
+      image:        { type: 'jpeg' as 'jpeg', quality: 1 },
+      html2canvas:  { scale: 2, useCORS: true, logging: false },
+      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' as 'portrait' }
+    };
+
+    try {
+      await html2pdf().set(opt).from(wrapper).save();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const exportWord = () => {
+    if (!summaryRef.current) return;
+    
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = summaryRef.current.innerHTML;
+    wrapper.style.color = '#000';
+    wrapper.style.backgroundColor = '#fff';
+    wrapper.querySelectorAll('*').forEach((el: any) => {
+        el.style.color = '#000';
+    });
+
+    const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' " +
+      "xmlns:w='urn:schemas-microsoft-com:office:word' " +
+      "xmlns='http://www.w3.org/TR/REC-html40'>" +
+      "<head><meta charset='utf-8'><title>Export HTML to Word</title></head><body>";
+    const footer = "</body></html>";
+    const sourceHTML = header + wrapper.outerHTML + footer;
+    
+    const source = 'data:application/vnd.ms-word;charset=utf-8,' + encodeURIComponent(sourceHTML);
+    const fileDownload = document.createElement("a");
+    document.body.appendChild(fileDownload);
+    fileDownload.href = source;
+    fileDownload.download = `Strategic_Summary.doc`;
+    fileDownload.click();
+    document.body.removeChild(fileDownload);
+  };
+
 
   const settings = data.settings || { fontSize: 12, fontFamily: "'Inter', sans-serif" };
   const paperStyle = settings.paperStyle || 'none';
@@ -209,11 +271,18 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
     try {
       const result = await callNeuralEngine(
         'gemini-3-flash-preview',
-        `Summarize my growth journey based on these reflections. Highlight key achievements, identify core patterns in my goals and vision, and suggest areas for improvement for the next quarter. Keep it concise, professional, and empowering. Use sections with emojis. 
+        `Summarize my growth journey based on these reflections. Highlight key achievements, identify core patterns in my goals and vision, and suggest areas for improvement for the next quarter. Keep it concise, simple, professional, and empowering. Use sections with simple emojis.
+        IMPORTANT instructions: Do NOT use any markdown symbols, meaning NO double asterisks (**), NO single asterisks (*) anywhere (not even for bullet points), and NO hash characters (#, ##). Use standard paragraphs separated by blank lines and clear emojis (🏆, 🎯, 📈) for bullet headings. No stars or markdown headers at all!
         Context: ${context}`,
         "You are an elite performance coach. Synthesize reflections into a cohesive growth strategy."
       );
-      setSummary(result.text);
+      // Regex sanitize any stray stars/hashes
+      const cleanText = result.text
+        .replace(/\*\*/g, '')
+        .replace(/\*/g, '')
+        .replace(/##/g, '')
+        .replace(/#/g, '');
+      setSummary(cleanText);
     } catch (e) {
       console.error(e);
       alert('Failed to generate summary.');
@@ -356,27 +425,60 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="mb-10 bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-3xl p-8 rounded-[40px] border border-white/10 shadow-2xl relative"
+            className="mb-10 bg-white border-2 border-slate-200/90 p-8 rounded-[40px] shadow-2xl relative"
           >
-            <div className="absolute top-4 right-4">
+            <div className="absolute top-4 right-4 flex items-center gap-2">
+              <div className="relative z-[200]">
+                <button 
+                  onClick={() => setShowExportMenu(!showExportMenu)}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-slate-900 border border-slate-200 rounded-lg text-xs font-bold transition-all"
+                  title="Export notes"
+                >
+                  <Download size={14} className="text-slate-600" />
+                  Export
+                  <ChevronDown size={12} className={`transition-transform duration-200 ${showExportMenu ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {showExportMenu && (
+                  <div className="absolute right-0 top-full mt-2 z-[250] w-[180px] bg-white rounded-2xl shadow-2xl border border-slate-200 p-2 flex flex-col gap-1 animate-in slide-in-from-top-2 duration-150">
+                    <button 
+                      onClick={() => { exportWord(); setShowExportMenu(false); }}
+                      className="flex items-center justify-between w-full text-left px-3 py-2 hover:bg-blue-50 text-slate-700 hover:text-blue-700 rounded-xl transition-colors font-bold text-xs"
+                    >
+                      <span className="flex items-center gap-2">
+                        <FileText size={14} className="text-blue-500" /> MS Word (.doc)
+                      </span>
+                    </button>
+                    <button 
+                      onClick={() => { exportPDF(); setShowExportMenu(false); }}
+                      className="flex items-center justify-between w-full text-left px-3 py-2 hover:bg-red-50 text-slate-700 hover:text-red-700 rounded-xl transition-colors font-bold text-xs"
+                    >
+                      <span className="flex items-center gap-2">
+                        <FileDown size={14} className="text-red-500" /> PDF Document
+                      </span>
+                    </button>
+                  </div>
+                )}
+              </div>
               <button 
                 onClick={() => setSummary(null)}
-                className="p-2 text-white/40 hover:text-white transition-colors"
+                className="p-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-slate-400 hover:text-slate-700 transition-colors"
                 title="Clear summary"
               >
-                <RefreshCw size={16} />
+                <RefreshCw size={14} />
               </button>
             </div>
-            <div className="flex items-center gap-4 mb-6">
-              <div className="p-3 bg-white/10 rounded-2xl text-orange-400">
-                <Wand2 size={24} />
+            
+            <div ref={summaryRef}>
+              <div className="flex items-center gap-4 mb-6">
+                <div className="p-3 bg-orange-100 border border-orange-200 rounded-2xl text-orange-600">
+                  <Wand2 size={24} />
+                </div>
+                <h2 className="text-xl font-black text-slate-900 uppercase italic">AI Evolution Strategic Summary</h2>
               </div>
-              <h2 className="text-xl font-black text-white uppercase italic">AI Evolution Strategic Summary</h2>
-            </div>
-            <div className="markdown-body text-white/80 space-y-4 font-bold text-sm leading-relaxed">
-               {summary.split('\n').map((line, i) => (
-                 <p key={i}>{line}</p>
-               ))}
+              <div className="markdown-body prose prose-slate prose-p:leading-relaxed max-w-none text-slate-800 font-bold text-sm leading-relaxed">
+                 <Markdown>{summary}</Markdown>
+              </div>
             </div>
           </motion.div>
         )}

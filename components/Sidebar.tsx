@@ -199,10 +199,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="p-4 bg-white/5 border-t border-white/5 no-print shrink-0 backdrop-blur-md">
           <button 
             onClick={onSettingsOpen}
-            className="flex items-center gap-3 px-5 py-3 rounded-xl text-slate-900 hover:text-orange-600 hover:bg-white/20 transition-all w-full font-black uppercase tracking-widest text-[10px]"
+            className="flex items-center gap-3 px-5 py-3 rounded-xl text-slate-900 dark:text-slate-200 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-white/20 dark:hover:bg-slate-800 transition-all w-full font-black uppercase tracking-widest text-[10px]"
           >
             <Settings size={18} />
             Settings
+          </button>
+          
+          <button 
+            onClick={() => {
+              document.documentElement.classList.toggle('dark');
+              // Optionally save user preference to localStorage
+              const isDark = document.documentElement.classList.contains('dark');
+              localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            }}
+            className="flex items-center gap-3 px-5 py-3 rounded-xl text-slate-900 dark:text-slate-200 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-white/20 dark:hover:bg-slate-800 transition-all w-full font-black uppercase tracking-widest text-[10px] mt-2"
+          >
+            <Eye size={18} className="dark:hidden block" />
+            <EyeOff size={18} className="dark:block hidden" />
+            Toggle Theme
           </button>
         </div>
       </aside>

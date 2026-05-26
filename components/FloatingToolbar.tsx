@@ -227,22 +227,56 @@ export const RichTextDiv: React.FC<{
     onBlur?: () => void;
 }> = ({ value, onChange, className, style, placeholder, tagName = 'div', onFocus, onBlur }) => {
     const editorRef = useRef<HTMLElement>(null);
+    const isFocusedRef = useRef(false);
+    const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const lastSavedValueRef = useRef(value);
 
-    // Only update innerHTML if it's different from current state (prevents cursor jumping)
+    // Only update innerHTML if not focused & content differs (prevents caret jump for typing user)
     useEffect(() => {
-        if (editorRef.current && editorRef.current.innerHTML !== value) {
+        if (editorRef.current && !isFocusedRef.current && editorRef.current.innerHTML !== value) {
             editorRef.current.innerHTML = value || '';
+            lastSavedValueRef.current = value || '';
         }
     }, [value]);
 
+    useEffect(() => {
+        return () => {
+            if (debounceTimerRef.current) {
+                clearTimeout(debounceTimerRef.current);
+            }
+        };
+    }, []);
+
+    const handleInput = (e: React.FormEvent<HTMLElement>) => {
+        const newValue = e.currentTarget.innerHTML;
+        
+        if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+        }
+
+        debounceTimerRef.current = setTimeout(() => {
+            if (newValue !== lastSavedValueRef.current) {
+                lastSavedValueRef.current = newValue;
+                onChange(newValue);
+            }
+        }, 1200); // 1.2 second debounce keeps high frequency typing buttery smooth
+    };
+
     const handleBlur = (e: React.FocusEvent<HTMLElement>) => {
-        if (e.target.innerHTML !== value) {
-            onChange(e.target.innerHTML);
+        isFocusedRef.current = false;
+        if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+        }
+        const newValue = e.target.innerHTML;
+        if (newValue !== lastSavedValueRef.current) {
+            lastSavedValueRef.current = newValue;
+            onChange(newValue);
         }
         if (onBlur) onBlur();
     };
 
     const handleFocus = () => {
+        isFocusedRef.current = true;
         if (onFocus) onFocus();
     };
 
@@ -262,7 +296,9 @@ export const RichTextDiv: React.FC<{
             if (toggles[text]) {
                 target.innerText = toggles[text];
                 if (editorRef.current) {
-                    onChange(editorRef.current.innerHTML);
+                    const newValue = editorRef.current.innerHTML;
+                    lastSavedValueRef.current = newValue;
+                    onChange(newValue);
                 }
             }
         }
@@ -274,8 +310,10 @@ export const RichTextDiv: React.FC<{
         <Tag
             ref={editorRef}
             contentEditable={true}
+            suppressContentEditableWarning={true}
             className={`outline-none empty:before:content-[attr(placeholder)] empty:before:text-black/30 ${className || ''}`}
             style={style}
+            onInput={handleInput}
             onBlur={handleBlur}
             onFocus={handleFocus}
             onClick={handleClick}
