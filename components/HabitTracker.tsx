@@ -494,7 +494,7 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
           <table className="w-full border-collapse">
             <thead>
               <tr className="bg-slate-900/5 text-slate-900 backdrop-blur-md">
-                <th className="md:sticky left-0 z-20 bg-white/40 backdrop-blur-3xl p-6 md:p-8 text-left border-b border-slate-200/50 w-64 md:w-72 min-w-[240px] md:min-w-[288px] shadow-sm">
+                <th className="sticky left-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl p-6 md:p-8 text-left border-b border-slate-200/50 w-64 md:w-72 min-w-[240px] md:min-w-[288px] shadow-[2px_0_10px_rgba(0,0,0,0.08)]">
                   <span className="text-[10px] font-black uppercase tracking-[4px] text-orange-600">Mastery Disciplines</span>
                 </th>
                 {daysInMonth.map(day => (
@@ -510,47 +510,49 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
                 const streak = getStreak(habit.id);
                 return (
                  <tr key={habit.id} className="group hover:bg-black/5 transition-colors">
-                  <td className="md:sticky left-0 z-10 bg-white/5 backdrop-blur-3xl group-hover:bg-white/10 p-6 border-b border-black/10 flex items-center justify-between shadow-sm">
-                    <div className="flex flex-col gap-1">
-                      <RichTextDiv 
-                        tagName="span"
-                        className="text-sm font-black text-black uppercase tracking-tight" 
-                        style={{ color: habit.color || 'black' }}
-                        value={habit.name}
-                        onChange={(val) => {
-                          const newHabits = data.habits.map(h => h.id === habit.id ? { ...h, name: val } : h);
-                          onUpdate({ ...data, habits: newHabits });
-                        }}
-                      />
-                      {streak > 0 && (
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center gap-1.5" style={{ color: habit.color }}>
-                            <Zap size={14} className="animate-pulse" />
-                            <span className="text-xs font-bold">{streak} Day Streak</span>
-                          </div>
-                          {streak >= 100 ? (
-                            <div className="px-2 py-0.5 rounded-full bg-yellow-400/20 text-yellow-700 text-[10px] font-black uppercase shadow-sm border border-yellow-400/30 flex items-center gap-1 shadow-yellow-400/10" title="100+ Day Streak">
-                               <span className="text-[10px]">👑</span> Centurion
-                            </div>
-                          ) : streak >= 30 ? (
-                            <div className="px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600 text-[10px] font-black uppercase shadow-sm border border-purple-500/20 flex items-center gap-1" title="30+ Day Streak">
-                               <span className="text-[10px]">🏆</span> Champion
-                            </div>
-                          ) : streak >= 7 ? (
-                            <div className="px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-600 text-[10px] font-black uppercase shadow-sm border border-orange-500/20 flex items-center gap-1" title="7+ Day Streak">
-                               <span className="text-[10px]">🔥</span> On Fire
-                            </div>
-                          ) : null}
-                        </div>
-                      )}
-                    </div>
-                    <button 
-                      onClick={() => handleDeleteHabit(habit.id)}
-                      className="opacity-0 group-hover:opacity-100 p-2 text-black/30 hover:text-red-600 transition-all rounded-lg"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </td>
+                    <td className="sticky left-0 z-10 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl p-6 border-b border-black/10 min-w-[240px] md:min-w-[288px] shadow-[2px_0_10px_rgba(0,0,0,0.05)]">
+                     <div className="flex items-center justify-between gap-4">
+                       <div className="flex flex-col gap-1 min-w-0">
+                         <RichTextDiv 
+                           tagName="span"
+                           className="text-sm font-black text-black uppercase tracking-tight" 
+                           style={{ color: habit.color || 'black' }}
+                           value={habit.name}
+                           onChange={(val) => {
+                             const newHabits = data.habits.map(h => h.id === habit.id ? { ...h, name: val } : h);
+                             onUpdate({ ...data, habits: newHabits });
+                           }}
+                         />
+                         {streak > 0 && (
+                           <div className="flex items-center gap-2">
+                             <div className="flex items-center gap-1.5" style={{ color: habit.color }}>
+                               <Zap size={14} className="animate-pulse" />
+                               <span className="text-xs font-bold">{streak} Day Streak</span>
+                             </div>
+                             {streak >= 100 ? (
+                               <div className="px-2 py-0.5 rounded-full bg-yellow-400/20 text-yellow-700 text-[10px] font-black uppercase shadow-sm border border-yellow-400/30 flex items-center gap-1 shadow-yellow-400/10" title="100+ Day Streak">
+                                  <span className="text-[10px]">👑</span> Centurion
+                               </div>
+                             ) : streak >= 30 ? (
+                               <div className="px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600 text-[10px] font-black uppercase shadow-sm border border-purple-500/20 flex items-center gap-1" title="30+ Day Streak">
+                                  <span className="text-[10px]">🏆</span> Champion
+                               </div>
+                             ) : streak >= 7 ? (
+                               <div className="px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-600 text-[10px] font-black uppercase shadow-sm border border-orange-500/20 flex items-center gap-1" title="7+ Day Streak">
+                                  <span className="text-[10px]">🔥</span> On Fire
+                               </div>
+                             ) : null}
+                           </div>
+                         )}
+                       </div>
+                       <button 
+                         onClick={() => handleDeleteHabit(habit.id)}
+                         className="opacity-0 group-hover:opacity-100 p-2 text-black/30 hover:text-red-600 transition-all rounded-lg shrink-0"
+                       >
+                         <Trash2 size={14} />
+                       </button>
+                     </div>
+                   </td>
                   {daysInMonth.map(day => {
                     const dateKey = format(day, 'yyyy-MM-dd');
                     
