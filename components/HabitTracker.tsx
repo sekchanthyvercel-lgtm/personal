@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { RichTextDiv } from './FloatingToolbar';
 import { AppData, Habit, HabitCompletion } from '../types';
-import { CheckSquare, ChevronLeft, ChevronRight, Plus, Trash2, CheckCircle2, Zap, Maximize2, Minimize2, Calendar as CalendarIcon, Edit3, Target, Wand2, RefreshCw } from 'lucide-react';
+import { CheckSquare, ChevronLeft, ChevronRight, Plus, Trash2, CheckCircle2, Zap, Maximize2, Minimize2, Calendar as CalendarIcon, Edit3, Target, Wand2, RefreshCw, X } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isToday, isSameDay, subDays, startOfWeek, endOfWeek, addMonths, subMonths, isSameMonth } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 import { motion, AnimatePresence } from 'motion/react';
@@ -570,7 +570,7 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
                    if (onUpdateDailyNote) {
                      onUpdateDailyNote(dateKey, val);
                    } else {
-                     onUpdate({ ...data, dailyNotes: { ...(data.dailyNotes || {}), [dateKey]: val } });
+                     onUpdate((prev: AppData) => ({ ...prev, dailyNotes: { ...(prev.dailyNotes || {}), [dateKey]: val } }));
                    }
                  }}
                  placeholder={`Mission goals for tomorrow...`}
@@ -593,15 +593,15 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
       </div>
 
       <div className={`w-full bg-white/5 backdrop-blur-3xl border border-white/10 rounded-[32px] shadow-2xl overflow-hidden mt-6 flex flex-col ${isFullScreen ? 'hidden' : ''}`}>
-        <div ref={tableContainerRef} className="overflow-x-auto relative scroll-smooth custom-scrollbar-orange">
-          <table className="w-full border-collapse md:table-auto">
+        <div ref={tableContainerRef} className="overflow-x-auto overflow-y-hidden relative scroll-smooth custom-scrollbar-orange">
+          <table className="w-full border-collapse">
             <thead>
               <tr className="bg-slate-900/5 text-slate-900 backdrop-blur-md">
-                <th className="sticky left-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl p-4 md:p-8 text-left border-b border-slate-200/50 w-[140px] md:w-72 min-w-[140px] md:min-w-[240px] shadow-[2px_0_10px_rgba(0,0,0,0.08)]">
-                  <span className="text-[8px] md:text-[10px] font-black uppercase tracking-[2px] md:tracking-[4px] text-orange-600">Mastery Disciplines</span>
+                <th className="sticky left-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl p-3 md:p-8 text-left border-b border-slate-200/50 w-[100px] md:w-72 min-w-[100px] md:min-w-[240px] shadow-[2px_0_10px_rgba(0,0,0,0.08)]">
+                  <span className="text-[7px] md:text-[10px] font-black uppercase tracking-[1px] md:tracking-[4px] text-orange-600">Disciplines</span>
                 </th>
                 {daysInMonth.map(day => (
-                  <th key={day.toString()} className={`p-4 md:p-6 border-b border-slate-200/50 min-w-[60px] md:min-w-[72px] text-center ${isToday(day) ? 'bg-orange-500 text-white font-black shadow-lg shadow-orange-500/30 rounded-b-2xl today-cell' : 'hover:bg-slate-100/50 transition-colors'}`}>
+                  <th key={day.toString()} className={`p-2 md:p-6 border-b border-slate-200/50 min-w-[44px] md:min-w-[72px] text-center ${isToday(day) ? 'bg-orange-500 text-white font-black shadow-lg shadow-orange-500/30 rounded-b-2xl today-cell' : 'hover:bg-slate-100/50 transition-colors'}`}>
                     <span className="text-[9px] font-black uppercase block mb-0.5 opacity-60 tracking-wider ">{format(day, 'EEE')}</span>
                     <span className="text-xs font-black tracking-tight">{format(day, 'd')}</span>
                   </th>
@@ -613,9 +613,9 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
                 const streak = getStreak(habit.id);
                 return (
                  <tr key={habit.id} className="group hover:bg-black/5 transition-colors">
-                    <td className="sticky left-0 z-10 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl p-4 md:p-6 border-b border-black/10 w-[140px] md:w-72 min-w-[140px] md:min-w-[240px] shadow-[2px_0_10px_rgba(0,0,0,0.05)]">
-                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-4">
-                       <div className="flex flex-col gap-1 min-w-0 overflow-hidden">
+                    <td className="sticky left-0 z-10 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl p-3 md:p-6 border-b border-black/10 w-[100px] md:w-72 min-w-[100px] md:min-w-[240px] shadow-[2px_0_10px_rgba(0,0,0,0.05)]">
+                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-1 md:gap-4">
+                       <div className="flex flex-col gap-0.5 min-w-0 overflow-hidden">
                          <RichTextDiv 
                            tagName="span"
                            className="text-sm font-black text-black uppercase tracking-tight" 
@@ -803,9 +803,17 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
             <motion.div 
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
-              className="bg-white w-full max-w-md rounded-[32px] p-6 md:p-10 shadow-2xl my-auto md:my-16"
+              className="bg-white w-full max-w-md rounded-[32px] p-6 md:p-10 shadow-2xl my-auto md:my-16 relative"
             >
-              <h3 className="text-2xl font-black text-slate-900 mb-6 uppercase tracking-tight">New Mastery Habit</h3>
+              <button 
+                onClick={() => setIsAddingHabit(false)}
+                className="absolute top-6 right-6 p-2 text-slate-400 hover:text-slate-900 transition-colors"
+                aria-label="Close"
+              >
+                <X size={20} />
+              </button>
+
+              <h3 className="text-xl md:text-2xl font-black text-slate-900 mb-6 uppercase tracking-tight">New Mastery Habit</h3>
               
               <div className="space-y-6 mb-8">
                 <div>

@@ -430,10 +430,10 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
 
   const handleDeleteReframer = (id: string) => {
     if (window.confirm('Are you sure you want to delete this cognitive alignment reflection record?')) {
-      onUpdate({
-        ...data,
-        habitReframers: (data.habitReframers || []).filter(r => r.id !== id)
-      });
+      onUpdate((prev: AppData) => ({
+        ...prev,
+        habitReframers: (prev.habitReframers || []).filter(r => r.id !== id)
+      }));
     }
   };
 
@@ -469,10 +469,10 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
 
   const handleDeleteHabit = (id: string) => {
     if (confirm('Are you sure you want to delete this habit and all its logged statistics?')) {
-      onUpdate({
-        ...data,
-        advancedHabits: habits.filter(h => h.id !== id)
-      });
+      onUpdate((prev: AppData) => ({
+        ...prev,
+        advancedHabits: (prev.advancedHabits || []).filter(h => h.id !== id)
+      }));
     }
   };
 
@@ -488,10 +488,10 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
     }
     updatedLogs[dateStr][habitId] = finalVal;
 
-    onUpdate({
-      ...data,
+    onUpdate((prev: AppData) => ({
+      ...prev,
       advancedHabitLogs: updatedLogs
-    });
+    }));
   };
 
   // Helper: Format metrics beautifully, handle minutes conversion to hours
