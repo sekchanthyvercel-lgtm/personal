@@ -766,9 +766,9 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
     try {
         let promptText = '';
         if (isSelectionMode) {
-          promptText = `Enhance ONLY this selected part of the note. Improve clarity, fix spelling/grammar, structure cleanly, and expand slightly if helpful. Return the improved version as HTML formatted snippet. Output ONLY valid HTML formatted text without any markdown or code block wrappers. Selected text: ${selectedText}`;
+          promptText = `Enhance ONLY this selected part of the note. Improve clarity, fix spelling/grammar, structure cleanly, and expand slightly if helpful. Return the improved version as HTML formatted snippet. Output ONLY valid HTML formatted text without any markdown or code block wrappers. CRITICAL: Output ONLY the raw content elements. Do NOT wrap the output in a centering or max-width container, card, or decorative wrapper. Selected text: ${selectedText}`;
         } else {
-          promptText = `Enhance this note. Improve structure, fix grammar, and expand slightly if it helps clarity. Return HTML formatted string only. Current content: ${selectedTopic.content}`;
+          promptText = `Enhance this note. Improve structure, fix grammar, and expand slightly if it helps clarity. Return HTML formatted string only. CRITICAL: Output ONLY the raw content elements. Do NOT wrap the output in a centering or max-width container, card, or decorative wrapper. Current content: ${selectedTopic.content}`;
         }
 
         const result = await callNeuralEngine(
@@ -841,29 +841,47 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
     }
   };
 
-  const renderTopic = (topic: DPSSTopic, depth = 0) => (
-    <div key={topic.id} style={{ marginLeft: `${depth * 15}px` }}>
-      <div 
-        onClick={() => {
-          setSelectedTopicId(topic.id);
-          if (window.innerWidth < 768) setIsSidebarOpen(false);
-        }} 
-        className={`p-2 my-1 rounded-lg cursor-pointer flex items-center justify-between ${selectedTopicId === topic.id ? 'bg-emerald-100/50' : 'bg-white/5 hover:bg-white/10'}`}
-      >
-        <span className="font-bold text-[13px] text-slate-700 truncate max-w-[180px]">{topic.title}</span>
-        <div className='flex gap-1 shrink-0'>
-            <button onClick={(e) => { e.stopPropagation(); addTopic(topic.id); }}><Plus size={14} className="text-slate-400 hover:text-green-500"/></button>
-            <button onClick={(e) => { e.stopPropagation(); deleteTopic(topic.id); }}><Trash2 size={14} className="text-slate-400 hover:text-red-500"/></button>
+  const renderTopic = (topic: DPSSTopic, depth = 0) => {
+    const isPlan = topic.title.trim().toLowerCase().startsWith('🎯') || 
+                   topic.title.trim().toLowerCase().startsWith('⚡') || 
+                   topic.title.trim().toLowerCase().includes('study plan') || 
+                   topic.title.trim().toLowerCase().includes('action plan');
+    return (
+      <div key={topic.id} style={{ marginLeft: `${depth * 15}px` }}>
+        <div 
+          onClick={() => {
+            setSelectedTopicId(topic.id);
+            if (isPlan || window.innerWidth < 1024) {
+              setIsSidebarOpen(false);
+            }
+          }} 
+          className={`p-2 my-1 rounded-lg cursor-pointer flex items-center justify-between ${selectedTopicId === topic.id ? 'bg-emerald-100/50' : 'bg-white/5 hover:bg-white/10'}`}
+        >
+          <span className="font-bold text-[13px] text-slate-700 truncate max-w-[180px]">{topic.title}</span>
+          <div className='flex gap-1 shrink-0'>
+              <button onClick={(e) => { e.stopPropagation(); addTopic(topic.id); }}><Plus size={14} className="text-slate-400 hover:text-green-500"/></button>
+              <button onClick={(e) => { e.stopPropagation(); deleteTopic(topic.id); }}><Trash2 size={14} className="text-slate-400 hover:text-red-500"/></button>
+          </div>
         </div>
+        {topic.children?.map(child => renderTopic(child, depth + 1))}
       </div>
-      {topic.children?.map(child => renderTopic(child, depth + 1))}
-    </div>
-  );
+    );
+  };
 
   useEffect(() => {
-    if (editorRef.current && selectedTopic && editorRef.current.innerHTML !== selectedTopic.content) {
-      if (document.activeElement !== editorRef.current) {
-        editorRef.current.innerHTML = selectedTopic.content;
+    if (editorRef.current && selectedTopic) {
+      let content = selectedTopic.content || '';
+      // Dynamically strip narrow constraints from old generated text so they span full width
+      content = content.replace(/max-width:\s*\d+(px|rem|em|vw|%)/gi, 'max-width: 100%');
+      content = content.replace(/width:\s*\d+(px|rem|em)(?![^;]*%!important)/gi, 'width: 100%');
+      content = content.replace(/margin:\s*0\s+auto/gi, 'margin: 0');
+      content = content.replace(/max-w-(xs|sm|md|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl)/g, 'max-w-full');
+      content = content.replace(/\bmx-auto\b/g, '');
+
+      if (editorRef.current.innerHTML !== content) {
+        if (document.activeElement !== editorRef.current) {
+          editorRef.current.innerHTML = content;
+        }
       }
     }
   }, [selectedTopic?.id, selectedTopic?.content]);
@@ -877,8 +895,9 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
     if (selectedTopic) {
       prompt = `Generate a dedicated, highly structured Study Plan focusing exclusively on learning the topic: "${selectedTopic.title}". 
       Break it down into progressive learning modules, key concepts to master, practical exercises, and reflection questions. 
-      Use professional HTML formatting with clear headings, bold font styles, lists, and tables. 
-      Do NOT wrap in markdown code blocks like \`\`\`html, just output the raw HTML directly.`;
+      Use professional HTML formatting with beautifully styled Tailwind classes (use colors, modern card layouts, rounded corners, shadows). 
+      IMPORTANT: Make sure to use 'w-full' and 'max-w-full' for all main structural wrappers and tables you generate, so they take up the entire width of the page. Do NOT use fixed widths or constraints like 'max-w-md', 'max-w-lg', or 'max-w-2xl'. Ensure the content is fluid and full width.
+      Do NOT wrap in markdown code blocks like \`\`\`html, just output raw HTML directly.`;
       newTopicTitle = `🎯 Study Plan: ${selectedTopic.title}`;
     } else {
       // gather all topics
@@ -887,7 +906,9 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
         alert("Please add some self-learning topics first.");
         return;
       }
-      prompt = `Analyze my current self-learning topics: [${topicTitles}]. Generate a 4-week structured study plan with clear milestones and suggested daily tasks to help me master these topics. Use professional HTML formatting, using tables for weekly breakdowns, bullet points for daily tasks, and clear headings. Do NOT include any markdown code wrappers (like \`\`\`html) in your output, just the raw HTML.`;
+      prompt = `Analyze my current self-learning topics: [${topicTitles}]. Generate a 4-week structured study plan with clear milestones and suggested daily tasks to help me master these topics. Use professional HTML formatting, beautifully styled with Tailwind CSS (use colors, elegant tables, and cards). 
+      IMPORTANT: Make sure to use 'w-full' and 'max-w-full' for all main structural wrappers and tables you generate, so they take up the entire full width of the page. Do NOT use fixed width constraints like 'max-w-2xl' or 'mx-auto' centering wrappers. Ensure the content is fluid and full-width.
+      Do NOT include any markdown code wrappers (like \`\`\`html) in your output, just the raw HTML.`;
       newTopicTitle = '🎯 4-Week Study Plan';
     }
 
@@ -941,6 +962,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
         }
       }
       setSelectedTopicId(newTopic.id);
+      setIsSidebarOpen(false);
       
     } catch(e) {
       console.error(e);
@@ -962,7 +984,8 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
     try {
       const prompt = `Generate a highly practical, step-by-step Action Plan specifically for mastering or implementing the goal or topic: "${selectedTopic.title}". 
       Include daily routines, specific micro-habits, friction-reduction techniques, obstacles handling, and measurable criteria for success. 
-      Use professional HTML formatting, using tables for routine breakdowns, bullet points for actionable steps, lists, and bold text. 
+      Use professional HTML formatting, beautifully styled with Tailwind CSS (use colors, elegant tables, borders, and cards). 
+      IMPORTANT: Use 'w-full' or 'max-w-full' for all structural wrappers, tables, and block container elements. The content must span the entire full width of the view. Do NOT use fixed width classes like 'max-w-md', 'max-w-xl', 'max-w-2xl' or centered fixed wrappers like 'mx-auto'. Make the layout fluid and full-width.
       Do NOT wrap in markdown code blocks like \`\`\`html, just output raw, polished HTML directly.`;
 
       const result = await callNeuralEngine(
@@ -1003,6 +1026,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
         onUpdate({ ...data, selfLearningTopics: updatedTopics });
       }
       setSelectedTopicId(newTopic.id);
+      setIsSidebarOpen(false);
       
     } catch(e) {
       console.error(e);
@@ -1013,16 +1037,16 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
   };
 
   return (
-    <div className="flex flex-col md:flex-row h-full md:h-[90vh] p-2 gap-0 overflow-hidden relative">
+    <div className="flex flex-col md:flex-row h-full md:h-[90vh] w-full p-2 gap-0 overflow-hidden relative">
       {/* Sidebar Panel - Mobile Slide-in Overlay */}
       <div 
         style={{ width: isSidebarOpen ? `${sidebarWidth}px` : '0px' }}
         className={`
           fixed md:relative inset-y-0 left-0 z-50 md:z-30
           bg-white/95 md:bg-white/10 backdrop-blur-3xl md:backdrop-blur-md 
-          rounded-r-3xl md:rounded-3xl p-4 md:p-6 border-r md:border border-white/20 
-          flex flex-col gap-4 overflow-hidden shrink-0 transition-[width,transform] duration-300 transform
-          ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+          rounded-r-3xl md:rounded-3xl overflow-hidden shrink-0 transition-all duration-300 transform
+          ${isSidebarOpen ? 'p-4 md:p-6 border-r md:border border-white/20 translate-x-0' : 'p-0 border-none -translate-x-full md:translate-x-0 pointer-events-none opacity-0 select-none hidden md:hidden'}
+          flex flex-col gap-4
         `}
       >
         <div className="flex items-center justify-between mb-2 shrink-0">
@@ -1605,7 +1629,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                       fontSize: `${textFontSize}px`,
                       fontFamily: textFontFamily
                     }}
-                    className={`w-full flex-1 outline-none p-8 rounded-3xl text-slate-800 leading-relaxed font-medium transition-all focus:ring-4 focus:ring-emerald-500/10 overflow-y-auto shadow-md ${selectedPaper.className}`}
+                    className={`editor-content w-full flex-1 outline-none p-8 rounded-3xl text-slate-800 leading-relaxed font-medium transition-all focus:ring-4 focus:ring-emerald-500/10 overflow-y-auto shadow-md ${selectedPaper.className}`}
                 ></div>
 
                 {isTableModalOpen && (

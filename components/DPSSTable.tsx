@@ -746,9 +746,9 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
     try {
         let promptText = '';
         if (isSelectionMode) {
-          promptText = `Enhance ONLY this selected part of the note. Improve clarity, fix spelling/grammar, structure cleanly, and expand slightly if helpful. Return the improved version as HTML formatted snippet. Output ONLY valid HTML formatted text without any markdown or code block wrappers. Selected text: ${selectedText}`;
+          promptText = `Enhance ONLY this selected part of the note. Improve clarity, fix spelling/grammar, structure cleanly, and expand slightly if helpful. Return the improved version as HTML formatted snippet. Output ONLY valid HTML formatted text without any markdown or code block wrappers. IMPORTANT: Ensure any layout elements use 'w-full' to span the full width. Do NOT use fixed width containers or centered wrappers like 'max-w-md' or 'mx-auto'. Selected text: ${selectedText}`;
         } else {
-          promptText = `Enhance this note. Improve structure, fix grammar, and expand slightly if it helps clarity. Return HTML formatted string only. Current content: ${selectedTopic.content}`;
+          promptText = `Enhance this note. Improve structure, fix grammar, and expand slightly if it helps clarity. Return HTML formatted string only. IMPORTANT: Ensure any layout elements use 'w-full' to span the full width. Do NOT use fixed width containers or centered wrappers like 'max-w-md' or 'mx-auto'. Current content: ${selectedTopic.content}`;
         }
 
         const result = await callNeuralEngine(
@@ -841,24 +841,34 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
   );
 
   useEffect(() => {
-    if (editorRef.current && selectedTopic && editorRef.current.innerHTML !== selectedTopic.content) {
-      if (document.activeElement !== editorRef.current) {
-        editorRef.current.innerHTML = selectedTopic.content;
+    if (editorRef.current && selectedTopic) {
+      let content = selectedTopic.content || '';
+      // Dynamically strip narrow constraints from old generated text so they span full width
+      content = content.replace(/max-width:\s*\d+(px|rem|em|vw|%)/gi, 'max-width: 100%');
+      content = content.replace(/width:\s*\d+(px|rem|em)(?![^;]*%!important)/gi, 'width: 100%');
+      content = content.replace(/margin:\s*0\s+auto/gi, 'margin: 0');
+      content = content.replace(/max-w-(xs|sm|md|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl)/g, 'max-w-full');
+      content = content.replace(/\bmx-auto\b/g, '');
+
+      if (editorRef.current.innerHTML !== content) {
+        if (document.activeElement !== editorRef.current) {
+          editorRef.current.innerHTML = content;
+        }
       }
     }
   }, [selectedTopic?.id, selectedTopic?.content]);
 
   return (
-    <div className="flex flex-col md:flex-row h-full md:h-[90vh] p-2 gap-0 overflow-hidden relative">
+    <div className="flex flex-col md:flex-row h-full md:h-[90vh] w-full p-2 gap-0 overflow-hidden relative">
       {/* Sidebar with Fonts - Mobile Slide-in Logic */}
       <div 
         style={{ width: isSidebarOpen ? `${sidebarWidth}px` : '0px' }}
         className={`
           fixed md:relative inset-y-0 left-0 z-50 md:z-30
           bg-white/95 md:bg-white/10 backdrop-blur-3xl md:backdrop-blur-md 
-          rounded-r-3xl md:rounded-3xl p-4 md:p-6 border-r md:border border-white/20 
-          flex flex-col gap-4 overflow-hidden shrink-0 transition-[width,transform] duration-300 transform
-          ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+          rounded-r-3xl md:rounded-3xl overflow-hidden shrink-0 transition-all duration-300 transform
+          ${isSidebarOpen ? 'p-4 md:p-6 border-r md:border border-white/20 translate-x-0' : 'p-0 border-none -translate-x-full md:translate-x-0 pointer-events-none opacity-0 select-none hidden md:hidden'}
+          flex flex-col gap-4
         `}
       >
         <div className="flex items-center justify-between mb-4 shrink-0">
@@ -1454,7 +1464,7 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
                       fontSize: `${textFontSize}px`,
                       fontFamily: textFontFamily
                     }}
-                    className={`w-full flex-1 outline-none p-8 rounded-3xl text-slate-800 leading-relaxed font-medium transition-all focus:ring-4 focus:ring-orange-500/10 overflow-y-auto shadow-md ${selectedPaper.className}`}
+                    className={`editor-content w-full flex-1 outline-none p-8 rounded-3xl text-slate-800 leading-relaxed font-medium transition-all focus:ring-4 focus:ring-orange-500/10 overflow-y-auto shadow-md ${selectedPaper.className}`}
                 ></div>
 
                 {isTableModalOpen && (
