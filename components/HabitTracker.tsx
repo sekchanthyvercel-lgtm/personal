@@ -9,7 +9,7 @@ import { callNeuralEngine } from '../services/neuralEngine';
 
 interface HabitTrackerProps {
   data: AppData;
-  onUpdate: (newData: AppData) => void;
+  onUpdate: (newDataOrUpdater: AppData | ((prev: AppData) => AppData)) => void;
   onUpdateHabitCompletion?: (date: string, habitId: string, completed: boolean | number) => void;
   onUpdateDailyNote?: (date: string, content: string) => void;
 }
@@ -124,23 +124,23 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
 
   const handleToggleHabit = (habitId: string, day: Date) => {
     const dateKey = format(day, 'yyyy-MM-dd');
-    const newCompletions = { ...completions };
-    
-    if (!newCompletions[dateKey]) {
-      newCompletions[dateKey] = {};
-    }
-    
-    const isCompleted = !newCompletions[dateKey][habitId];
-    newCompletions[dateKey][habitId] = isCompleted;
-    
-    if (isCompleted && isToday(day)) {
-      checkAndNotifyStreak(habitId, newCompletions);
-    }
+    const isCompletedNow = !completions[dateKey]?.[habitId];
 
     if (onUpdateHabitCompletion) {
-      onUpdateHabitCompletion(dateKey, habitId, isCompleted);
+      onUpdateHabitCompletion(dateKey, habitId, isCompletedNow);
     } else {
-      onUpdate({ ...data, habitCompletions: newCompletions });
+      onUpdate((prev: AppData) => {
+        const currentCompletions = prev.habitCompletions || {};
+        const dayCompletions = { ...(currentCompletions[dateKey] || {}) };
+        dayCompletions[habitId] = isCompletedNow;
+        return { ...prev, habitCompletions: { ...currentCompletions, [dateKey]: dayCompletions } };
+      });
+    }
+
+    if (isCompletedNow && isToday(day)) {
+      // Create a temporary completion object for streak check notification
+      const tempCompletions = { ...completions, [dateKey]: { ...(completions[dateKey] || {}), [habitId]: true } };
+      checkAndNotifyStreak(habitId, tempCompletions);
     }
   };
 
@@ -149,19 +149,22 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
     
     // Aesthetic orange/green centric colors
     const colors = ['#f97316', '#22c55e', '#fb923c', '#4ade80', '#ea580c', '#16a34a'];
-    const habitColor = colors[habits.length % colors.length];
     
-    const newHabit: Habit = {
-      id: uuidv4(),
-      name: newHabitName.trim(),
-      order: habits.length,
-      color: habitColor,
-      isNumeric: isNumericHabit,
-      targetValue: isNumericHabit ? habitTargetValue : undefined,
-      unit: isNumericHabit ? habitUnit.trim() : undefined
-    };
-    
-    onUpdate({ ...data, habits: [...habits, newHabit] });
+    onUpdate((prev: AppData) => {
+      const currentHabits = prev.habits || [];
+      const habitColor = colors[currentHabits.length % colors.length];
+      const newHabit: Habit = {
+        id: uuidv4(),
+        name: newHabitName.trim(),
+        order: currentHabits.length,
+        color: habitColor,
+        isNumeric: isNumericHabit,
+        targetValue: isNumericHabit ? habitTargetValue : undefined,
+        unit: isNumericHabit ? habitUnit.trim() : undefined
+      };
+      return { ...prev, habits: [...currentHabits, newHabit] };
+    });
+
     setNewHabitName('');
     setIsNumericHabit(false);
     setHabitTargetValue(2);
@@ -171,10 +174,10 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
 
   const handleDeleteHabit = (id: string) => {
     if (window.confirm('Delete this habit and all its history?')) {
-      onUpdate({
-        ...data,
-        habits: habits.filter(h => h.id !== id)
-      });
+      onUpdate((prev: AppData) => ({
+        ...prev,
+        habits: (prev.habits || []).filter(h => h.id !== id)
+      }));
     }
   };
 
@@ -191,37 +194,32 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
 
   const adjustNumericValue = (habitId: string, day: Date, amount: number) => {
     const dateKey = format(day, 'yyyy-MM-dd');
-    const newCompletions = { ...completions };
-    
-    if (!newCompletions[dateKey]) {
-      newCompletions[dateKey] = {};
-    }
-    
-    const habit = habits.find(h => h.id === habitId);
-    if (!habit) return;
-    
-    const currentVal = typeof newCompletions[dateKey][habitId] === 'number' 
-      ? (newCompletions[dateKey][habitId] as number) 
-      : (newCompletions[dateKey][habitId] ? (habit.targetValue || 1) : 0);
-      
-    let newVal = Math.max(0, currentVal + amount);
-    newVal = Math.round(newVal * 10) / 10;
-    
-    newCompletions[dateKey][habitId] = newVal;
-    
-    // Check if it crosses target completion
-    const target = habit.targetValue || 0;
-    const isCompletedNow = newVal >= target;
-    const wasCompletedBefore = currentVal >= target;
-    
-    if (isCompletedNow && !wasCompletedBefore && isToday(day)) {
-      checkAndNotifyStreak(habitId, newCompletions);
-    }
     
     if (onUpdateHabitCompletion) {
-      onUpdateHabitCompletion(dateKey, habitId, newVal);
+       const currentVal = typeof completions[dateKey]?.[habitId] === 'number' 
+          ? (completions[dateKey]?.[habitId] as number) 
+          : (completions[dateKey]?.[habitId] ? 1 : 0);
+       let newVal = Math.max(0, currentVal + amount);
+       newVal = Math.round(newVal * 10) / 10;
+       onUpdateHabitCompletion(dateKey, habitId, newVal);
     } else {
-      onUpdate({ ...data, habitCompletions: newCompletions });
+      onUpdate((prev: AppData) => {
+        const currentCompletions = prev.habitCompletions || {};
+        const dayCompletions = { ...(currentCompletions[dateKey] || {}) };
+        
+        const habit = (prev.habits || []).find(h => h.id === habitId);
+        if (!habit) return prev;
+
+        const currentVal = typeof dayCompletions[habitId] === 'number' 
+          ? (dayCompletions[habitId] as number) 
+          : (dayCompletions[habitId] ? (habit.targetValue || 1) : 0);
+          
+        let newVal = Math.max(0, currentVal + amount);
+        newVal = Math.round(newVal * 10) / 10;
+        dayCompletions[habitId] = newVal;
+        
+        return { ...prev, habitCompletions: { ...currentCompletions, [dateKey]: dayCompletions } };
+      });
     }
   };
 
@@ -304,7 +302,10 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
       color: habitColor
     };
     
-    onUpdate({ ...data, habits: [...habits, newHabit] });
+    onUpdate((prev: AppData) => ({
+      ...prev,
+      habits: [...(prev.habits || []), newHabit]
+    }));
     setSuggestedHabits(prev => prev.filter(h => h !== name));
   };
 
@@ -649,7 +650,7 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
                        </div>
                        <button 
                          onClick={() => handleDeleteHabit(habit.id)}
-                         className="opacity-0 group-hover:opacity-100 p-2 text-black/30 hover:text-red-600 transition-all rounded-lg shrink-0"
+                         className="md:opacity-0 group-hover:opacity-100 p-2 text-black/30 hover:text-red-600 transition-all rounded-lg shrink-0 touch-none"
                        >
                          <Trash2 size={14} />
                        </button>
@@ -795,12 +796,12 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-md"
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6 bg-slate-900/60 backdrop-blur-md overflow-y-auto"
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
-              className="bg-white w-full max-w-md rounded-[32px] p-6 md:p-10 shadow-2xl max-h-[90vh] overflow-y-auto"
+              className="bg-white w-full max-w-md rounded-[32px] p-6 md:p-10 shadow-2xl my-auto"
             >
               <h3 className="text-2xl font-black text-slate-900 mb-6 uppercase tracking-tight">New Mastery Habit</h3>
               

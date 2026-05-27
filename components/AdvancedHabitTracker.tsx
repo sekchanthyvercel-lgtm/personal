@@ -41,7 +41,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 interface AdvancedHabitTrackerProps {
   data: AppData;
-  onUpdate: (newData: AppData) => void;
+  onUpdate: (newDataOrUpdater: AppData | ((prev: AppData) => AppData)) => void;
 }
 
 const DEFAULT_COLOR_THEMES = [
@@ -153,10 +153,23 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
       return h;
     });
 
-    onUpdate({
-      ...data,
-      advancedHabits: updatedHabits
-    });
+    onUpdate(prev => ({
+      ...prev,
+      advancedHabits: (prev.advancedHabits || []).map(h => {
+        if (h.id === editingHabit.id) {
+          return {
+            ...h,
+            name: editHabitForm.name.trim(),
+            type: editHabitForm.type,
+            unit: editHabitForm.unit,
+            weeklyGoal: editHabitForm.weeklyGoal ? parseFloat(editHabitForm.weeklyGoal) : undefined,
+            goalType: editHabitForm.type === 'dopamine' ? ('limit' as const) : ('target' as const),
+            color: editHabitForm.color
+          };
+        }
+        return h;
+      })
+    }));
 
     setEditingHabit(null);
   };
@@ -380,10 +393,10 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
       experimentRules: reframerForm.experimentRules?.trim() || undefined
     };
     
-    onUpdate({
-      ...data,
-      habitReframers: [newRecord, ...(data.habitReframers || [])]
-    });
+    onUpdate(prev => ({
+      ...prev,
+      habitReframers: [newRecord, ...(prev.habitReframers || [])]
+    }));
     
     // Reset form cleanly
     setReframerForm({
@@ -438,10 +451,10 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
       createdAt: new Date().toISOString()
     };
 
-    onUpdate({
-      ...data,
-      advancedHabits: [...habits, newHabit]
-    });
+    onUpdate(prev => ({
+      ...prev,
+      advancedHabits: [...(prev.advancedHabits || []), newHabit]
+    }));
 
     setHabitForm({
       name: '',
@@ -619,10 +632,10 @@ date format must be 'yyyy-MM-dd'.`;
       parsedPrompts = backup;
     }
 
-    onUpdate({
-      ...data,
+    onUpdate((prev: AppData) => ({
+      ...prev,
       settings: {
-        ...data.settings,
+        ...prev.settings,
         dopamineFast: {
           isActive: true,
           startDate: schedStartDate,
@@ -632,15 +645,15 @@ date format must be 'yyyy-MM-dd'.`;
           reflections: []
         }
       }
-    });
+    }));
   };
 
   // Start Dopamine Reset Fast
   const handleStartResetFast = (days: number) => {
-    onUpdate({
-      ...data,
+    onUpdate((prev: AppData) => ({
+      ...prev,
       settings: {
-        ...data.settings,
+        ...prev.settings,
         dopamineFast: {
           isActive: true,
           startDate: format(new Date(), 'yyyy-MM-dd'),
@@ -648,16 +661,16 @@ date format must be 'yyyy-MM-dd'.`;
           reflections: []
         }
       }
-    });
+    }));
   };
 
   // End / Stop Fast
   const handleStopResetFast = () => {
     if (confirm('Stop your dopamine reset process early? Receptors restore best when you complete the session.')) {
-      onUpdate({
-        ...data,
+      onUpdate((prev: AppData) => ({
+        ...prev,
         settings: {
-          ...data.settings,
+          ...prev.settings,
           dopamineFast: {
             isActive: false,
             startDate: '',
@@ -665,7 +678,7 @@ date format must be 'yyyy-MM-dd'.`;
             reflections: []
           }
         }
-      });
+      }));
     }
   };
 
@@ -1056,18 +1069,21 @@ date format must be 'yyyy-MM-dd'.`;
 
     const currentHistory = data.settings?.dopamineFastsHistory || [];
     
-    onUpdate({
-      ...data,
-      settings: {
-        ...data.settings,
-        dopamineFastsHistory: [...currentHistory, historyEntry],
-        dopamineFast: {
-          isActive: false,
-          startDate: '',
-          durationDays: 1,
-          reflections: []
+    onUpdate(prev => {
+      const currentHistory = prev.settings?.dopamineFastsHistory || [];
+      return {
+        ...prev,
+        settings: {
+          ...prev.settings,
+          dopamineFastsHistory: [...currentHistory, historyEntry],
+          dopamineFast: {
+            isActive: false,
+            startDate: '',
+            durationDays: 1,
+            reflections: []
+          }
         }
-      }
+      };
     });
 
     setIsCompletingFast(false);

@@ -291,187 +291,142 @@ const App: React.FC = () => {
     }
   };
 
-  const handleUpdate = async (newData: AppData, skipHistory = false) => {
-      if (!skipHistory) {
-        setHistory(prev => [...prev.slice(-19), data]); // Keep last 20 states
-        setRedoStack([]);
-      }
-      
-      const oldData = data;
-      setData(newData);
-      storage.setItem('dps_data', JSON.stringify(newData));
-
-      if (currentUser?.uid) {
-        const { saveStudent, saveData } = await import('./services/firebase');
+  const handleUpdate = (newDataOrUpdater: AppData | ((prev: AppData) => AppData), skipHistory = false) => {
+      setData(prev => {
+        const newData = typeof newDataOrUpdater === 'function' ? newDataOrUpdater(prev) : newDataOrUpdater;
         
-        // 1. Sync any new or modified students
-        // We compare IDs and check if objects are different
-        const oldStudentsMap = new Map(oldData.students.map(s => [s.id, s]));
-        const changedStudents = newData.students.filter(s => {
-          const old = oldStudentsMap.get(s.id);
-          return !old || JSON.stringify(old) !== JSON.stringify(s);
-        });
-
-        if (changedStudents.length > 0) {
-          for (const s of changedStudents) {
-            await saveStudent(currentUser.uid, s);
-          }
+        if (!skipHistory) {
+          setHistory(h => [...h.slice(-19), prev]); // Keep last 20 states
+          setRedoStack([]);
         }
-
-        // 1.1 Sync deletions for students
-        const newStudentsIds = new Set(newData.students.map(s => s.id));
-        const deletedStudents = oldData.students.filter(s => !newStudentsIds.has(s.id));
-        if (deletedStudents.length > 0) {
-          const { deleteStudent } = await import('./services/firebase');
-          for (const s of deletedStudents) {
-            await deleteStudent(currentUser.uid, s.id);
-          }
-        }
-
-        // 1.2 Sync Topic changes (if any root topics changed or were removed)
-        const oldDpssIds = new Set((oldData.dpssTopics || []).map(t => t.id));
-        const newDpssIds = new Set((newData.dpssTopics || []).map(t => t.id));
-        const { saveTopic, deleteTopic } = await import('./services/firebase');
         
-        // Deletions
-        const deletedDpss = (oldData.dpssTopics || []).filter(t => !newDpssIds.has(t.id));
-        for(const t of deletedDpss) await deleteTopic(currentUser.uid, t.id, 'dpss');
+        storage.setItem('dps_data', JSON.stringify(newData));
+
+        if (currentUser?.uid) {
+          import('./services/firebase').then(({ saveStudent, saveData, saveTopic, deleteTopic, saveAttendance, saveDailyNote, saveHabitCompletionBulk }) => {
+            // Specialized sync logic...
+            // Note: For simplicity in the generic handleUpdate, we'll call specialized saves if fields changed
+            
+            // 1. Sync students
+            const oldStudentsMap = new Map(prev.students.map(s => [s.id, s]));
+            newData.students.forEach(s => {
+              const old = oldStudentsMap.get(s.id);
+              if (!old || JSON.stringify(old) !== JSON.stringify(s)) {
+                saveStudent(currentUser.uid!, s);
+              }
+            });
+            const newStudentsIds = new Set(newData.students.map(s => s.id));
+            prev.students.forEach(s => {
+              if (!newStudentsIds.has(s.id)) {
+                import('./services/firebase').then(f => f.deleteStudent(currentUser.uid!, s.id));
+              }
+            });
+
+            // 2. Sync Daily Notes
+            const changedNotes = Object.keys(newData.dailyNotes || {}).filter(date => 
+              newData.dailyNotes![date] !== prev.dailyNotes?.[date]
+            );
+            changedNotes.forEach(date => saveDailyNote(currentUser.uid!, date, newData.dailyNotes![date]));
+
+            // 3. Sync Habit Completions
+            const changedHabitDates = Object.keys(newData.habitCompletions || {}).filter(date => 
+              JSON.stringify(newData.habitCompletions![date]) !== JSON.stringify(prev.habitCompletions?.[date])
+            );
+            changedHabitDates.forEach(date => saveHabitCompletionBulk(currentUser.uid!, date, newData.habitCompletions![date]));
+
+            // 4. Generic sync for settings
+            saveData(currentUser.uid!, newData);
+          });
+        }
         
-        // Updates/Creations
-        const changedDpss = (newData.dpssTopics || []).filter(t => {
-           const old = (oldData.dpssTopics || []).find(ot => ot.id === t.id);
-           return !old || JSON.stringify(old) !== JSON.stringify(t);
-        });
-        for(const t of changedDpss) await saveTopic(currentUser.uid, t, 'dpss');
-
-        // Same for Self-Learning
-        const oldSlIds = new Set((oldData.selfLearningTopics || []).map(t => t.id));
-        const newSlIds = new Set((newData.selfLearningTopics || []).map(t => t.id));
-        const deletedSl = (oldData.selfLearningTopics || []).filter(t => !newSlIds.has(t.id));
-        for(const t of deletedSl) await deleteTopic(currentUser.uid, t.id, 'selfLearning');
-        const changedSl = (newData.selfLearningTopics || []).filter(t => {
-           const old = (oldData.selfLearningTopics || []).find(ot => ot.id === t.id);
-           return !old || JSON.stringify(old) !== JSON.stringify(t);
-        });
-        for(const t of changedSl) await saveTopic(currentUser.uid, t, 'selfLearning');
-
-        // 2. Sync Attendance changes
-        const changedAttendanceDates = Object.keys(newData.attendance || {}).filter(date => 
-          JSON.stringify(newData.attendance[date]) !== JSON.stringify(oldData.attendance?.[date])
-        );
-        if (changedAttendanceDates.length > 0) {
-          const { saveAttendance } = await import('./services/firebase');
-          for (const date of changedAttendanceDates) {
-            await saveAttendance(currentUser.uid, date, newData.attendance[date]);
-          }
-        }
-
-        // 4. Sync Daily Notes
-        const changedNotes = Object.keys(newData.dailyNotes || {}).filter(date => 
-          newData.dailyNotes[date] !== oldData.dailyNotes?.[date]
-        );
-        if (changedNotes.length > 0) {
-          const { saveDailyNote } = await import('./services/firebase');
-          for (const date of changedNotes) {
-            await saveDailyNote(currentUser.uid, date, newData.dailyNotes[date]);
-          }
-        }
-
-        // 5. Sync Habit Completions
-        const changedHabitDates = Object.keys(newData.habitCompletions || {}).filter(date => 
-          JSON.stringify(newData.habitCompletions[date]) !== JSON.stringify(oldData.habitCompletions?.[date])
-        );
-        if (changedHabitDates.length > 0) {
-          const { saveHabitCompletionBulk } = await import('./services/firebase');
-          for (const date of changedHabitDates) {
-            await saveHabitCompletionBulk(currentUser.uid, date, newData.habitCompletions[date]);
-          }
-        }
-
-        // 6. Generic sync for settings and other root fields
-        saveData(currentUser.uid, newData);
-      }
+        return newData;
+      });
   };
 
   const handleUpdateStudent = async (id: string, updates: Partial<Student>) => {
-    const updatedStudents = data.students.map(s => s.id === id ? { ...s, ...updates } : s);
-    const newData = { ...data, students: updatedStudents };
+    setData(prev => {
+      const updatedStudents = prev.students.map(s => s.id === id ? { ...s, ...updates } : s);
+      const newData = { ...prev, students: updatedStudents };
+      storage.setItem('dps_data', JSON.stringify(newData));
+      
+      if (currentUser?.uid) {
+        import('./services/firebase').then(({ saveStudent }) => {
+          const student = updatedStudents.find(s => s.id === id);
+          if (student) saveStudent(currentUser.uid, student);
+        });
+      }
+      return newData;
+    });
     
-    // Update local state and history
     setHistory(prev => [...prev.slice(-19), data]);
     setRedoStack([]);
-    setData(newData);
-    storage.setItem('dps_data', JSON.stringify(newData));
-
-    // Save specifically to the student document in Firestore
-    if (currentUser?.uid) {
-      const { saveStudent } = await import('./services/firebase');
-      const student = updatedStudents.find(s => s.id === id);
-      if (student) saveStudent(currentUser.uid, student);
-    }
   };
 
   const handleUpdateTopic = async (updatedTopics: any[], topicToSave?: any, category: 'dpss' | 'selfLearning' = 'dpss') => {
-    const newData = category === 'dpss' ? { ...data, dpssTopics: updatedTopics } : { ...data, selfLearningTopics: updatedTopics };
-    
-    setData(newData);
-    storage.setItem('dps_data', JSON.stringify(newData));
+    setData(prev => {
+      const newData = category === 'dpss' ? { ...prev, dpssTopics: updatedTopics } : { ...prev, selfLearningTopics: updatedTopics };
+      storage.setItem('dps_data', JSON.stringify(newData));
 
-    if (currentUser?.uid) {
-      const { saveTopic, deleteTopic } = await import('./services/firebase');
-      if (topicToSave) {
-        if (topicToSave.deleted && !topicToSave.deletedAt) { // Actually delete if physical delete is desired, or just update the flag
-           await deleteTopic(currentUser.uid, topicToSave.id, category);
-        } else {
-           await saveTopic(currentUser.uid, topicToSave, category);
-        }
-      } else {
-        // Backup: if no topicToSave, we might want to iterate and save all root topics
-        // but that's expensive. However, for a newly added root topic, it's necessary.
-        // We'll rely on the components to pass topicToSave.
+      if (currentUser?.uid) {
+        import('./services/firebase').then(({ saveTopic, deleteTopic }) => {
+          if (topicToSave) {
+            if (topicToSave.deleted && !topicToSave.deletedAt) {
+               deleteTopic(currentUser.uid, topicToSave.id, category);
+            } else {
+               saveTopic(currentUser.uid, topicToSave, category);
+            }
+          }
+        });
       }
-    }
+      return newData;
+    });
   };
 
   const handleUpdateDailyNote = async (date: string, content: string) => {
-    const newDailyNotes = { ...(data.dailyNotes || {}), [date]: content };
-    const newData = { ...data, dailyNotes: newDailyNotes };
-    
-    setData(newData);
-    storage.setItem('dps_data', JSON.stringify(newData));
+    setData(prev => {
+      const newDailyNotes = { ...(prev.dailyNotes || {}), [date]: content };
+      const newData = { ...prev, dailyNotes: newDailyNotes };
+      storage.setItem('dps_data', JSON.stringify(newData));
 
-    if (currentUser?.uid) {
-      const { saveDailyNote } = await import('./services/firebase');
-      await saveDailyNote(currentUser.uid, date, content);
-    }
+      if (currentUser?.uid) {
+        import('./services/firebase').then(({ saveDailyNote }) => {
+          saveDailyNote(currentUser.uid, date, content);
+        });
+      }
+      return newData;
+    });
   };
 
   const handleUpdateJournalEntry = async (date: string, entry: JournalEntry) => {
-    const newJournalEntries = { ...(data.journalEntries || {}), [date]: entry };
-    const newData = { ...data, journalEntries: newJournalEntries };
-    
-    setData(newData);
-    storage.setItem('dps_data', JSON.stringify(newData));
+    setData(prev => {
+      const newJournalEntries = { ...(prev.journalEntries || {}), [date]: entry };
+      const newData = { ...prev, journalEntries: newJournalEntries };
+      storage.setItem('dps_data', JSON.stringify(newData));
 
-    if (currentUser?.uid) {
-      const { saveJournalEntry } = await import('./services/firebase');
-      await saveJournalEntry(currentUser.uid, date, entry);
-    }
+      if (currentUser?.uid) {
+        import('./services/firebase').then(({ saveJournalEntry }) => {
+          saveJournalEntry(currentUser.uid, date, entry);
+        });
+      }
+      return newData;
+    });
   };
 
   const handleUpdateHabitCompletion = async (date: string, habitId: string, completed: boolean | number) => {
-    const completions = data.habitCompletions || {};
-    const dayCompletions = { ...(completions[date] || {}), [habitId]: completed };
-    const newCompletions = { ...completions, [date]: dayCompletions };
-    const newData = { ...data, habitCompletions: newCompletions };
-    
-    setData(newData);
-    storage.setItem('dps_data', JSON.stringify(newData));
+    setData(prev => {
+      const completions = prev.habitCompletions || {};
+      const dayCompletions = { ...(completions[date] || {}), [habitId]: completed };
+      const newCompletions = { ...completions, [date]: dayCompletions };
+      const newData = { ...prev, habitCompletions: newCompletions };
+      storage.setItem('dps_data', JSON.stringify(newData));
 
-    if (currentUser?.uid) {
-      const { saveHabitCompletion } = await import('./services/firebase');
-      await saveHabitCompletion(currentUser.uid, date, habitId, completed);
-    }
+      if (currentUser?.uid) {
+        import('./services/firebase').then(({ saveHabitCompletion }) => {
+          saveHabitCompletion(currentUser.uid, date, habitId, completed);
+        });
+      }
+      return newData;
+    });
   };
 
   const handleUpdateExpense = async (expense: ExpenseEntry, isDelete: boolean = false) => {
@@ -537,35 +492,38 @@ const App: React.FC = () => {
   }, [history, redoStack, data]);
 
   const handleAddStudent = async (parsedData?: Partial<Student> | Partial<Student>[]) => {
-    const incomingData = Array.isArray(parsedData) ? parsedData : (parsedData ? [parsedData] : [{}]);
-    const newStudentsBatch = incomingData.map((s, index) => {
-        const today = new Date();
-        
-        let determinedCategory: StudentCategory = 'Reminder';
-        
-        return {
-          id: uuidv4(),
-          name: '',
-          category: determinedCategory,
-          order: data.students.length + index,
-          isHidden: false,
-          parentContact: false,
-          headTeacher: false,
-          startDate: s.startDate || format(today, 'dd/MM/yyyy'),
-          deadline: s.deadline || format(addMonths(today, 1), 'dd/MM/yyyy'),
-          ...s
-        } as Student;
-    });
-    
-    const newData = { ...data, students: [...newStudentsBatch, ...data.students] };
-    handleUpdate(newData);
+    setData(prev => {
+      const incomingData = Array.isArray(parsedData) ? parsedData : (parsedData ? [parsedData] : [{}]);
+      const newStudentsBatch = incomingData.map((s, index) => {
+          const today = new Date();
+          let determinedCategory: StudentCategory = 'Reminder';
+          
+          return {
+            id: uuidv4(),
+            name: '',
+            category: determinedCategory,
+            order: prev.students.length + index,
+            isHidden: false,
+            parentContact: false,
+            headTeacher: false,
+            startDate: s.startDate || format(today, 'dd/MM/yyyy'),
+            deadline: s.deadline || format(addMonths(today, 1), 'dd/MM/yyyy'),
+            ...s
+          } as Student;
+      });
+      
+      const newData = { ...prev, students: [...newStudentsBatch, ...prev.students] };
+      storage.setItem('dps_data', JSON.stringify(newData));
 
-    if (currentUser?.uid) {
-      const { saveStudent } = await import('./services/firebase');
-      for (const student of newStudentsBatch) {
-        await saveStudent(currentUser.uid, student);
+      if (currentUser?.uid) {
+        import('./services/firebase').then(({ saveStudent }) => {
+          for (const student of newStudentsBatch) {
+            saveStudent(currentUser.uid!, student);
+          }
+        });
       }
-    }
+      return newData;
+    });
   };
 
   const handleLogin = async (_name: string, role: UserRole, _pin: string) => {
