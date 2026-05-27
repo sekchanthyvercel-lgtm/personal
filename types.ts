@@ -59,6 +59,7 @@ export interface AppSettings {
   paperStyle?: string;
   dopamineFast?: any;
   dopamineFastsHistory?: any[];
+  weeklyAIInsight?: Record<string, string>;
 }
 
 export interface ModuleLocks {

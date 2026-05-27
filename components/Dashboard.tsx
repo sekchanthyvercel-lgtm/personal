@@ -2,7 +2,8 @@ import React, { useMemo } from 'react';
 import { AppData } from '../types';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
-  LineChart, Line, PieChart, Pie, Cell, AreaChart, Area 
+  LineChart, Line, PieChart, Pie, Cell, AreaChart, Area,
+  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar
 } from 'recharts';
 import { format, subDays, eachDayOfInterval, isSameDay, parseISO, isValid, startOfWeek } from 'date-fns';
 import { TrendingUp, TrendingDown, Activity, Wallet, Target, Sparkles, Brain, ArrowUpRight, Download } from 'lucide-react';
@@ -182,6 +183,45 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
       };
     });
   }, [data.habitCompletions, data.habits]);
+
+  const radarHabitData = useMemo(() => {
+    const habits = data.habits || [];
+    const completions = data.habitCompletions || {};
+    const last7Days = Array.from({ length: 7 }, (_, i) => {
+      return format(subDays(new Date(), i), 'yyyy-MM-dd');
+    });
+
+    const list = habits.map(habit => {
+      let completedCount = 0;
+      last7Days.forEach(dateKey => {
+        const comp = completions[dateKey]?.[habit.id];
+        if (comp !== undefined && comp !== null) {
+          const isCompleted = habit.isNumeric
+            ? (typeof comp === 'number' ? comp >= (habit.targetValue || 1) : !!comp)
+            : !!comp;
+          if (isCompleted) completedCount++;
+        }
+      });
+      const percent = Math.round((completedCount / 7) * 100);
+      return {
+        subject: habit.name.length > 12 ? habit.name.substring(0, 12) + '...' : habit.name,
+        Percentage: percent,
+        fullMark: 100
+      };
+    });
+
+    // If there are no habits, output a warm placeholder set of classic high-performance metrics
+    if (list.length === 0) {
+      return [
+        { subject: 'Focus block', Percentage: 75, fullMark: 100 },
+        { subject: 'Hydration', Percentage: 90, fullMark: 100 },
+        { subject: 'Slow Reading', Percentage: 60, fullMark: 100 },
+        { subject: 'Walk/Nature', Percentage: 80, fullMark: 100 },
+        { subject: 'Gratitude', Percentage: 85, fullMark: 100 },
+      ];
+    }
+    return list;
+  }, [data.habits, data.habitCompletions]);
 
   // 2. Expense Category Breakdown
   const expenseData = useMemo(() => {
@@ -384,6 +424,24 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
                 <Bar dataKey="completed" fill="#f59e0b" radius={[6, 6, 0, 0]} barSize={30} />
               </BarChart>
             </ResponsiveContainer>
+          </ChartContainer>
+
+          {/* Weekly Habit Trends (Balanced Growth Radar) */}
+          <ChartContainer title="Weekly Habit Trends (Balanced Growth)" icon={Activity} color="indigo">
+            <div className="space-y-4">
+              <p className="text-[11px] text-slate-500 font-bold uppercase tracking-wider pl-1">A high-density radar visualization mapping structured task symmetry and growth fields.</p>
+              <ResponsiveContainer width="100%" height={300}>
+                <RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarHabitData}>
+                  <PolarGrid stroke="#e2e8f0" />
+                  <PolarAngleAxis dataKey="subject" tick={{ fontSize: 9, fontWeight: 700, fill: '#64748b' }} />
+                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 8, fontWeight: 700, fill: '#94a3b8' }} />
+                  <Radar name="Completion %" dataKey="Percentage" stroke="#6366f1" fill="#6366f1" fillOpacity={0.3} />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontWeight: 'bold' }}
+                  />
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
           </ChartContainer>
 
           {/* Expense Breakdown */}

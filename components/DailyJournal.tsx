@@ -42,6 +42,10 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
   const [promptText, setPromptText] = useState<string>('');
   const [promptLoading, setPromptLoading] = useState<boolean>(false);
 
+  // AI Journal Insight States
+  const [weeklyInsightLoading, setWeeklyInsightLoading] = useState<boolean>(false);
+  const [weeklyInsightError, setWeeklyInsightError] = useState<string | null>(null);
+
   const generateDailyPrompt = async (force: boolean = false) => {
     if (promptLoading) return;
     
@@ -108,6 +112,91 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
       setPromptText("What is one small choice you can make today to increase your personal alignment and consistency?");
     } finally {
       setPromptLoading(false);
+    }
+  };
+
+  const generateWeeklyAIInsight = async () => {
+    setWeeklyInsightLoading(true);
+    setWeeklyInsightError(null);
+    try {
+      const start = startOfWeek(selectedDate, { weekStartsOn: 1 });
+      const end = endOfWeek(selectedDate, { weekStartsOn: 1 });
+      const days = eachDayOfInterval({ start, end });
+      const weekKey = format(start, 'yyyy-MM-dd');
+
+      const entriesList = days.map(day => {
+        const dateK = format(day, 'yyyy-MM-dd');
+        const entry = data.journalEntries?.[dateK];
+        if (!entry) return null;
+        return {
+          date: dateK,
+          achievements: entry.achievements?.filter(Boolean) || [],
+          affirmation: entry.affirmation || '',
+          gratitude: entry.gratitude || '',
+          feeling: entry.feeling || '',
+          appreciation: entry.appreciation || '',
+          learning: entry.learning || '',
+          inspiration: entry.inspiration || '',
+          discipline: entry.discipline || '',
+          energyRating: entry.energyRating,
+          focusRating: entry.focusRating,
+          productivityRating: entry.productivityRating,
+          stressRating: entry.stressRating
+        };
+      }).filter(Boolean);
+
+      if (entriesList.length === 0) {
+        setWeeklyInsightError("No daily reflections have been logged for this week yet. Please complete at least one reflection before running the AI analyzer.");
+        setWeeklyInsightLoading(false);
+        return;
+      }
+
+      const userPrompt = `You are a world-class high-performance coach and specialized analytical psychologist.
+Evaluate the following complete journal entries and reflect on ratings submitted by the user this week to detect recurring emotional patterns, focus trends, accomplishments, and hidden growth obstacles:
+
+${JSON.stringify(entriesList, null, 2)}
+
+Provide a deeply moving, direct, and practical weekly theme report. Structure it as a high-density dashboard summary with subheadings:
+1. **Recurring Mental & Emotional Themes**: Analyze emotional undertones, repeated thoughts, and focus patterns.
+2. **Key High-Performance Indicators**: Relate achievements to focus/energy ratings and suggest how to optimize focus blocks or restore vitality.
+3. **Proactive Self-Actualization Steps**: Provide 3 operational, highly direct checklist items they should act on next week.
+
+Keep the advice direct, mature, and completely focused on human performance. Avoid code blocks, boilerplate, or markdown wraps. Formulate it directly with elegant semantic design.`;
+
+      const response = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: userPrompt,
+          systemInstruction: 'You are an elite cognitive-behavioral coach and clinical psychologist. Return your themes report styled with clean spacing.',
+          model: 'gemini-3.5-flash'
+        })
+      });
+
+      if (response.ok) {
+        const resData = await response.json();
+        const text = resData.text || "Insight could not be compiled. Try again!";
+        
+        onUpdate({
+          ...data,
+          settings: {
+            ...data.settings,
+            fontSize: data.settings?.fontSize || 12,
+            fontFamily: data.settings?.fontFamily || "'Inter', sans-serif",
+            weeklyAIInsight: {
+              ...(data.settings?.weeklyAIInsight || {}),
+              [weekKey]: text
+            }
+          }
+        });
+      } else {
+        setWeeklyInsightError("The server was unable to generate the insight. Please check your internet connection.");
+      }
+    } catch (e: any) {
+      console.error(e);
+      setWeeklyInsightError("An error occurred while compiling your weekly themes: " + e.message);
+    } finally {
+      setWeeklyInsightLoading(false);
     }
   };
 
@@ -500,6 +589,64 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
               </motion.div>
             ) : reflectionMode === 'Weekly' ? (
               <motion.div key="weekly" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
+                  {/* AI Weekly Themes & Insights */}
+                  <motion.div 
+                    initial={{ opacity: 0, y: 15 }} 
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-pink-500/10 rounded-[32px] p-6 border border-purple-500/20 relative overflow-hidden backdrop-blur-md shadow-xl"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 border-b border-purple-500/15 pb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-3 bg-gradient-to-tr from-purple-600 to-indigo-600 text-white rounded-2xl shadow-lg shadow-purple-500/20">
+                          <Sparkles size={20} className={weeklyInsightLoading ? "animate-spin" : ""} />
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-black uppercase tracking-widest text-purple-600">AI Deep Coaching</span>
+                          <h2 className="text-xl font-black text-slate-800 dark:text-white tracking-tight italic uppercase mt-0.5">AI Weekly Journal Insights</h2>
+                        </div>
+                      </div>
+                      
+                      <button
+                        id="generate-weekly-themes-insight-btn"
+                        onClick={generateWeeklyAIInsight}
+                        disabled={weeklyInsightLoading}
+                        className="px-5 py-2.5 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white rounded-full font-black text-[10px] uppercase tracking-widest transition-all shadow-md shadow-purple-500/10 disabled:opacity-50 select-none hover:scale-105 active:scale-95"
+                      >
+                        {weeklyInsightLoading ? 'Analyzing...' : 'Generate Theme Insight'}
+                      </button>
+                    </div>
+
+                    {weeklyInsightError && (
+                      <div className="p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-xs font-bold leading-normal">
+                        ⚠️ {weeklyInsightError}
+                      </div>
+                    )}
+
+                    {weeklyInsightLoading && (
+                      <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
+                        <RefreshCw size={24} className="text-purple-600 animate-spin" />
+                        <span className="text-xs font-black uppercase tracking-wider text-purple-600/70">Scanning the week's inputs, achievements, and sentiment trends...</span>
+                      </div>
+                    )}
+
+                    {!weeklyInsightLoading && !weeklyInsightError && (
+                      <div>
+                        {data.settings?.weeklyAIInsight?.[format(startOfWeek(selectedDate, { weekStartsOn: 1 }), 'yyyy-MM-dd')] ? (
+                          <div className="text-slate-850 dark:text-slate-100 text-sm font-semibold space-y-4 prose prose-indigo max-w-none pt-2">
+                            {/* Format AI output nicely with white-space support */}
+                            <div className="whitespace-pre-line leading-relaxed tracking-wide bg-white/40 dark:bg-slate-900/40 p-5 rounded-2xl border border-slate-250/20">
+                              {data.settings?.weeklyAIInsight?.[format(startOfWeek(selectedDate, { weekStartsOn: 1 }), 'yyyy-MM-dd')]}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center py-8">
+                            <p className="text-xs text-slate-400 font-bold italic">No theme insight generated for this week yet. Click the button above to analyze patterns in your journal entries.</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </motion.div>
+
                   {/* Weekly Digest Autogenerated */}
                   <JournalBlock title="Weekly Digest (Auto-Generated)" icon={<Sparkles className="text-amber-500" size={20} />} bgColor={selectedPaper.className}>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">

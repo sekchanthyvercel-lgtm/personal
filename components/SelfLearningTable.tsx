@@ -20,7 +20,9 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
   const [showMoreTools, setShowMoreTools] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
-  const [isToolbarHidden, setIsToolbarHidden] = useState(false);
+  const [isToolbarHidden, setIsToolbarHidden] = useState(() => {
+    return localStorage.getItem('self_learning_toolbar_hidden') === 'true';
+  });
   const [pickerPos, setPickerPos] = useState<{ x: number, y: number } | null>(null);
   const [showAllTextColors, setShowAllTextColors] = useState(false);
   const [showAllHighlightColors, setShowAllHighlightColors] = useState(false);
@@ -29,8 +31,18 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
   const [isStudyPlanLoading, setIsStudyPlanLoading] = useState(false);
   const [isActionPlanLoading, setIsActionPlanLoading] = useState(false);
   const [showAIModal, setShowAIModal] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+    return localStorage.getItem('self_learning_sidebar_open') !== 'false';
+  });
   const [sidebarWidth, setSidebarWidth] = useState(window.innerWidth < 768 ? 200 : 300);
+
+  useEffect(() => {
+    localStorage.setItem('self_learning_toolbar_hidden', String(isToolbarHidden));
+  }, [isToolbarHidden]);
+
+  useEffect(() => {
+    localStorage.setItem('self_learning_sidebar_open', String(isSidebarOpen));
+  }, [isSidebarOpen]);
   const isResizing = useRef(false);
   const editorRef = useRef<HTMLDivElement>(null);
 
@@ -347,6 +359,15 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
   };
 
   const selectedTopic = selectedTopicId ? findTopic(topics, selectedTopicId) : null;
+
+  const isSelectedTopicPlan = useMemo(() => {
+    if (!selectedTopic) return false;
+    const title = selectedTopic.title.trim().toLowerCase();
+    return title.startsWith('🎯') || 
+           title.startsWith('⚡') || 
+           title.includes('study plan') || 
+           title.includes('action plan');
+  }, [selectedTopic]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -1022,25 +1043,29 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
             <Plus size={16} /> Add Topic
           </button>
           
-          <button 
-            onClick={generateStudyPlan}
-            disabled={isStudyPlanLoading || isActionPlanLoading || isAILoading}
-            className="w-full py-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-2xl text-[10px] font-black flex items-center justify-center gap-2 hover:from-indigo-600 hover:to-purple-600 shadow-xl shadow-indigo-500/20 active:scale-95 transition-all whitespace-nowrap disabled:opacity-50"
-            title={selectedTopic ? `Generate dynamic Study Plan for: ${selectedTopic.title}` : `Generate general Study Plan for all topics`}
-          >
-            {isStudyPlanLoading ? <Loader2 size={16} className="animate-spin" /> : <Wand2 size={16} />}
-            {selectedTopic ? `Study Plan: ${selectedTopic.title.replace(/^(🎯|⚡)\s*(Study Plan:|Action Plan:)\s*/i, '').substring(0, 15)}` : `Generate Study Plan`}
-          </button>
+          {!isSelectedTopicPlan && (
+            <>
+              <button 
+                onClick={generateStudyPlan}
+                disabled={isStudyPlanLoading || isActionPlanLoading || isAILoading}
+                className="w-full py-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-2xl text-[10px] font-black flex items-center justify-center gap-2 hover:from-indigo-600 hover:to-purple-600 shadow-xl shadow-indigo-500/20 active:scale-95 transition-all whitespace-nowrap disabled:opacity-50"
+                title={selectedTopic ? `Generate dynamic Study Plan for: ${selectedTopic.title}` : `Generate general Study Plan for all topics`}
+              >
+                {isStudyPlanLoading ? <Loader2 size={16} className="animate-spin" /> : <Wand2 size={16} />}
+                {selectedTopic ? `Study Plan: ${selectedTopic.title.replace(/^(🎯|⚡)\s*(Study Plan:|Action Plan:)\s*/i, '').substring(0, 15)}` : `Generate Study Plan`}
+              </button>
 
-          <button 
-            onClick={generateActionPlan}
-            disabled={isStudyPlanLoading || isActionPlanLoading || isAILoading}
-            className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-2xl text-[10px] font-black flex items-center justify-center gap-2 hover:from-orange-600 hover:to-amber-600 shadow-xl shadow-orange-500/20 active:scale-95 transition-all whitespace-nowrap disabled:opacity-50"
-            title={selectedTopic ? `Generate custom Action Plan for: ${selectedTopic.title}` : `Select a topic to generate Action Plan`}
-          >
-            {isActionPlanLoading ? <Loader2 size={16} className="animate-spin" /> : <Zap size={16} />}
-            {selectedTopic ? `Action Plan: ${selectedTopic.title.replace(/^(🎯|⚡)\s*(Study Plan:|Action Plan:)\s*/i, '').substring(0, 15)}` : `Generate Action Plan`}
-          </button>
+              <button 
+                onClick={generateActionPlan}
+                disabled={isStudyPlanLoading || isActionPlanLoading || isAILoading}
+                className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-2xl text-[10px] font-black flex items-center justify-center gap-2 hover:from-orange-600 hover:to-amber-600 shadow-xl shadow-orange-500/20 active:scale-95 transition-all whitespace-nowrap disabled:opacity-50"
+                title={selectedTopic ? `Generate custom Action Plan for: ${selectedTopic.title}` : `Select a topic to generate Action Plan`}
+              >
+                {isActionPlanLoading ? <Loader2 size={16} className="animate-spin" /> : <Zap size={16} />}
+                {selectedTopic ? `Action Plan: ${selectedTopic.title.replace(/^(🎯|⚡)\s*(Study Plan:|Action Plan:)\s*/i, '').substring(0, 15)}` : `Generate Action Plan`}
+              </button>
+            </>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto pr-2 space-y-1 custom-scrollbar">

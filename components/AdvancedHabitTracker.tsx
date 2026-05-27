@@ -61,6 +61,12 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
   const [newFastRef, setNewFastRef] = useState('');
   const [previewName, setPreviewName] = useState('Self');
 
+  // Dopamine Fast Scheduler States
+  const [schedulerTab, setSchedulerTab] = useState<'presets' | 'custom'>('presets');
+  const [schedStartDate, setSchedStartDate] = useState(format(addDays(new Date(), 1), 'yyyy-MM-dd'));
+  const [schedEndDate, setSchedEndDate] = useState(format(addDays(new Date(), 4), 'yyyy-MM-dd'));
+  const [isGeneratingFastingPrompts, setIsGeneratingFastingPrompts] = useState(false);
+
   // Dopamine Fast reset history and completion states
   const [isCompletingFast, setIsCompletingFast] = useState(false);
   const [finalReflectionText, setFinalReflectionText] = useState('');
@@ -298,6 +304,12 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
     reflections: [] as { date: string; content: string }[]
   };
 
+  const todayKeyStr = format(new Date(), 'yyyy-MM-dd');
+  const activePrompt = useMemo(() => {
+    if (!fastingState.isActive || !fastingState.prompts) return null;
+    return fastingState.prompts.find((p: any) => p.date === todayKeyStr);
+  }, [fastingState, todayKeyStr]);
+
   const handlePrevWeek = () => {
     setSelectedDate(subDays(selectedDate, 7));
   };
@@ -525,6 +537,103 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
     const rawTilt = (diff / maxScore) * 25; // tilt up to 25 degrees
     return Math.min(Math.max(rawTilt, -25), 25);
   }, [balanceSums]);
+
+  // Start Dopamine Reset Fast from Scheduling Flow
+  const handleStartScheduledFast = async () => {
+    const daysBetween = (d1: string, d2: string) => {
+      const date1 = new Date(d1);
+      const date2 = new Date(d2);
+      const diffTime = Math.abs(date2.getTime() - date1.getTime());
+      return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
+    };
+
+    const daysLeadUp = daysBetween(format(new Date(), 'yyyy-MM-dd'), schedStartDate);
+    const durationDays = daysBetween(schedStartDate, schedEndDate) + 1; // inclusive
+
+    setIsGeneratingFastingPrompts(true);
+    let parsedPrompts = [];
+    try {
+      const systemInstruction = 'You are an elite cognitive-behavioral coach, neuroscientist, and clinical psychologist specialising in dopamine detox and brain receptor purification. Your task is to output a single JSON array with absolutely no markdown wrapping, tick marks, or lead text context. Starting with [ and ending with ].';
+      const userPrompt = `I am scheduling a Dopamine Fast.
+Start Date: ${schedStartDate}
+End Date: ${schedEndDate}
+Today is: ${format(new Date(), 'yyyy-MM-dd')}
+
+Please generate standard daily motivational focus prompts for this sequence.
+Generate exactly 1 prompt item per date:
+- For dates in the preparation/lead-up stage (from today ${format(new Date(), 'yyyy-MM-dd')} until the day before the fast starts). Content focuses on digital cleaning, grouping sensory hooks, and preparing papers / offline activities.
+- For dates during the fast (from ${schedStartDate} to ${schedEndDate}). Content focuses on handling boredom, dealing with dopamine withdrawal cravings, focus endurance, and slow reading.
+
+Format output strictly as a single JSON array (no markdown backticks, no comments, just the raw valid array):
+Array<{ date: string, stage: 'lead-up' | 'during', content: string }>
+date format must be 'yyyy-MM-dd'.`;
+
+      const response = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: userPrompt,
+          systemInstruction,
+          model: 'gemini-3.5-flash'
+        })
+      });
+
+      if (response.ok) {
+        const resData = await response.json();
+        const jsonText = resData.text?.replace(/```json|```/g, '').trim() || '[]';
+        try {
+          parsedPrompts = JSON.parse(jsonText);
+        } catch (err) {
+          console.error("Fasting prompt JSON parse error, falling back", err);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsGeneratingFastingPrompts(false);
+    }
+
+    // Programmatic backup generator if empty or error
+    if (!parsedPrompts || parsedPrompts.length === 0) {
+      const backup = [];
+      // Today lead up
+      backup.push({
+        date: format(new Date(), 'yyyy-MM-dd'),
+        stage: 'lead-up',
+        content: 'Preparation mode active: Declutter your home screen, group sensory triggers, and announce your digital detox boundary to a close friend.'
+      });
+      // Fasting days
+      let cur = new Date(schedStartDate);
+      const endD = new Date(schedEndDate);
+      let safety = 50;
+      while (cur <= endD && safety > 0) {
+        safety--;
+        const curStr = format(cur, 'yyyy-MM-dd');
+        backup.push({
+          date: curStr,
+          stage: 'during',
+          content: 'Detox mode active: Lean fully into stillness. When Boredom peaks, observe it as your neuro-receptors rewiring and restoring deep-level focus capabilities.'
+        });
+        cur = addDays(cur, 1);
+      }
+      parsedPrompts = backup;
+    }
+
+    onUpdate({
+      ...data,
+      settings: {
+        ...data.settings,
+        dopamineFast: {
+          isActive: true,
+          startDate: schedStartDate,
+          endDate: schedEndDate,
+          durationDays: durationDays,
+          prompts: parsedPrompts,
+          reflections: []
+        }
+      }
+    });
+  };
 
   // Start Dopamine Reset Fast
   const handleStartResetFast = (days: number) => {
@@ -1628,26 +1737,80 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
 
             {!fastingState.isActive ? (
               <div className="space-y-4">
-                <p className="text-[11.5px] text-slate-600 font-medium leading-relaxed">
-                  Ready to lock your brain and clean out receptor fatigue? Select a detox time limit and embark on the reset protocol.
-                </p>
-
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { label: '24 Hours', days: 1 },
-                    { label: '3 Days', days: 3 },
-                    { label: '7 Days', days: 7 },
-                    { label: '30 Days', days: 30 }
-                  ].map((preset) => (
-                    <button
-                      key={preset.days}
-                      onClick={() => handleStartResetFast(preset.days)}
-                      className="py-3 bg-slate-50 border border-slate-200/50 hover:border-amber-300 hover:bg-[#fffbeb] rounded-2xl text-[10px] font-black uppercase text-[#1b254b] transition-all"
-                    >
-                      {preset.label}
-                    </button>
-                  ))}
+                {/* Mode Selector Toggle */}
+                <div className="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200/40">
+                  <button 
+                    onClick={() => setSchedulerTab('presets')}
+                    className={`flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${schedulerTab === 'presets' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                    ⚡ Presets
+                  </button>
+                  <button 
+                    onClick={() => setSchedulerTab('custom')}
+                    className={`flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${schedulerTab === 'custom' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                    📅 Scheduler
+                  </button>
                 </div>
+
+                {schedulerTab === 'presets' ? (
+                  <div className="space-y-4">
+                    <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
+                      Lock your brain and clean out receptor fatigue. Select a preset limit to quickly launch the reset protocol:
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 font-black">
+                      {[
+                        { label: '24 Hours', days: 1 },
+                        { label: '3 Days', days: 3 },
+                        { label: '7 Days', days: 7 },
+                        { label: '30 Days', days: 30 }
+                      ].map((preset) => (
+                        <button
+                          key={preset.days}
+                          onClick={() => handleStartResetFast(preset.days)}
+                          className="py-3 bg-slate-50 border border-slate-200/50 hover:border-amber-300 hover:bg-[#fffbeb] rounded-2xl text-[10px] uppercase text-[#1b254b] transition-all"
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3 pt-1">
+                    <p className="text-[11px] text-slate-505 font-semibold leading-relaxed">
+                      Pick any custom start and end dates. Gemini will generate standard focus prompts leading up to and during your deep fast:
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[8px] font-black uppercase tracking-widest text-slate-400 mb-1">Start Date</label>
+                        <input 
+                          type="date"
+                          value={schedStartDate}
+                          onChange={(e) => setSchedStartDate(e.target.value)}
+                          className="w-full bg-slate-50 text-slate-800 text-xs font-bold p-2.5 rounded-xl border border-slate-200 outline-none focus:border-amber-400 focus:bg-white transition-all"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[8px] font-black uppercase tracking-widest text-slate-400 mb-1">End Date</label>
+                        <input 
+                          type="date"
+                          value={schedEndDate}
+                          onChange={(e) => setSchedEndDate(e.target.value)}
+                          className="w-full bg-slate-50 text-slate-800 text-xs font-bold p-2.5 rounded-xl border border-slate-200 outline-none focus:border-amber-400 focus:bg-white transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      id="launch-scheduled-fast-btn"
+                      onClick={handleStartScheduledFast}
+                      disabled={isGeneratingFastingPrompts || !schedStartDate || !schedEndDate}
+                      className="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-md shadow-amber-500/10 disabled:opacity-50 select-none"
+                    >
+                      {isGeneratingFastingPrompts ? 'Generating AI Coach Prompts...' : 'Schedule & Generate Prompts'}
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="space-y-4">
@@ -1690,12 +1853,50 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
 
                 {activeFastingTab === 'tracker' ? (
                   <div className="space-y-3 pt-2">
-                    <p className="text-[11px] text-slate-505 font-medium leading-normal">
-                      🛡️ <strong className="text-amber-950 uppercase">Prohibited Inputs during Detox:</strong> Quick gratification videos, adult feeds, gaming apps, gambling logs, binge scrolling formats.
+                    {/* Active Coaching prompt */}
+                    {activePrompt && (
+                      <div className="p-3.5 bg-gradient-to-tr from-amber-500/10 via-yellow-500/5 to-amber-600/10 rounded-2xl border border-amber-500/20 shadow-sm relative overflow-hidden">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <Sparkles size={12} className="text-amber-600 animate-pulse" />
+                          <span className="text-[9px] font-extrabold uppercase text-amber-700 tracking-wider">
+                            Daily Coach Prompt ({activePrompt.stage === 'lead-up' ? 'Preparation' : 'Active Fast'})
+                          </span>
+                        </div>
+                        <p className="text-xs font-bold text-slate-800 leading-normal italic select-all">
+                          "{activePrompt.content || activePrompt.prompt}"
+                        </p>
+                      </div>
+                    )}
+
+                    <p className="text-[11px] text-slate-500 font-medium leading-normal">
+                      🛡️ <strong className="text-amber-950 uppercase text-[9px]">Prohibited Inputs:</strong> Quick gratification videos, adult feeds, gaming apps, gambling logs, binge scrolling formats.
                     </p>
-                    <p className="text-[11px] text-slate-505 font-medium leading-normal">
-                      🔥 <strong className="text-amber-950 uppercase">Recommended Habits during Detox:</strong> Solid paper books, slow writing, tidying archives, cold nature showers, long endurance walks.
+                    <p className="text-[11px] text-slate-500 font-medium leading-normal">
+                      🔥 <strong className="text-amber-950 uppercase text-[9px]">Recommended Habits:</strong> Solid paper books, slow writing, tidying archives, cold nature showers, long endurance walks.
                     </p>
+
+                    {/* Timeline representation list */}
+                    {fastingState.prompts && fastingState.prompts.length > 0 && (
+                      <div className="border-t border-dashed border-slate-200/60 pt-3">
+                        <span className="text-[8px] font-black uppercase text-slate-400 tracking-wider block mb-2">📅 SCHEDULE TIMELINE PROMPTS</span>
+                        <div className="space-y-1.5 max-h-[140px] overflow-y-auto no-scrollbar">
+                          {fastingState.prompts.map((p: any, idx: number) => {
+                            const isTodayPrompt = p.date === todayKeyStr;
+                            return (
+                              <div key={idx} className={`p-2 rounded-xl border text-[10px] transition-all ${isTodayPrompt ? 'bg-amber-50 border-amber-300 shadow-sm' : 'bg-slate-50/50 border-slate-100'}`}>
+                                <div className="flex items-center justify-between mb-0.5">
+                                  <span className="font-extrabold text-[9px] text-[#1b254b]">Day {idx+1}: {p.date}</span>
+                                  <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded-full ${p.stage === 'lead-up' ? 'bg-teal-55 text-teal-700' : 'bg-amber-500 text-white'}`}>
+                                    {p.stage === 'lead-up' ? 'Prep' : 'Fast'}
+                                  </span>
+                                </div>
+                                <p className="text-[10px] font-medium text-slate-700 leading-snug italic">{p.content || p.prompt}</p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
 
                     <div className="flex gap-2 pt-2">
                       <button 
