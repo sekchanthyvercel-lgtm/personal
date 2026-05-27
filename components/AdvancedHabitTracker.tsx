@@ -2133,8 +2133,8 @@ date format must be 'yyyy-MM-dd'.`;
           </div>
         ) : (
           <>
-            {/* Desktop Table View (Strictly 7 columns) */}
-            <div className="hidden md:block overflow-x-auto">
+            {/* Records Table */}
+            <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-slate-200 text-[10px] font-black uppercase text-slate-400 tracking-wider">

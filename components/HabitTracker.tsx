@@ -363,7 +363,7 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
                       if (onUpdateDailyNote) {
                         onUpdateDailyNote(dateKey, val);
                       } else {
-                        onUpdate({ ...data, dailyNotes: { ...(data.dailyNotes || {}), [dateKey]: val } });
+                        onUpdate((prev: AppData) => ({ ...prev, dailyNotes: { ...(prev.dailyNotes || {}), [dateKey]: val } }));
                       }
                     }}
                     className="w-full h-24 bg-white rounded-2xl p-4 text-slate-800 font-bold text-lg outline-none border border-slate-200 focus:border-orange-500 transition-all placeholder:text-slate-400 overflow-y-auto overflow-x-hidden shadow-inner block"
@@ -536,11 +536,11 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
                           let safeVal = notes[dateKey] || ''; 
                           if (typeof safeVal !== 'string' || safeVal === '[object Object]') safeVal = ''; 
                           const newNote = safeVal + html; 
-                          if (onUpdateDailyNote) { 
-                            onUpdateDailyNote(dateKey, newNote); 
-                          } else { 
-                            onUpdate({ ...data, dailyNotes: { ...(data.dailyNotes || {}), [dateKey]: newNote } }); 
-                          } 
+                                  if (onUpdateDailyNote) { 
+                                    onUpdateDailyNote(dateKey, newNote); 
+                                  } else { 
+                                    onUpdate((prev: AppData) => ({ ...prev, dailyNotes: { ...(prev.dailyNotes || {}), [dateKey]: newNote } })); 
+                                  } 
                         }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button>
                       </h3>
                       <p className="text-[8px] font-black text-orange-500 uppercase tracking-widest leading-none">{format(selectedPlanningDate, 'MMMM do, yyyy')}</p>
@@ -593,12 +593,12 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
       </div>
 
       <div className={`w-full bg-white/5 backdrop-blur-3xl border border-white/10 rounded-[32px] shadow-2xl overflow-hidden mt-6 flex flex-col ${isFullScreen ? 'hidden' : ''}`}>
-        <div ref={tableContainerRef} className="overflow-x-auto custom-scrollbar-orange relative">
-          <table className="w-full border-collapse">
+        <div ref={tableContainerRef} className="overflow-x-auto relative scroll-smooth custom-scrollbar-orange">
+          <table className="w-full border-collapse md:table-auto">
             <thead>
               <tr className="bg-slate-900/5 text-slate-900 backdrop-blur-md">
-                <th className="sticky left-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl p-6 md:p-8 text-left border-b border-slate-200/50 w-64 md:w-72 min-w-[240px] md:min-w-[288px] shadow-[2px_0_10px_rgba(0,0,0,0.08)]">
-                  <span className="text-[10px] font-black uppercase tracking-[4px] text-orange-600">Mastery Disciplines</span>
+                <th className="sticky left-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl p-4 md:p-8 text-left border-b border-slate-200/50 w-[140px] md:w-72 min-w-[140px] md:min-w-[240px] shadow-[2px_0_10px_rgba(0,0,0,0.08)]">
+                  <span className="text-[8px] md:text-[10px] font-black uppercase tracking-[2px] md:tracking-[4px] text-orange-600">Mastery Disciplines</span>
                 </th>
                 {daysInMonth.map(day => (
                   <th key={day.toString()} className={`p-4 md:p-6 border-b border-slate-200/50 min-w-[60px] md:min-w-[72px] text-center ${isToday(day) ? 'bg-orange-500 text-white font-black shadow-lg shadow-orange-500/30 rounded-b-2xl today-cell' : 'hover:bg-slate-100/50 transition-colors'}`}>
@@ -613,17 +613,19 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
                 const streak = getStreak(habit.id);
                 return (
                  <tr key={habit.id} className="group hover:bg-black/5 transition-colors">
-                    <td className="sticky left-0 z-10 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl p-6 border-b border-black/10 min-w-[240px] md:min-w-[288px] shadow-[2px_0_10px_rgba(0,0,0,0.05)]">
-                     <div className="flex items-center justify-between gap-4">
-                       <div className="flex flex-col gap-1 min-w-0">
+                    <td className="sticky left-0 z-10 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl p-4 md:p-6 border-b border-black/10 w-[140px] md:w-72 min-w-[140px] md:min-w-[240px] shadow-[2px_0_10px_rgba(0,0,0,0.05)]">
+                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-4">
+                       <div className="flex flex-col gap-1 min-w-0 overflow-hidden">
                          <RichTextDiv 
                            tagName="span"
                            className="text-sm font-black text-black uppercase tracking-tight" 
                            style={{ color: habit.color || 'black' }}
                            value={habit.name}
                            onChange={(val) => {
-                             const newHabits = data.habits.map(h => h.id === habit.id ? { ...h, name: val } : h);
-                             onUpdate({ ...data, habits: newHabits });
+                             onUpdate((prev: AppData) => ({
+                               ...prev,
+                               habits: (prev.habits || []).map(h => h.id === habit.id ? { ...h, name: val } : h)
+                             }));
                            }}
                          />
                          {streak > 0 && (
@@ -796,12 +798,12 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6 bg-slate-900/60 backdrop-blur-md overflow-y-auto"
+            className="fixed inset-0 z-[150] bg-slate-900/60 backdrop-blur-md flex items-start justify-center p-4 md:p-6 overflow-y-auto"
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
-              className="bg-white w-full max-w-md rounded-[32px] p-6 md:p-10 shadow-2xl my-auto"
+              className="bg-white w-full max-w-md rounded-[32px] p-6 md:p-10 shadow-2xl my-auto md:my-16"
             >
               <h3 className="text-2xl font-black text-slate-900 mb-6 uppercase tracking-tight">New Mastery Habit</h3>
               
@@ -888,10 +890,10 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-50 select-none overflow-hidden"
+            className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-start justify-center p-4 z-[200] select-none overflow-y-auto"
           >
             {/* Visual Confetti / Glitter elements */}
-            <div className="absolute inset-0 pointer-events-none opacity-30">
+            <div className="absolute inset-0 pointer-events-none opacity-30 overflow-hidden">
               <div className="absolute w-[500px] h-[500px] bg-orange-500/10 rounded-full filter blur-3xl animate-pulse top-0 left-10"></div>
               <div className="absolute w-[600px] h-[600px] bg-emerald-500/10 rounded-full filter blur-3xl animate-pulse bottom-0 right-10"></div>
             </div>
@@ -901,7 +903,7 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
               animate={{ scale: 1, y: 0, rotate: 0 }}
               exit={{ scale: 0.85, y: 50, rotate: 2 }}
               transition={{ type: "spring", damping: 15 }}
-              className="bg-white rounded-[40px] border border-slate-200 p-8 md:p-12 shadow-2xl max-w-lg w-full text-center relative overflow-hidden"
+              className="bg-white rounded-[40px] border border-slate-200 p-8 md:p-12 shadow-2xl max-w-lg w-full text-center relative overflow-hidden my-auto md:my-16"
             >
               <div className="absolute top-0 left-0 w-full h-3" style={{ backgroundColor: milestoneCelebration.color }}></div>
               
