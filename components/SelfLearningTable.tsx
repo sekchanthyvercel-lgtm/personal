@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Plus, Trash2, Calendar, AlignLeft, AlignCenter, AlignRight, Highlighter, MousePointer2, Minus, Layout, Square, Quote, Settings2, FileUp, FileDown, Image as ImageIcon, Video, Music, FileText, Loader2, Wand2, Menu, ChevronLeft, GraduationCap, ChevronRight, Table, Grid3X3, Columns, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Palette, Italic, Underline, Strikethrough, Indent, Outdent, List, ListOrdered, CheckSquare, ChevronDown, MoreHorizontal, Download, Maximize2, Minimize2 } from 'lucide-react';
+import { Zap, Plus, Trash2, Calendar, AlignLeft, AlignCenter, AlignRight, Highlighter, MousePointer2, Minus, Layout, Square, Quote, Settings2, FileUp, FileDown, Image as ImageIcon, Video, Music, FileText, Loader2, Wand2, Menu, ChevronLeft, GraduationCap, ChevronRight, Table, Grid3X3, Columns, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Palette, Italic, Underline, Strikethrough, Indent, Outdent, List, ListOrdered, CheckSquare, ChevronDown, MoreHorizontal, Download, Maximize2, Minimize2 } from 'lucide-react';
 import { AppData, DPSSTopic } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { callNeuralEngine } from '../services/neuralEngine';
@@ -848,17 +848,28 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
   const generateStudyPlan = async () => {
     if (isAILoading) return;
     
-    // gather all topics
-    const topicTitles = topics.map(t => t.title).join(', ');
-    if (!topicTitles) {
-      alert("Please add some self-learning topics first.");
-      return;
+    let prompt = '';
+    let newTopicTitle = '';
+    
+    if (selectedTopic) {
+      prompt = `Generate a dedicated, highly structured Study Plan focusing exclusively on learning the topic: "${selectedTopic.title}". 
+      Break it down into progressive learning modules, key concepts to master, practical exercises, and reflection questions. 
+      Use professional HTML formatting with clear headings, bold font styles, lists, and tables. 
+      Do NOT wrap in markdown code blocks like \`\`\`html, just output the raw HTML directly.`;
+      newTopicTitle = `🎯 Study Plan: ${selectedTopic.title}`;
+    } else {
+      // gather all topics
+      const topicTitles = topics.map(t => t.title).join(', ');
+      if (!topicTitles) {
+        alert("Please add some self-learning topics first.");
+        return;
+      }
+      prompt = `Analyze my current self-learning topics: [${topicTitles}]. Generate a 4-week structured study plan with clear milestones and suggested daily tasks to help me master these topics. Use professional HTML formatting, using tables for weekly breakdowns, bullet points for daily tasks, and clear headings. Do NOT include any markdown code wrappers (like \`\`\`html) in your output, just the raw HTML.`;
+      newTopicTitle = '🎯 4-Week Study Plan';
     }
 
     setIsAILoading(true);
     try {
-      const prompt = `Analyze my current self-learning topics: [${topicTitles}]. Generate a 4-week structured study plan with clear milestones and suggested daily tasks to help me master these topics. Use professional HTML formatting, using tables for weekly breakdowns, bullet points for daily tasks, and clear headings. Do NOT include any markdown code wrappers (like \`\`\`html) in your output, just the raw HTML.`;
-
       const result = await callNeuralEngine(
         'gemini-3-flash-preview',
         prompt,
@@ -871,15 +882,100 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
       // create new topic
       const newTopic: DPSSTopic = { 
         id: uuidv4(), 
-        title: '🎯 4-Week Study Plan', 
+        title: newTopicTitle, 
         content: htmlOutput, 
         alignment: 'left' 
       };
       
-      const updatedTopics = [...data.selfLearningTopics || [], newTopic];
+      let updatedTopics: DPSSTopic[] = [];
+      if (selectedTopic) {
+        // Appending helper to nested topics list
+        const appendChildTopic = (items: DPSSTopic[]): DPSSTopic[] => {
+          return items.map(item => {
+            if (item.id === selectedTopic.id) {
+              return { ...item, children: [...(item.children || []), newTopic] };
+            }
+            if (item.children) {
+              return { ...item, children: appendChildTopic(item.children) };
+            }
+            return item;
+          });
+        };
+        updatedTopics = appendChildTopic(data.selfLearningTopics || []);
+        const root = findRootTopic(updatedTopics, selectedTopic.id);
+        
+        if (onUpdateTopic) {
+          onUpdateTopic(updatedTopics, root || undefined);
+        } else {
+          onUpdate({ ...data, selfLearningTopics: updatedTopics });
+        }
+      } else {
+        updatedTopics = [...data.selfLearningTopics || [], newTopic];
+        if (onUpdateTopic) {
+          onUpdateTopic(updatedTopics, newTopic);
+        } else {
+          onUpdate({ ...data, selfLearningTopics: updatedTopics });
+        }
+      }
+      setSelectedTopicId(newTopic.id);
+      
+    } catch(e) {
+      console.error(e);
+      alert('Failed to generate study plan.');
+    } finally {
+      setIsAILoading(false);
+    }
+  };
+
+  const generateActionPlan = async () => {
+    if (isAILoading) return;
+    
+    if (!selectedTopic) {
+      alert("Please select a specific topic in the list first (for example, 'Get up early' or book 'Deep Work') to generate a custom Action Plan.");
+      return;
+    }
+
+    setIsAILoading(true);
+    try {
+      const prompt = `Generate a highly practical, step-by-step Action Plan specifically for mastering or implementing the goal or topic: "${selectedTopic.title}". 
+      Include daily routines, specific micro-habits, friction-reduction techniques, obstacles handling, and measurable criteria for success. 
+      Use professional HTML formatting, using tables for routine breakdowns, bullet points for actionable steps, lists, and bold text. 
+      Do NOT wrap in markdown code blocks like \`\`\`html, just output raw, polished HTML directly.`;
+
+      const result = await callNeuralEngine(
+        'gemini-3-flash-preview',
+        prompt,
+        "You are an expert performance psychologist and high-performance coach. Output ONLY valid HTML."
+      );
+      
+      let htmlOutput = result.text.trim();
+      htmlOutput = htmlOutput.replace(/^`{3}(html)?\n?/i, '').replace(/`{3}$/, '').trim();
+
+      // create new topic
+      const newTopic: DPSSTopic = { 
+        id: uuidv4(), 
+        title: `⚡ Action Plan: ${selectedTopic.title}`, 
+        content: htmlOutput, 
+        alignment: 'left' 
+      };
+      
+      const appendChildTopic = (items: DPSSTopic[]): DPSSTopic[] => {
+        return items.map(item => {
+          if (item.id === selectedTopic.id) {
+            return { ...item, children: [...(item.children || []), newTopic] };
+          }
+          if (item.children) {
+            return { ...item, children: appendChildTopic(item.children) };
+          }
+          return item;
+        });
+      };
+
+      const updatedTopics = appendChildTopic(data.selfLearningTopics || []);
+      const root = findRootTopic(updatedTopics, selectedTopic.id);
       
       if (onUpdateTopic) {
-        onUpdateTopic(updatedTopics, newTopic);
+        onUpdateTopic(updatedTopics, root || undefined);
       } else {
         onUpdate({ ...data, selfLearningTopics: updatedTopics });
       }
@@ -887,7 +983,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
       
     } catch(e) {
       console.error(e);
-      alert('Failed to generate study plan.');
+      alert('Failed to generate action plan.');
     } finally {
       setIsAILoading(false);
     }
@@ -928,9 +1024,20 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
             onClick={generateStudyPlan}
             disabled={isAILoading}
             className="w-full py-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-2xl text-[10px] font-black flex items-center justify-center gap-2 hover:from-indigo-600 hover:to-purple-600 shadow-xl shadow-indigo-500/20 active:scale-95 transition-all whitespace-nowrap disabled:opacity-50"
+            title={selectedTopic ? `Generate dynamic Study Plan for: ${selectedTopic.title}` : `Generate general Study Plan for all topics`}
           >
             {isAILoading ? <Loader2 size={16} className="animate-spin" /> : <Wand2 size={16} />}
-            Generate Study Plan
+            {selectedTopic ? `Study Plan: ${selectedTopic.title.substring(0, 15)}${selectedTopic.title.length > 15 ? '...' : ''}` : `Generate Study Plan`}
+          </button>
+
+          <button 
+            onClick={generateActionPlan}
+            disabled={isAILoading}
+            className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-2xl text-[10px] font-black flex items-center justify-center gap-2 hover:from-orange-600 hover:to-amber-600 shadow-xl shadow-orange-500/20 active:scale-95 transition-all whitespace-nowrap disabled:opacity-50"
+            title={selectedTopic ? `Generate custom Action Plan for: ${selectedTopic.title}` : `Select a topic to generate Action Plan`}
+          >
+            {isAILoading ? <Loader2 size={16} className="animate-spin" /> : <Zap size={16} />}
+            {selectedTopic ? `Action Plan: ${selectedTopic.title.substring(0, 15)}${selectedTopic.title.length > 15 ? '...' : ''}` : `Generate Action Plan`}
           </button>
         </div>
 

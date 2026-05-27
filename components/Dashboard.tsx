@@ -4,8 +4,8 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
   LineChart, Line, PieChart, Pie, Cell, AreaChart, Area 
 } from 'recharts';
-import { format, subDays, eachDayOfInterval, isSameDay, parseISO } from 'date-fns';
-import { TrendingUp, TrendingDown, Activity, Wallet, Target, Sparkles, Brain, ArrowUpRight } from 'lucide-react';
+import { format, subDays, eachDayOfInterval, isSameDay, parseISO, isValid } from 'date-fns';
+import { TrendingUp, TrendingDown, Activity, Wallet, Target, Sparkles, Brain, ArrowUpRight, Download } from 'lucide-react';
 
 interface DashboardProps {
   data: AppData;
@@ -49,6 +49,119 @@ const calculateStreak = (habit: any, completions: any) => {
 };
 
 const Dashboard: React.FC<DashboardProps> = ({ data }) => {
+  const exportToCSV = () => {
+    const habits = data.habits || [];
+    const completions = data.habitCompletions || {};
+    const journalEntries = data.journalEntries || {};
+    
+    // Collect all unique dates from completions and journal entries
+    const allDates = new Set<string>();
+    Object.keys(completions).forEach(d => allDates.add(d));
+    Object.keys(journalEntries).forEach(d => allDates.add(d));
+    
+    // If no dates, add today
+    if (allDates.size === 0) {
+      allDates.add(format(new Date(), 'yyyy-MM-dd'));
+    }
+    
+    const sortedDates = Array.from(allDates).sort();
+    
+    // Headers
+    const headers = [
+      'Date',
+      'Weekday',
+      ...habits.map(h => `Habit: ${h.name.replace(/"/g, '""')}`),
+      'Total Habits Completed',
+      'Completion Rate %',
+      'Energy Rating (0-10)',
+      'Focus Rating (0-10)',
+      'Productivity Rating (0-10)',
+      'Stress Rating (0-10)',
+      'Gratitude Rating (0-10)',
+      'Vitality Rating (0-10)',
+      'Journal Entry Saved'
+    ];
+    
+    let csvContent = '\uFEFF'; // Add BOM for Excel UTF-8 support
+    csvContent += headers.map(h => `"${h}"`).join(',') + '\n';
+    
+    sortedDates.forEach(dateStr => {
+      let dateObj;
+      try {
+        dateObj = parseISO(dateStr);
+      } catch(e) {
+        dateObj = new Date(dateStr);
+      }
+      
+      let weekday = 'Unknown';
+      if (isValid(dateObj)) {
+        weekday = format(dateObj, 'EEEE');
+      }
+      
+      const habitCompletedStatuses = habits.map(h => {
+        const comp = completions[dateStr]?.[h.id];
+        if (comp === undefined || comp === null) return 'No Track';
+        if (h.isNumeric) {
+          const threshold = h.targetValue || 1;
+          const valText = typeof comp === 'number' ? comp : (comp ? threshold : 0);
+          const done = valText >= threshold;
+          return done ? `Completed (${valText}/${threshold} ${h.unit || ''})` : `Incomplete (${valText}/${threshold} ${h.unit || ''})`;
+        } else {
+          return comp ? 'Completed' : 'Incomplete';
+        }
+      });
+      
+      const totalCompleted = habits.filter(h => {
+        const comp = completions[dateStr]?.[h.id];
+        if (comp === undefined || comp === null) return false;
+        if (h.isNumeric) {
+          return typeof comp === 'number' ? comp >= (h.targetValue || 1) : !!comp;
+        }
+        return !!comp;
+      }).length;
+      
+      const completionRate = habits.length > 0 ? ((totalCompleted / habits.length) * 100).toFixed(1) : '0';
+      
+      const journal = journalEntries[dateStr];
+      const energy = journal?.energyRating !== undefined ? journal.energyRating : '';
+      const focus = journal?.focusRating !== undefined ? journal.focusRating : '';
+      const productivity = journal?.productivityRating !== undefined ? journal.productivityRating : '';
+      const stress = journal?.stressRating !== undefined ? journal.stressRating : '';
+      const gratitude = journal?.gratitudeRating !== undefined ? journal.gratitudeRating : ''; 
+      const vitality = journal?.vitalityRating !== undefined ? journal.vitalityRating : '';
+      const isCompleted = journal ? 'Yes' : 'No';
+      
+      const row = [
+        dateStr,
+        weekday,
+        ...habitCompletedStatuses,
+        totalCompleted,
+        completionRate,
+        energy,
+        focus,
+        productivity,
+        stress,
+        gratitude,
+        vitality,
+        isCompleted
+      ];
+      
+      csvContent += row.map(val => {
+        const cleaned = String(val).replace(/"/g, '""');
+        return `"${cleaned}"`;
+      }).join(',') + '\n';
+    });
+    
+    // Download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Habit_Progress_Statistics_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
   // 1. Habit Completion Data (Last 7 days)
   const habitData = useMemo(() => {
     const days = eachDayOfInterval({
@@ -146,7 +259,15 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
             <h1 className="text-3xl font-black text-slate-900 tracking-tighter uppercase italic">Growth Analytics</h1>
             <p className="text-slate-500 font-bold text-sm uppercase tracking-widest mt-1">Measuring progress, reflecting on performance</p>
           </div>
-          <div className="flex gap-4">
+          <div className="flex flex-wrap gap-4 items-center">
+             <button
+                id="export-progress-stats-btn"
+                onClick={exportToCSV}
+                className="bg-slate-900 hover:bg-slate-800 text-white font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-3xl shadow-sm border border-slate-800 flex items-center gap-2 hover:scale-105 active:scale-95 transition-all"
+             >
+                <Download size={14} strokeWidth={3} />
+                <span>Export Stats</span>
+             </button>
              <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm flex items-center gap-4">
                 <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl">
                    <TrendingUp size={20} />

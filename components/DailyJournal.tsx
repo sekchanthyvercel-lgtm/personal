@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AppData, JournalEntry, ReflectionData } from '../types';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, addDays, subMonths, addMonths, startOfWeek, endOfWeek } from 'date-fns';
-import { CheckCircle2, ChevronLeft, ChevronRight, Calendar as CalendarIcon, BookOpen, Clock, X, Target, Quote, Heart, Sparkles, Footprints, Zap, ShieldCheck, Lightbulb, Activity, Circle, CheckSquare, Palette } from 'lucide-react';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, addDays, subDays, subMonths, addMonths, startOfWeek, endOfWeek } from 'date-fns';
+import { CheckCircle2, ChevronLeft, ChevronRight, Calendar as CalendarIcon, BookOpen, Clock, X, Target, Quote, Heart, Sparkles, Footprints, Zap, ShieldCheck, Lightbulb, Activity, Circle, CheckSquare, Palette, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { PAPER_STYLES } from '../src/styles/paperStyles';
 import { RichTextDiv } from './FloatingToolbar';
@@ -39,6 +39,77 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
   // Local state for auto-syncing inputs to prevent cursor jumping
   const [localEntry, setLocalEntry] = useState<JournalEntry | null>(null);
   const [activeField, setActiveField] = useState<string | null>(null);
+  const [promptText, setPromptText] = useState<string>('');
+  const [promptLoading, setPromptLoading] = useState<boolean>(false);
+
+  const generateDailyPrompt = async (force: boolean = false) => {
+    if (promptLoading) return;
+    
+    // Check local storage cache first if not forced
+    const cacheKey = `ai_reflection_prompt_${dateKey}`;
+    const cached = localStorage.getItem(cacheKey);
+    if (cached && !force) {
+      setPromptText(cached);
+      return;
+    }
+    
+    setPromptLoading(true);
+    setPromptText('');
+    
+    try {
+      const habits = data.habits || [];
+      const completions = data.habitCompletions || {};
+      const today = new Date();
+      
+      const summaryList = habits.map(habit => {
+        let completedCount = 0;
+        for (let i = 0; i < 7; i++) {
+          const dayToCheck = subDays(today, i);
+          const formattedDay = format(dayToCheck, 'yyyy-MM-dd');
+          const comp = completions[formattedDay]?.[habit.id];
+          const isCompleted = habit.isNumeric
+            ? (typeof comp === 'number' ? comp >= (habit.targetValue || 1) : !!comp)
+            : !!comp;
+          if (isCompleted) {
+            completedCount++;
+          }
+        }
+        return `"${habit.name}" (completed ${completedCount}/7 days)`;
+      });
+      
+      const habitsSummary = summaryList.length > 0 
+        ? summaryList.join(', ')
+        : 'No habits tracked recently';
+        
+      const userPrompt = `My recent 7-day habit completion statistics are:\n${habitsSummary}\n\nBased on this progress, please generate a single, highly engaging, provocative other-centered or psychological journal prompt (1-2 sentences maximum, no meta text) that challenges or inspires me to grow today. Do not use quotes around the prompt. Make it deeply inspiring!`;
+      
+      const systemInstruction = `You are an elite, performance-focused psychologist and high-performance coach. Generate exactly one highly impactful, thought-provoking reflective prompt for a user's journal. Direct, concise, maximum 30 words. No intro or explanation, no quotes, just return the prompt itself.`;
+      
+      const response = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: userPrompt,
+          systemInstruction,
+          model: 'gemini-3.5-flash'
+        })
+      });
+      
+      if (response.ok) {
+        const resData = await response.json();
+        const text = resData.text?.trim() || "What is one small choice you can make today to increase your personal alignment and consistency?";
+        localStorage.setItem(cacheKey, text);
+        setPromptText(text);
+      } else {
+        setPromptText("What is one small choice you can make today to increase your personal alignment and consistency?");
+      }
+    } catch (e) {
+      console.error(e);
+      setPromptText("What is one small choice you can make today to increase your personal alignment and consistency?");
+    } finally {
+      setPromptLoading(false);
+    }
+  };
 
   const journalSettings = data.settings || { fontSize: 12, fontFamily: "'Inter', sans-serif" };
   const textFontFamily = journalSettings.textFontFamily || journalSettings.fontFamily;
@@ -67,6 +138,13 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
       setLocalEntry({ ...currentEntry });
     }
   }, [currentEntry, activeField]);
+
+  // Trigger daily reflection prompt generation
+  useEffect(() => {
+    if (reflectionMode === 'Daily') {
+      generateDailyPrompt();
+    }
+  }, [dateKey, reflectionMode]);
 
   const updateEntry = (key: keyof JournalEntry, value: any) => {
     // Update local state immediately
@@ -215,6 +293,68 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
           <AnimatePresence mode="wait">
             {reflectionMode === 'Daily' ? (
               <motion.div key="daily" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
+                {/* AI Reflection Prompt of the Day */}
+                <motion.div 
+                  initial={{ opacity: 0, y: -20 }} 
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-cyan-500/10 rounded-[32px] p-6 border-2 border-emerald-500/20 relative overflow-hidden backdrop-blur-md shadow-lg"
+                >
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full filter blur-2xl pointer-events-none"></div>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3">
+                      <div className="p-3 bg-emerald-500 text-white rounded-2xl shadow-md shadow-emerald-500/10 shrink-0">
+                        <Sparkles size={20} className={promptLoading ? "animate-spin" : ""} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600">AI Daily Reflection Prompt</span>
+                          <span className="bg-emerald-100 text-emerald-800 text-[8px] font-black uppercase px-2 py-0.5 rounded-full">Personalized</span>
+                        </div>
+                        <h2 className="text-xl font-black text-slate-800 tracking-tight italic mt-1 font-sans leading-snug">
+                          {promptLoading ? (
+                             <span className="flex items-center gap-2 text-slate-400">
+                               <RefreshCw size={14} className="animate-spin" />
+                               Analyzing your habits and preparing custom growth prompt...
+                             </span>
+                          ) : (
+                             promptText || "What is one small choice you can make today to increase your personal alignment and consistency?"
+                          )}
+                        </h2>
+                      </div>
+                    </div>
+                    
+                    <button
+                      onClick={() => generateDailyPrompt(true)}
+                      disabled={promptLoading}
+                      type="button"
+                      className="p-3 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-2xl transition-all shrink-0 disabled:opacity-50"
+                      title="Regenerate Reflection Prompt"
+                    >
+                      <RefreshCw size={16} className={promptLoading ? "animate-spin" : ""} />
+                    </button>
+                  </div>
+                  
+                  {!promptLoading && promptText && (
+                    <div className="mt-4 pt-4 border-t border-slate-200/50 flex gap-2">
+                      <button
+                        onClick={() => {
+                          let currentAffirmation = (localEntry || currentEntry).affirmation || '';
+                          if (typeof currentAffirmation !== 'string') {
+                            currentAffirmation = '';
+                          }
+                          const cleanText = promptText.replace(/"/g, "'");
+                          const separator = currentAffirmation.trim() ? '\n\n' : '';
+                          updateEntry('affirmation', currentAffirmation + separator + `Daily spark reflection: "${cleanText}"`);
+                        }}
+                        type="button"
+                        className="text-[10px] bg-white/60 hover:bg-emerald-100/80 text-emerald-700 font-extrabold uppercase tracking-wider px-4 py-2 rounded-xl transition-all border border-emerald-500/10"
+                      >
+                        Set as Affirmation Focus
+                      </button>
+                    </div>
+                  )}
+                </motion.div>
+
                 <JournalBlock title={<span className="flex items-center justify-between gap-2">What are my Today's priorities? <button onClick={() => { const html = `<ul style="list-style-type: none; padding-left: 0; margin-top: 4px; margin-bottom: 4px;"><li style="display: flex; gap: 8px; align-items: flex-start;"><span contenteditable="false" class="task-checkbox" style="cursor: pointer; user-select: none;">⬜</span><span>&nbsp;</span></li></ul><div><br></div>`; updateEntry('achievements', [...(localEntry || currentEntry).achievements.slice(0, -1), ((localEntry || currentEntry).achievements.at(-1) || '') + html]); }} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Insert Checklist"><CheckSquare size={16} /></button></span>} icon={<CheckCircle2 className="text-emerald-600" size={20} />} bgColor={selectedPaper.className}>
                   <div className="space-y-4">
                     {(localEntry || currentEntry).achievements.map((ach, idx) => (

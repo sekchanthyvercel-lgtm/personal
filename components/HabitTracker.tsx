@@ -25,6 +25,14 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [suggestedHabits, setSuggestedHabits] = useState<string[]>([]);
+  const [milestoneCelebration, setMilestoneCelebration] = useState<{ habitName: string; color: string; streak: number } | null>(null);
+
+  // Auto request browser notification permission on mount
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
 
   const habits = data.habits || [];
   const completions = data.habitCompletions || {};
@@ -33,6 +41,70 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
   const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
+
+  const calculateStreakWithCompletions = (habitId: string, customCompletions: any) => {
+    const habit = habits.find(h => h.id === habitId);
+    if (!habit) return 0;
+    
+    let currentStreak = 0;
+    const today = new Date();
+    const todayKey = format(today, 'yyyy-MM-dd');
+    const yesterdayKey = format(subDays(today, 1), 'yyyy-MM-dd');
+    
+    const isCompletedOnDay = (dateStr: string) => {
+      const comp = customCompletions[dateStr]?.[habitId];
+      if (comp === undefined || comp === null) return false;
+      if (habit.isNumeric) {
+        return typeof comp === 'number' ? comp >= (habit.targetValue || 0) : !!comp;
+      }
+      return !!comp;
+    };
+
+    let dateToCheck = today;
+    if (!isCompletedOnDay(todayKey)) {
+      if (!isCompletedOnDay(yesterdayKey)) return 0;
+      dateToCheck = subDays(today, 1);
+    }
+    
+    let safetyLimit = 1000;
+    while (safetyLimit > 0) {
+      safetyLimit--;
+      const dateKey = format(dateToCheck, 'yyyy-MM-dd');
+      if (isCompletedOnDay(dateKey)) {
+        currentStreak++;
+        dateToCheck = subDays(dateToCheck, 1);
+      } else {
+        break;
+      }
+    }
+    return currentStreak;
+  };
+
+  const checkAndNotifyStreak = (habitId: string, customCompletions: any) => {
+    const targetHabit = habits.find(h => h.id === habitId);
+    if (!targetHabit) return;
+    
+    const streak = calculateStreakWithCompletions(habitId, customCompletions);
+    // Standard milestone thresholds: 3, 7, 14, 21, 30, 60, 100, 365
+    const isMilestone = [3, 7, 14, 21, 30, 60, 100, 365].includes(streak);
+    
+    if (isMilestone) {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        try {
+          new Notification("🏆 Habit Streak Milestone!", {
+            body: `Incredible work! You reached a ${streak}-day streak for "${targetHabit.name}"!`,
+          });
+        } catch (e) {
+          console.error("System notification error:", e);
+        }
+      }
+      setMilestoneCelebration({
+        habitName: targetHabit.name,
+        color: targetHabit.color || '#f97316',
+        streak
+      });
+    }
+  };
 
   const handleToggleHabit = (habitId: string, day: Date) => {
     const dateKey = format(day, 'yyyy-MM-dd');
@@ -44,6 +116,11 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
     
     const isCompleted = !newCompletions[dateKey][habitId];
     newCompletions[dateKey][habitId] = isCompleted;
+    
+    if (isCompleted && isToday(day)) {
+      checkAndNotifyStreak(habitId, newCompletions);
+    }
+
     if (onUpdateHabitCompletion) {
       onUpdateHabitCompletion(dateKey, habitId, isCompleted);
     } else {
@@ -115,6 +192,15 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
     newVal = Math.round(newVal * 10) / 10;
     
     newCompletions[dateKey][habitId] = newVal;
+    
+    // Check if it crosses target completion
+    const target = habit.targetValue || 0;
+    const isCompletedNow = newVal >= target;
+    const wasCompletedBefore = currentVal >= target;
+    
+    if (isCompletedNow && !wasCompletedBefore && isToday(day)) {
+      checkAndNotifyStreak(habitId, newCompletions);
+    }
     
     if (onUpdateHabitCompletion) {
       onUpdateHabitCompletion(dateKey, habitId, newVal);
@@ -489,8 +575,8 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
         </div>
       </div>
 
-      <div className={`flex-1 bg-white/5 backdrop-blur-3xl border border-white/10 rounded-[32px] shadow-2xl overflow-hidden flex flex-col ${isFullScreen ? 'hidden' : ''}`}>
-        <div className="overflow-x-auto overflow-y-auto custom-scrollbar-orange flex-1">
+      <div className={`w-full bg-white/5 backdrop-blur-3xl border border-white/10 rounded-[32px] shadow-2xl overflow-hidden mt-6 flex flex-col ${isFullScreen ? 'hidden' : ''}`}>
+        <div className="overflow-x-auto custom-scrollbar-orange">
           <table className="w-full border-collapse">
             <thead>
               <tr className="bg-slate-900/5 text-slate-900 backdrop-blur-md">
@@ -776,6 +862,57 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
                   Create Habit
                 </button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+        {/* Milestone Celebration Overlay Pop-up Modal */}
+        {milestoneCelebration && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-50 select-none overflow-hidden"
+          >
+            {/* Visual Confetti / Glitter elements */}
+            <div className="absolute inset-0 pointer-events-none opacity-30">
+              <div className="absolute w-[500px] h-[500px] bg-orange-500/10 rounded-full filter blur-3xl animate-pulse top-0 left-10"></div>
+              <div className="absolute w-[600px] h-[600px] bg-emerald-500/10 rounded-full filter blur-3xl animate-pulse bottom-0 right-10"></div>
+            </div>
+
+            <motion.div 
+              initial={{ scale: 0.85, y: 50, rotate: -2 }}
+              animate={{ scale: 1, y: 0, rotate: 0 }}
+              exit={{ scale: 0.85, y: 50, rotate: 2 }}
+              transition={{ type: "spring", damping: 15 }}
+              className="bg-white rounded-[40px] border border-slate-200 p-8 md:p-12 shadow-2xl max-w-lg w-full text-center relative overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 w-full h-3" style={{ backgroundColor: milestoneCelebration.color }}></div>
+              
+              {/* Floating trophy / sparkles inside a circle */}
+              <div 
+                className="w-24 h-24 mx-auto rounded-full flex items-center justify-center text-white mb-6 shadow-lg shadow-current/30 animate-bounce"
+                style={{ backgroundColor: milestoneCelebration.color }}
+              >
+                <Zap size={44} strokeWidth={3} />
+              </div>
+
+              <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] block mb-2">Milestone Unlocked</span>
+              
+              <h3 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tighter uppercase italic leading-none mb-4">
+                {milestoneCelebration.streak}-DAY STREAK!
+              </h3>
+              
+              <p className="text-slate-600 font-bold text-base leading-relaxed mb-8 max-w-sm mx-auto">
+                Insane dedication! You've maintained your habit <span className="font-black italic px-2 py-0.5 rounded-lg bg-slate-100 text-slate-900">"{milestoneCelebration.habitName}"</span> for {milestoneCelebration.streak} days straight! This architecture of resolve is paying off.
+              </p>
+
+              <button
+                type="button"
+                onClick={() => setMilestoneCelebration(null)}
+                className="w-full bg-slate-900 hover:bg-slate-800 text-white font-black text-xs uppercase tracking-widest py-4 rounded-2xl shadow-xl hover:scale-[1.03] active:scale-95 transition-all"
+              >
+                Let's Keep Dominating
+              </button>
             </motion.div>
           </motion.div>
         )}

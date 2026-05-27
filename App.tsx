@@ -64,7 +64,10 @@ const App: React.FC = () => {
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
-        if (parsed && parsed.students) {
+        if (parsed) {
+          if (!parsed.students) {
+            parsed.students = [];
+          }
           if (!parsed.settings?.columns) {
             parsed.settings = { 
               ...(parsed.settings || { fontSize: 12, fontFamily: "'Inter', sans-serif" }), 
@@ -180,7 +183,10 @@ const App: React.FC = () => {
       if (stored) {
         try {
           const parsed = JSON.parse(stored);
-          if (parsed && parsed.students) {
+          if (parsed) {
+            if (!parsed.students) {
+              parsed.students = [];
+            }
             setData(parsed);
           }
         } catch (e) {
