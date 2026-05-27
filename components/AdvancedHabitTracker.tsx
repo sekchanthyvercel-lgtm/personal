@@ -38,6 +38,8 @@ import {
 } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
 import { v4 as uuidv4 } from 'uuid';
+// @ts-ignore
+import html2pdf from 'html2pdf.js';
 
 interface AdvancedHabitTrackerProps {
   data: AppData;
@@ -53,6 +55,7 @@ const DEFAULT_COLOR_THEMES = [
 ];
 
 export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data, onUpdate }) => {
+  const [activeMainTab, setActiveMainTab] = useState<'tracker' | 'analytics' | 'journal'>('tracker');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isAddingHabit, setIsAddingHabit] = useState(false);
   const [isInfoOpen, setIsInfoOpen] = useState(false);
@@ -844,6 +847,111 @@ date format must be 'yyyy-MM-dd'.`;
     URL.revokeObjectURL(url);
   };
 
+  const exportCBTToPDF = async (record: HabitReframerRecord) => {
+    const subjectName = record.studentName || 'Self';
+    const dateFormatted = format(new Date(record.date), 'MMMM dd, yyyy HH:mm');
+    const title = record.isFullDopamineAudit 
+      ? 'D.O.P.A.M.I.N.E. Complete Reset Audit' 
+      : 'Cognitive Trigger & Core Loop Audit';
+
+    const container = document.createElement('div');
+    container.style.padding = '40px';
+    container.style.backgroundColor = 'white';
+    container.style.color = '#334155';
+    container.style.fontFamily = "'Inter', sans-serif";
+    
+    let html = `
+      <div style="border-bottom: 3px solid #f1f5f9; padding-bottom: 20px; margin-bottom: 30px;">
+        <h1 style="font-size: 24px; font-weight: 900; color: #0f172a; margin: 0; text-transform: uppercase;">${title}</h1>
+        <p style="font-size: 10px; font-weight: 800; color: #64748b; margin-top: 5px; text-transform: uppercase; letter-spacing: 1px;">
+          Subject: ${subjectName} &bull; Date: ${dateFormatted}
+        </p>
+      </div>
+    `;
+
+    if (record.isFullDopamineAudit) {
+      const sections = [
+        { label: 'D. Data', val: record.substanceOrBehavior },
+        { label: 'O. Objectives', val: record.objectives },
+        { label: 'P. Problems', grid: true },
+        { label: 'A. Abstinence', val: record.abstinencePlan },
+        { label: 'M. Mindfulness', val: record.mindfulnessNotes },
+        { label: 'I. Insight', val: record.insightHonesty },
+        { label: 'N. Next Steps', val: record.nextStepsPlan },
+        { label: 'E. Experiment', val: record.experimentRules || record.alternativeStrategy, primary: true },
+      ];
+
+      sections.forEach(s => {
+        if (s.grid) {
+          html += `
+            <div style="margin-bottom: 25px;">
+              <h2 style="font-size: 11px; font-weight: 900; color: #ef4444; text-transform: uppercase; margin-bottom: 10px; letter-spacing: 0.5px;">P. Problems (6-Dimensional Matrix)</h2>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div style="padding: 10px; border: 1px solid #f1f5f9; border-radius: 8px;">
+                  <strong style="display: block; font-size: 8px; color: #94a3b8; text-transform: uppercase;">Neuroadaptation</strong>
+                  <p style="font-size: 11px; margin: 3px 0 0 0;">${record.pNeuroadaptation || 'None'}</p>
+                </div>
+                <div style="padding: 10px; border: 1px solid #f1f5f9; border-radius: 8px;">
+                  <strong style="display: block; font-size: 8px; color: #94a3b8; text-transform: uppercase;">Relationships</strong>
+                  <p style="font-size: 11px; margin: 3px 0 0 0;">${record.pRelationships || 'None'}</p>
+                </div>
+                <div style="padding: 10px; border: 1px solid #f1f5f9; border-radius: 8px;">
+                  <strong style="display: block; font-size: 8px; color: #94a3b8; text-transform: uppercase;">Work/School</strong>
+                  <p style="font-size: 11px; margin: 3px 0 0 0;">${record.pWork || 'None'}</p>
+                </div>
+                <div style="padding: 10px; border: 1px solid #f1f5f9; border-radius: 8px;">
+                  <strong style="display: block; font-size: 8px; color: #94a3b8; text-transform: uppercase;">Financial</strong>
+                  <p style="font-size: 11px; margin: 3px 0 0 0;">${record.pFinancial || 'None'}</p>
+                </div>
+              </div>
+            </div>
+          `;
+        } else {
+          html += `
+            <div style="margin-bottom: 20px; padding: 15px; background-color: ${s.primary ? '#f0fdf4' : '#f8fbfc'}; border-left: 4px solid ${s.primary ? '#22c55e' : '#cbd5e1'}; border-radius: 4px;">
+              <h3 style="font-size: 9px; font-weight: 900; color: ${s.primary ? '#166534' : '#475569'}; text-transform: uppercase; margin: 0 0 5px 0;">${s.label}</h3>
+              <p style="font-size: 12px; margin: 0; color: #1e293b; font-weight: ${s.primary ? '700' : '500'};">${s.val || 'N/A'}</p>
+            </div>
+          `;
+        }
+      });
+    } else {
+      const stages = [
+        { label: 'Situation / Thought', val: record.thought },
+        { label: 'Emotion / Urge', val: record.feeling },
+        { label: 'Original Intention', val: record.intention },
+        { label: 'Actual Outcome', val: record.actualOutcome },
+        { label: 'Discipline Pivot', val: record.alternativeStrategy, primary: true },
+      ];
+
+      stages.forEach(s => {
+        html += `
+          <div style="margin-bottom: 20px; padding: 15px; background-color: ${s.primary ? '#f0fdf4' : '#f8fafc'}; border: 1px solid ${s.primary ? '#bcf0da' : '#e2e8f0'}; border-radius: 12px;">
+            <h3 style="font-size: 9px; font-weight: 900; color: ${s.primary ? '#065f46' : '#64748b'}; text-transform: uppercase; margin: 0 0 5px 0;">${s.label}</h3>
+            <p style="font-size: 12px; margin: 0; color: #0f172a; font-weight: ${s.primary ? '700' : '500'};">${s.val || 'N/A'}</p>
+          </div>
+        `;
+      });
+    }
+
+    container.innerHTML = html;
+    document.body.appendChild(container);
+
+    const opt = {
+      margin: 10,
+      filename: `Audit_${subjectName}_${format(new Date(record.date), 'yyyyMMdd')}.pdf`,
+      image: { type: 'jpeg' as const, quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const }
+    };
+
+    try {
+      await html2pdf().set(opt).from(container).save();
+    } finally {
+      document.body.removeChild(container);
+    }
+  };
+
   const exportWeeklyStatsToExcel = () => {
     const formattedWeekStart = format(startOfCurrentWeek, 'yyyy-MM-dd');
     const formattedWeekEnd = format(addDays(startOfCurrentWeek, 6), 'yyyy-MM-dd');
@@ -1221,10 +1329,39 @@ date format must be 'yyyy-MM-dd'.`;
         )}
       </AnimatePresence>
 
-      <div className="w-full grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* LEFT TWO COLUMNS: Weekly Time Loggers and Lists */}
-        <div className="lg:col-span-2 space-y-6">
+      {/* Main Navigation Tabs */}
+      <div className="flex items-center gap-1 mb-6 bg-slate-100/50 p-1.5 rounded-2xl w-fit">
+        {[
+          { id: 'tracker', label: 'Metric Tracker', icon: Sliders },
+          { id: 'analytics', label: 'Trend Analytics', icon: BarChart },
+          { id: 'journal', label: 'Reframing Journal', icon: Brain },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveMainTab(tab.id as any)}
+            className={`px-4 py-2 rounded-xl flex items-center gap-2 text-[11px] font-black uppercase tracking-wider transition-all ${
+              activeMainTab === tab.id 
+                ? 'bg-white text-slate-900 shadow-sm' 
+                : 'text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            <tab.icon size={14} />
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <AnimatePresence mode="wait">
+        {activeMainTab === 'tracker' && (
+          <motion.div 
+            key="tracker"
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 10 }}
+            className="w-full grid grid-cols-1 lg:grid-cols-3 gap-8"
+          >
+            {/* LEFT TWO COLUMNS: Weekly Time Loggers and Lists */}
+            <div className="lg:col-span-2 space-y-6">
           
           {/* Calendar Selector */}
           <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm flex items-center justify-between">
@@ -1975,13 +2112,164 @@ date format must be 'yyyy-MM-dd'.`;
             )}
 
           </div>
-
         </div>
+      </motion.div>
+        )}
 
-      </div>
+        {activeMainTab === 'analytics' && (
+          <motion.div
+            key="analytics"
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 10 }}
+            className="space-y-8"
+          >
+            {/* Trend Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {(() => {
+                const totalDopamine = habits.filter(h => h.type === 'dopamine').reduce((acc, h) => {
+                  const { total } = getWeeklyHabitStats(h);
+                  return acc + (h.unit.toLowerCase() === 'minutes' ? total / 60 : total);
+                }, 0);
+                const totalEffort = habits.filter(h => h.type === 'effort').reduce((acc, h) => {
+                  const { total } = getWeeklyHabitStats(h);
+                  return acc + (h.unit.toLowerCase() === 'minutes' ? total / 60 : total);
+                }, 0);
+                
+                return (
+                  <>
+                    <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm">
+                      <span className="text-[10px] font-black text-rose-400 uppercase tracking-widest block mb-1">Pleasure Load</span>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-3xl font-black text-rose-600">{Math.round(totalDopamine * 10) / 10}</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">Hours Eq.</span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-2 font-medium italic">Current weekly total stimulus</p>
+                    </div>
+                    <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm">
+                      <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest block mb-1">Resilience Load</span>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-3xl font-black text-emerald-600">{Math.round(totalEffort * 10) / 10}</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">Hours Eq.</span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-2 font-medium italic">Current weekly effort spent</p>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
 
-      {/* COGNITIVE BEHAVIORAL HABIT REFRAMER TABLE (CBT) */}
-      <div className="w-full mt-12 bg-white/40 backdrop-blur-3xl rounded-[36px] p-6 md:p-8 border border-slate-200/65 shadow-xl">
+            {/* Recharts Visualization */}
+            <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm">
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Neurochemical Trend Analysis</h3>
+                  <p className="text-xs text-slate-400 font-bold mt-1">Comparing 30-day dopamine stimulus vs chosen effort</p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-rose-500" />
+                    <span className="text-[10px] font-black uppercase text-slate-500">Dopamine</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-indigo-500" />
+                    <span className="text-[10px] font-black uppercase text-slate-500">Effort</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="h-[400px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={(() => {
+                    return past30Days.map(day => {
+                      const dateStr = format(day, 'yyyy-MM-dd');
+                      let dPoints = 0;
+                      let ePoints = 0;
+                      
+                      habits.forEach(h => {
+                        const val = logs[dateStr]?.[h.id] || 0;
+                        const points = h.unit.toLowerCase() === 'minutes' ? val / 60 : val;
+                        if (h.type === 'dopamine') dPoints += points;
+                        else ePoints += points;
+                      });
+
+                      return {
+                        date: format(day, 'MMM dd'),
+                        fullDate: dateStr,
+                        dopamine: Math.round(dPoints * 10) / 10,
+                        effort: Math.round(ePoints * 10) / 10
+                      };
+                    });
+                  })()}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                    <XAxis 
+                      dataKey="date" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fill: '#94a3b8', fontSize: 9, fontWeight: 700 }}
+                      interval={2}
+                    />
+                    <YAxis 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fill: '#94a3b8', fontSize: 9, fontWeight: 700 }}
+                    />
+                    <Tooltip 
+                      cursor={{ fill: '#f8fafc' }}
+                      content={({ active, payload, label }) => {
+                        if (active && payload && payload.length) {
+                          return (
+                            <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-2xl text-white">
+                              <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-2">{label}</p>
+                              <div className="space-y-1">
+                                <div className="flex items-center justify-between gap-8">
+                                  <span className="text-[11px] font-bold text-slate-300">Dopamine Load:</span>
+                                  <span className="text-[11px] font-black text-rose-400 tracking-wider">
+                                    {payload[0].value} <span className="text-[8px] opacity-75">pts</span>
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between gap-8">
+                                  <span className="text-[11px] font-bold text-slate-300">Resilience Effort:</span>
+                                  <span className="text-[11px] font-black text-indigo-400 tracking-wider">
+                                    {payload[1].value} <span className="text-[8px] opacity-75">pts</span>
+                                  </span>
+                                </div>
+                                <div className="mt-2 pt-2 border-t border-slate-800 flex items-center justify-between">
+                                  <span className="text-[9px] font-black text-slate-500 uppercase">Ratio:</span>
+                                  <span className={`text-[11px] font-black ${
+                                    (payload[1].value as number) >= (payload[0].value as number) 
+                                      ? 'text-emerald-400' 
+                                      : 'text-rose-400'
+                                  }`}>
+                                    {Math.round(((payload[1].value as number) / Math.max(0.1, payload[0].value as number)) * 100)}%
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Bar dataKey="dopamine" fill="#f43f5e" radius={[4, 4, 0, 0]} barSize={12} />
+                    <Bar dataKey="effort" fill="#6366f1" radius={[4, 4, 0, 0]} barSize={12} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {activeMainTab === 'journal' && (
+          <motion.div
+            key="journal"
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 10 }}
+            className="w-full"
+          >
+            {/* COGNITIVE BEHAVIORAL HABIT REFRAMER TABLE (CBT) */}
+            <div className="w-full bg-white/40 backdrop-blur-3xl rounded-[36px] p-6 md:p-8 border border-slate-200/65 shadow-xl">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div>
             <span className="text-[10px] uppercase font-black tracking-widest text-[#1b254b]/50 block mb-1">COGNITIVE BEHAVIORAL PROTOCOL</span>
@@ -2221,7 +2509,13 @@ date format must be 'yyyy-MM-dd'.`;
                                       onClick={() => exportCBTToWord(record)}
                                       className="px-3 py-1.5 bg-[#fefbeb] hover:bg-amber-100 text-amber-850 font-black text-[9.5px] uppercase tracking-wider rounded-xl border border-amber-200/60 flex items-center gap-1.5 transition-all shadow-sm"
                                     >
-                                      📥 Export Word
+                                      📥 Word
+                                    </button>
+                                    <button
+                                      onClick={() => exportCBTToPDF(record)}
+                                      className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-800 font-black text-[9.5px] uppercase tracking-wider rounded-xl border border-rose-200/60 flex items-center gap-1.5 transition-all shadow-sm"
+                                    >
+                                      📄 PDF
                                     </button>
                                     <span className="px-3 py-1 bg-slate-100 rounded-full text-[9px] font-black text-slate-500 uppercase">
                                       Format: {record.isFullDopamineAudit ? '8-Step Workbook' : 'Quick Loop'}
@@ -2976,6 +3270,9 @@ date format must be 'yyyy-MM-dd'.`;
             </motion.div>
           );
         })()}
+      </AnimatePresence>
+        </motion.div>
+        )}
       </AnimatePresence>
 
       {/* POP-OVER MODAL FOR CUSTOM HABIT CREATION */}

@@ -1,12 +1,12 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { AppData } from '../types';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
   LineChart, Line, PieChart, Pie, Cell, AreaChart, Area,
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar
 } from 'recharts';
-import { format, subDays, eachDayOfInterval, isSameDay, parseISO, isValid, startOfWeek } from 'date-fns';
-import { TrendingUp, TrendingDown, Activity, Wallet, Target, Sparkles, Brain, ArrowUpRight, Download } from 'lucide-react';
+import { format, subDays, eachDayOfInterval, isSameDay, parseISO, isValid, startOfWeek, isWithinInterval, startOfDay, endOfDay, startOfMonth, endOfMonth, startOfYear } from 'date-fns';
+import { TrendingUp, TrendingDown, Activity, Wallet, Target, Sparkles, Brain, ArrowUpRight, Download, Calendar } from 'lucide-react';
 
 interface DashboardProps {
   data: AppData;
@@ -50,6 +50,22 @@ const calculateStreak = (habit: any, completions: any) => {
 };
 
 const Dashboard: React.FC<DashboardProps> = ({ data }) => {
+  const [financeRange, setFinanceRange] = useState<'7d' | '30d' | '90d' | 'Month' | 'Year' | 'Custom'>('Month');
+  const [customStart, setCustomStart] = useState<string>(format(subDays(new Date(), 30), 'yyyy-MM-dd'));
+  const [customEnd, setCustomEnd] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
+
+  const financeFilterInterval = useMemo(() => {
+    const now = new Date();
+    switch (financeRange) {
+      case '7d': return { start: startOfDay(subDays(now, 7)), end: endOfDay(now) };
+      case '30d': return { start: startOfDay(subDays(now, 30)), end: endOfDay(now) };
+      case '90d': return { start: startOfDay(subDays(now, 90)), end: endOfDay(now) };
+      case 'Month': return { start: startOfMonth(now), end: endOfMonth(now) };
+      case 'Year': return { start: startOfYear(now), end: endOfDay(now) };
+      case 'Custom': return { start: startOfDay(new Date(customStart)), end: endOfDay(new Date(customEnd)) };
+    }
+  }, [financeRange, customStart, customEnd]);
+
   const exportToCSV = () => {
     const habits = data.habits || [];
     const completions = data.habitCompletions || {};
@@ -225,10 +241,11 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
 
   // 2. Expense Category Breakdown
   const expenseData = useMemo(() => {
-    const currentMonth = format(new Date(), 'yyyy-MM');
-    const monthlyExpenses = (data.expenses || []).filter(e => 
-      e.type === 'Expense' && e.date.startsWith(currentMonth)
-    );
+    const monthlyExpenses = (data.expenses || []).filter(e => {
+      if (e.type !== 'Expense') return false;
+      const d = parseISO(e.date);
+      return isWithinInterval(d, financeFilterInterval);
+    });
 
     const categories: Record<string, number> = {};
     monthlyExpenses.forEach(e => {
@@ -240,14 +257,11 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
     return Object.entries(categories)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value);
-  }, [data.expenses, data.settings?.exchangeRate]);
+  }, [data.expenses, data.settings?.exchangeRate, financeFilterInterval]);
 
   // 3. Productivity Ratings (from Journal)
   const productivityData = useMemo(() => {
-    const days = eachDayOfInterval({
-      start: subDays(new Date(), 14),
-      end: new Date(),
-    });
+    const days = eachDayOfInterval(financeFilterInterval);
 
     return days.map(day => {
       const dateKey = format(day, 'yyyy-MM-dd');
@@ -260,11 +274,15 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
         productivity: entry?.productivityRating || 0
       };
     }).filter(d => d.energy > 0 || d.focus > 0 || d.productivity > 0);
-  }, [data.journalEntries]);
+  }, [data.journalEntries, financeFilterInterval]);
 
   // 4. Financial Status Overview
   const financeOverview = useMemo(() => {
-    const expenses = data.expenses || [];
+    const expenses = (data.expenses || []).filter(e => {
+      const d = parseISO(e.date);
+      return isWithinInterval(d, financeFilterInterval);
+    });
+
     const totalIncome = expenses.filter(e => e.type === 'Income').reduce((acc, curr) => {
       const amt = curr.currency === 'KHR' ? curr.amount / (data.settings?.exchangeRate || 4000) : curr.amount;
       return acc + amt;
@@ -279,7 +297,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
       expense: totalExpense,
       balance: totalIncome - totalExpense
     };
-  }, [data.expenses, data.settings?.exchangeRate]);
+  }, [data.expenses, data.settings?.exchangeRate, financeFilterInterval]);
 
   // 5. Habit Streaks Data
   const streakData = useMemo(() => {
@@ -291,7 +309,10 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
 
   // Weekly comparisons of Income vs. Expense
   const weeklyFinanceData = useMemo(() => {
-    const expenses = data.expenses || [];
+    const expenses = (data.expenses || []).filter(e => {
+        const d = parseISO(e.date);
+        return isWithinInterval(d, financeFilterInterval);
+    });
     const exchangeRate = data.settings?.exchangeRate || 4000;
     
     // Group entries by week start (Monday)
@@ -322,7 +343,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
       }
     });
     
-    // Turn map into sorted list of recent 6 weeks
+    // Turn map into sorted list of weeks in the range
     const allWeeks = Object.keys(weekMap).sort();
     
     // If we have no weeks at all, add a default fallback empty week so the chart doesn't look bad
@@ -332,7 +353,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
       weekMap[format(todayWk, 'yyyy-MM-dd')] = { income: 0, expense: 0 };
     }
     
-    return allWeeks.slice(-6).map(key => {
+    return allWeeks.map(key => {
       const d = new Date(key);
       const values = weekMap[key];
       return {
@@ -342,7 +363,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
         Expense: Math.round(values.expense * 100) / 100,
       };
     });
-  }, [data.expenses, data.settings?.exchangeRate]);
+  }, [data.expenses, data.settings?.exchangeRate, financeFilterInterval]);
 
   return (
     <div className="h-full overflow-y-auto custom-scrollbar-amber p-4 md:p-8 bg-slate-50/50 dark:bg-slate-900/50 transition-colors">
@@ -353,6 +374,50 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
           <div>
             <h1 className="text-3xl font-black text-slate-900 tracking-tighter uppercase italic">Growth Analytics</h1>
             <p className="text-slate-500 font-bold text-sm uppercase tracking-widest mt-1">Measuring progress, reflecting on performance</p>
+            
+            {/* Range Filter UI */}
+            <div className="flex flex-wrap items-center gap-2 mt-6">
+               <div className="flex bg-white/50 backdrop-blur-sm p-1 rounded-2xl border border-slate-200">
+                  {(['7d', '30d', '90d', 'Month', 'Year', 'Custom'] as const).map(range => (
+                     <button
+                        key={range}
+                        onClick={() => setFinanceRange(range)}
+                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${financeRange === range ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
+                     >
+                        {range}
+                     </button>
+                  ))}
+               </div>
+
+               {financeRange === 'Custom' && (
+                  <div className="flex items-center gap-2 bg-white/50 backdrop-blur-sm p-1.5 rounded-2xl border border-slate-200 ml-2 animate-in fade-in slide-in-from-left-2 duration-300">
+                     <div className="flex flex-col px-2">
+                        <span className="text-[7px] font-black uppercase text-slate-400">Start</span>
+                        <input 
+                           type="date" 
+                           value={customStart}
+                           onChange={e => setCustomStart(e.target.value)}
+                           className="bg-transparent text-[10px] font-black text-slate-900 outline-none"
+                        />
+                     </div>
+                     <div className="w-[1px] h-6 bg-slate-200" />
+                     <div className="flex flex-col px-2">
+                        <span className="text-[7px] font-black uppercase text-slate-400">End</span>
+                        <input 
+                           type="date" 
+                           value={customEnd}
+                           onChange={e => setCustomEnd(e.target.value)}
+                           className="bg-transparent text-[10px] font-black text-slate-900 outline-none"
+                        />
+                     </div>
+                  </div>
+               )}
+
+               <div className="flex items-center gap-2 ml-2 px-4 py-2 bg-slate-900/5 rounded-2xl text-slate-500 font-black text-[9px] uppercase tracking-widest border border-slate-200">
+                  <Calendar size={12} />
+                  <span>{format(financeFilterInterval.start, 'MMM dd')} - {format(financeFilterInterval.end, 'MMM dd, yyyy')}</span>
+               </div>
+            </div>
           </div>
           <div className="flex flex-wrap gap-4 items-center">
              <button

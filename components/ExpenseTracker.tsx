@@ -4,7 +4,7 @@ import { Plus, Trash2, Wallet, TrendingUp, TrendingDown, Calendar, Search, Dolla
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 import { motion, AnimatePresence } from 'motion/react';
-import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
+import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 
 interface ExpenseTrackerProps {
   data: AppData;
@@ -18,8 +18,10 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, 
   const [isAdding, setIsAdding] = useState(false);
   const [isManagingCategories, setIsManagingCategories] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [viewMode, setViewMode] = useState<'Daily' | 'Weekly' | 'Monthly' | 'Yearly'>('Daily');
+  const [viewMode, setViewMode] = useState<'Daily' | 'Weekly' | 'Monthly' | 'Yearly' | 'Range'>('Daily');
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [startDate, setStartDate] = useState<string>(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [endDate, setEndDate] = useState<string>(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
   const [currencyMode, setCurrencyMode] = useState<'USD' | 'KHR'>(data.settings?.currency || 'USD');
   const [showCategorySummary, setShowCategorySummary] = useState(true);
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
@@ -467,6 +469,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, 
         case 'Weekly': return startOfWeek(selectedDate);
         case 'Monthly': return startOfMonth(selectedDate);
         case 'Yearly': return startOfYear(selectedDate);
+        case 'Range': return startOfDay(new Date(startDate));
         default: return startOfMonth(selectedDate);
       }
     })();
@@ -477,6 +480,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, 
         case 'Weekly': return endOfWeek(selectedDate);
         case 'Monthly': return endOfMonth(selectedDate);
         case 'Yearly': return endOfYear(selectedDate);
+        case 'Range': return endOfDay(new Date(endDate));
         default: return endOfMonth(selectedDate);
       }
     })();
@@ -540,6 +544,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, 
       viewMode === 'Daily' ? format(selectedDate, 'MMMM dd, yyyy') :
       viewMode === 'Weekly' ? `Week of ${format(startOfWeek(selectedDate), 'MMMM dd, yyyy')}` :
       viewMode === 'Monthly' ? format(selectedDate, 'MMMM yyyy') :
+      viewMode === 'Range' ? `${format(new Date(startDate), 'MMM dd, yyyy')} - ${format(new Date(endDate), 'MMM dd, yyyy')}` :
       format(selectedDate, 'yyyy');
 
     const printWindow = window.open('', '_blank');
@@ -856,6 +861,23 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, 
 
   const balance = totalIncome - totalExpense;
 
+  const top5Categories = useMemo(() => {
+    return pieChartData.slice(0, 5);
+  }, [pieChartData]);
+
+  const budgetGoal = data.settings?.monthlyBudgetGoal || 0;
+  const budgetProgress = budgetGoal > 0 ? (totalExpense / budgetGoal) * 100 : 0;
+  const isBudgetExceeded = totalExpense > budgetGoal && budgetGoal > 0;
+
+  const handleUpdateBudgetGoal = (val: string) => {
+    const amount = parseFloat(val);
+    if (isNaN(amount)) return;
+    onUpdate({
+      ...data,
+      settings: { ...data.settings, monthlyBudgetGoal: amount }
+    });
+  };
+
   const handleAddExpense = () => {
     if (!newExpense.description || !newExpense.amount) return;
 
@@ -970,6 +992,8 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, 
   const totals = getCombinedTotal(filteredByView);
 
   const handleDeleteExpense = (id: string) => {
+    if (!window.confirm('Are you sure you want to permanently delete this expense record? This action cannot be undone.')) return;
+    
     const expenseToDelete = expenses.find(e => e.id === id);
     if (onUpdateExpense && expenseToDelete) {
       onUpdateExpense(expenseToDelete, true);
@@ -1131,7 +1155,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, 
           </h1>
           <div className="flex flex-wrap items-center gap-3 mt-3">
             <div className="flex bg-white/5 backdrop-blur-3xl rounded-2xl p-1.5 border border-white/10 shadow-sm">
-              {(['Daily', 'Weekly', 'Monthly', 'Yearly'] as const).map(mode => (
+              {(['Daily', 'Weekly', 'Monthly', 'Yearly', 'Range'] as const).map(mode => (
                 <button
                   key={mode}
                   onClick={() => setViewMode(mode)}
@@ -1142,35 +1166,59 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, 
               ))}
             </div>
 
-            <div className="flex items-center gap-4 bg-white/10 backdrop-blur-3xl rounded-2xl p-2 border border-white/20 shadow-lg px-6">
-               <button onClick={() => setSelectedDate(d => {
-                 const newD = new Date(d);
-                 if (viewMode === 'Daily') newD.setDate(d.getDate() - 1);
-                 else if (viewMode === 'Weekly') newD.setDate(d.getDate() - 7);
-                 else if (viewMode === 'Monthly') newD.setMonth(d.getMonth() - 1);
-                 else newD.setFullYear(d.getFullYear() - 1);
-                 return newD;
-               })} className="p-2 bg-white/40 hover:bg-white rounded-lg transition-all"><ChevronDown className="rotate-90" size={16} /></button>
-               
-               <div className="flex flex-col items-center">
-                 <span className="text-[11px] font-black italic text-slate-900 tracking-widest whitespace-nowrap">
-                   {viewMode === 'Daily' && format(selectedDate, 'MMM dd, yyyy')}
-                   {viewMode === 'Weekly' && `Week of ${format(startOfWeek(selectedDate), 'MMM dd')}`}
-                   {viewMode === 'Monthly' && format(selectedDate, 'MMMM yyyy')}
-                   {viewMode === 'Yearly' && format(selectedDate, 'yyyy')}
-                 </span>
-                 <span className="text-[8px] font-bold text-amber-500/60 uppercase tracking-tighter">Active Date</span>
-               </div>
-
-               <button onClick={() => setSelectedDate(d => {
-                 const newD = new Date(d);
-                 if (viewMode === 'Daily') newD.setDate(d.getDate() + 1);
-                 else if (viewMode === 'Weekly') newD.setDate(d.getDate() + 7);
-                 else if (viewMode === 'Monthly') newD.setMonth(d.getMonth() + 1);
-                 else newD.setFullYear(d.getFullYear() + 1);
-                 return newD;
-               })} className="p-2 bg-white/40 hover:bg-white rounded-lg transition-all"><ChevronDown className="-rotate-90" size={16} /></button>
-            </div>
+            {viewMode === 'Range' ? (
+              <div className="flex items-center gap-2 bg-white/10 backdrop-blur-3xl rounded-2xl p-2 border border-white/20 shadow-lg px-4">
+                <div className="flex flex-col">
+                  <span className="text-[8px] font-black uppercase text-slate-500 ml-2 mb-0.5">Start</span>
+                  <input 
+                    type="date" 
+                    value={startDate} 
+                    onChange={e => setStartDate(e.target.value)}
+                    className="bg-transparent text-[10px] font-black text-slate-900 outline-none"
+                  />
+                </div>
+                <div className="w-[1px] h-6 bg-slate-300 mx-1" />
+                <div className="flex flex-col">
+                  <span className="text-[8px] font-black uppercase text-slate-500 ml-2 mb-0.5">End</span>
+                  <input 
+                    type="date" 
+                    value={endDate} 
+                    onChange={e => setEndDate(e.target.value)}
+                    className="bg-transparent text-[10px] font-black text-slate-900 outline-none"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-4 bg-white/10 backdrop-blur-3xl rounded-2xl p-2 border border-white/20 shadow-lg px-6">
+                 <button onClick={() => setSelectedDate(d => {
+                   const newD = new Date(d);
+                   if (viewMode === 'Daily') newD.setDate(d.getDate() - 1);
+                   else if (viewMode === 'Weekly') newD.setDate(d.getDate() - 7);
+                   else if (viewMode === 'Monthly') newD.setMonth(d.getMonth() - 1);
+                   else newD.setFullYear(d.getFullYear() - 1);
+                   return newD;
+                 })} className="p-2 bg-white/40 hover:bg-white rounded-lg transition-all"><ChevronDown className="rotate-90" size={16} /></button>
+                 
+                 <div className="flex flex-col items-center">
+                   <span className="text-[11px] font-black italic text-slate-900 tracking-widest whitespace-nowrap">
+                     {viewMode === 'Daily' && format(selectedDate, 'MMM dd, yyyy')}
+                     {viewMode === 'Weekly' && `Week of ${format(startOfWeek(selectedDate), 'MMM dd')}`}
+                     {viewMode === 'Monthly' && format(selectedDate, 'MMMM yyyy')}
+                     {viewMode === 'Yearly' && format(selectedDate, 'yyyy')}
+                   </span>
+                   <span className="text-[8px] font-bold text-amber-500/60 uppercase tracking-tighter">Active Date</span>
+                 </div>
+  
+                 <button onClick={() => setSelectedDate(d => {
+                   const newD = new Date(d);
+                   if (viewMode === 'Daily') newD.setDate(d.getDate() + 1);
+                   else if (viewMode === 'Weekly') newD.setDate(d.getDate() + 7);
+                   else if (viewMode === 'Monthly') newD.setMonth(d.getMonth() + 1);
+                   else newD.setFullYear(d.getFullYear() + 1);
+                   return newD;
+                 })} className="p-2 bg-white/40 hover:bg-white rounded-lg transition-all"><ChevronDown className="-rotate-90" size={16} /></button>
+              </div>
+            )}
 
             <button 
               onClick={toggleCurrency}
@@ -1297,21 +1345,94 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, 
         </motion.div>
       </div>
 
+      {/* Monthly Budget Tracker Row */}
+      <div className="mb-6">
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-3xl border border-white/20 dark:border-slate-800/80 rounded-[32px] p-6 shadow-md relative overflow-hidden"
+        >
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 bg-amber-500/10 rounded-xl text-amber-600">
+                    <DollarSign size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase italic tracking-tighter">Budget Progress</h3>
+                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{viewMode} Limit Monitoring</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className={`text-lg font-black italic ${isBudgetExceeded ? 'text-rose-600' : 'text-slate-900 dark:text-white'}`}>
+                    {formatCurrency(totalExpense)}
+                  </span>
+                  <span className="text-xs font-black text-slate-400 mx-1">/</span>
+                  <span className="text-xs font-bold text-slate-500">
+                    {budgetGoal > 0 ? formatCurrency(budgetGoal) : 'Goal Not Set'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="relative h-4 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden border border-slate-200/50 dark:border-slate-800 shadow-inner">
+                <motion.div 
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.min(budgetProgress, 100)}%` }}
+                  className={`absolute top-0 left-0 h-full rounded-full transition-all duration-1000 ${
+                    budgetProgress > 90 ? 'bg-gradient-to-r from-rose-500 to-rose-600' : 
+                    budgetProgress > 70 ? 'bg-gradient-to-r from-amber-500 to-amber-600' : 
+                    'bg-gradient-to-r from-emerald-500 to-emerald-600'
+                  }`}
+                  style={{ boxShadow: `0 0 10px ${budgetProgress > 90 ? '#ef4444' : budgetProgress > 70 ? '#f59e0b' : '#10b981'}44` }}
+                />
+              </div>
+              
+              <div className="flex justify-between mt-2">
+                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">
+                  {Math.round(budgetProgress)}% Consumed
+                </span>
+                <span className={`text-[8px] font-black uppercase tracking-widest ${isBudgetExceeded ? 'text-rose-600 animate-pulse' : 'text-slate-400'}`}>
+                  {isBudgetExceeded ? '⚠️ OVER BUDGET' : `${formatCurrency(Math.max(0, budgetGoal - totalExpense))} remaining`}
+                </span>
+              </div>
+            </div>
+
+            <div className="w-full md:w-48 bg-slate-50 dark:bg-slate-800/10 border border-slate-100 dark:border-slate-800/60 p-4 rounded-2xl flex flex-col gap-2">
+              <label className="text-[9px] font-black uppercase text-slate-500 tracking-widest ml-1 text-center">Set Budget Goal</label>
+              <div className="relative">
+                <input 
+                  type="number"
+                  placeholder="Enter Goal"
+                  defaultValue={budgetGoal > 0 ? budgetGoal : ''}
+                  onBlur={(e) => handleUpdateBudgetGoal(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleUpdateBudgetGoal((e.target as HTMLInputElement).value)}
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl py-2 px-3 text-xs font-black text-center outline-none focus:border-amber-500 transition-all shadow-sm"
+                />
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[10px] font-bold text-slate-300">
+                  {currencyMode}
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+
       <div className="flex-1 flex flex-col md:flex-row gap-6 overflow-visible md:overflow-hidden">
         {/* Structured Category List */}
         <div className="w-full md:w-[350px] lg:w-[410px] xl:w-[460px] bg-white/70 dark:bg-slate-900/70 backdrop-blur-3xl border border-slate-200/50 dark:border-slate-800/80 rounded-[36px] shadow-sm flex flex-col overflow-hidden text-left shrink-0">
             <div className="p-4 border-b border-slate-100 flex flex-col gap-3 bg-slate-50/50">
                 <div className="flex items-center justify-between">
-                    <div className="flex bg-slate-200/60 p-0.5 rounded-xl border border-slate-300/20">
+                    <div className="flex bg-zinc-200/60 p-0.5 rounded-xl border border-zinc-300/20">
                         <button
                           onClick={() => setLeftPanelTab('inputs')}
-                          className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${leftPanelTab === 'inputs' ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                          className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${leftPanelTab === 'inputs' ? 'bg-white text-amber-600 shadow-sm' : 'text-zinc-500 hover:text-zinc-800'}`}
                         >
                           📋 Entry
                         </button>
                         <button
                           onClick={() => setLeftPanelTab('chart')}
-                          className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${leftPanelTab === 'chart' ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                          className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${leftPanelTab === 'chart' ? 'bg-white text-amber-600 shadow-sm' : 'text-zinc-500 hover:text-zinc-800'}`}
                         >
                           📊 Insights
                         </button>
@@ -1425,6 +1546,80 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, 
                                             />
                                         </PieChart>
                                     </ResponsiveContainer>
+                                </div>
+
+                                <div className="mt-8 pt-5 border-t border-slate-150/60 dark:border-slate-800 space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-800 dark:text-slate-200 tracking-wider">
+                                            <TrendingUp size={14} className="text-amber-500" />
+                                            <span>Bar Analysis: Top 5 Categories</span>
+                                        </div>
+                                        <button 
+                                          onClick={() => setLeftPanelTab('chart')} 
+                                          className="text-[8px] font-black text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded uppercase"
+                                        >
+                                          Live Stats
+                                        </button>
+                                    </div>
+                                    
+                                    <div className="h-[180px] w-full bg-slate-50/50 dark:bg-slate-800/20 rounded-2xl p-2 border border-slate-100 dark:border-slate-800/40 shadow-inner">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart data={top5Categories} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
+                                                <XAxis 
+                                                  dataKey="name" 
+                                                  axisLine={false} 
+                                                  tickLine={false} 
+                                                  tick={{ fontSize: 8, fontWeight: 800, fill: '#94a3b8' }}
+                                                  interval={0}
+                                                />
+                                                <YAxis 
+                                                  axisLine={false} 
+                                                  tickLine={false} 
+                                                  tick={{ fontSize: 8, fontWeight: 800, fill: '#94a3b8' }}
+                                                />
+                                                <Tooltip 
+                                                  cursor={{ fill: 'rgba(245, 158, 11, 0.05)' }}
+                                                  formatter={(value: any) => [formatCurrency(value as number), 'Spent']}
+                                                  contentStyle={{ backgroundColor: 'rgba(255,255,255,0.96)', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '9px', fontWeight: 'bold' }}
+                                                />
+                                                <Bar 
+                                                  dataKey="value" 
+                                                  radius={[6, 6, 0, 0]} 
+                                                  barSize={32}
+                                                >
+                                                  {top5Categories.map((entry, index) => {
+                                                      const COLORS = ['#f59e0b', '#3b82f6', '#10b981', '#ef4444', '#6366f1'];
+                                                      return <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />;
+                                                  })}
+                                                </Bar>
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        {top5Categories.map((item, index) => {
+                                            const COLORS = ['#f59e0b', '#3b82f6', '#10b981', '#ef4444', '#6366f1'];
+                                            const maxVal = top5Categories[0]?.value || 1;
+                                            const pct = (item.value / maxVal) * 100;
+                                            return (
+                                                <div key={item.name} className="space-y-1">
+                                                    <div className="flex justify-between items-center text-[10px] font-black">
+                                                        <span className="text-slate-500 dark:text-slate-400 uppercase tracking-tight">{item.name}</span>
+                                                        <span className="text-slate-900 dark:text-slate-100">{formatCurrency(item.value)}</span>
+                                                    </div>
+                                                    <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                                        <motion.div 
+                                                            initial={{ width: 0 }}
+                                                            animate={{ width: `${pct}%` }}
+                                                            className="h-full rounded-full"
+                                                            style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
 
                                 <div className="space-y-1.5 max-h-[180px] overflow-y-auto pr-1 custom-scrollbar-amber pt-4 border-t border-slate-100 dark:border-slate-800">

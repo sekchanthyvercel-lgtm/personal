@@ -303,9 +303,8 @@ const App: React.FC = () => {
         storage.setItem('dps_data', JSON.stringify(newData));
 
         if (currentUser?.uid) {
-          import('./services/firebase').then(({ saveStudent, saveData, saveTopic, deleteTopic, saveAttendance, saveDailyNote, saveHabitCompletionBulk }) => {
+          import('./services/firebase').then(({ saveStudent, saveData, saveTopic, deleteTopic, saveAttendance, saveDailyNote, saveHabitCompletionBulk, saveHabitList, deleteHabit }) => {
             // Specialized sync logic...
-            // Note: For simplicity in the generic handleUpdate, we'll call specialized saves if fields changed
             
             // 1. Sync students
             const oldStudentsMap = new Map(prev.students.map(s => [s.id, s]));
@@ -315,10 +314,23 @@ const App: React.FC = () => {
                 saveStudent(currentUser.uid!, s);
               }
             });
-            const newStudentsIds = new Set(newData.students.map(s => s.id));
             prev.students.forEach(s => {
-              if (!newStudentsIds.has(s.id)) {
+              if (!newData.students.find(ns => ns.id === s.id)) {
                 import('./services/firebase').then(f => f.deleteStudent(currentUser.uid!, s.id));
+              }
+            });
+
+            // 1.1 Sync habits
+            const oldHabitsMap = new Map((prev.habits || []).map(h => [h.id, h]));
+            (newData.habits || []).forEach(h => {
+              const old = oldHabitsMap.get(h.id);
+              if (!old || JSON.stringify(old) !== JSON.stringify(h)) {
+                saveHabitList(currentUser.uid!, [h]);
+              }
+            });
+            (prev.habits || []).forEach(h => {
+              if (!(newData.habits || []).find(nh => nh.id === h.id)) {
+                deleteHabit(currentUser.uid!, h.id);
               }
             });
 

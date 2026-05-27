@@ -8,6 +8,8 @@ import { callNeuralEngine } from '../services/neuralEngine';
 import { RichTextDiv } from './FloatingToolbar';
 // @ts-ignore
 import html2pdf from 'html2pdf.js';
+// @ts-ignore
+import html2canvas from 'html2canvas';
 import Markdown from 'react-markdown';
 
 interface ReflectionsProps {
@@ -103,58 +105,161 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
 
   const exportPDF = async () => {
     if (!summaryRef.current) return;
-    const element = summaryRef.current;
     
-    // Create a wrapper for export styling
-    const wrapper = document.createElement('div');
-    wrapper.innerHTML = element.innerHTML;
-    wrapper.style.color = '#000';
-    wrapper.style.padding = '20px';
-    wrapper.style.backgroundColor = '#fff';
-    wrapper.querySelectorAll('*').forEach((el: any) => {
-        el.style.color = '#000';
-    });
+    // Create a robust container for export
+    const exportContainer = document.createElement('div');
+    exportContainer.style.width = '800px'; 
+    exportContainer.style.padding = '50px';
+    exportContainer.style.backgroundColor = 'white';
+    exportContainer.style.color = '#000';
+    exportContainer.style.fontFamily = "'Inter', sans-serif";
+    exportContainer.style.position = 'absolute';
+    exportContainer.style.left = '-9999px';
+    document.body.appendChild(exportContainer);
+    
+    const title = (data.settings as any)?.name || 'Growth Mastery Summary';
+    exportContainer.innerHTML = `
+      <div style="margin-bottom: 30px; border-bottom: 4px solid #ea580c; padding-bottom: 20px;">
+        <h1 style="font-size: 28pt; font-weight: 900; color: #0f172a; margin: 0; letter-spacing: -1px;">${title}</h1>
+        <p style="font-size: 11pt; color: #64748b; margin-top: 8px; text-transform: uppercase; letter-spacing: 3px; font-weight: 700;">Strategic Reflection Summary • ${new Date().toLocaleDateString()}</p>
+      </div>
+      <div class="reflection-content" style="line-height: 1.7; font-size: 12pt;">
+        ${summaryRef.current.innerHTML}
+      </div>
+      <style>
+        .reflection-content h2 { font-size: 20pt; font-weight: 900; margin-top: 30pt; color: #ea580c; border-bottom: 1px solid #fed7aa; padding-bottom: 10px; margin-bottom: 15pt; }
+        .reflection-content h3 { font-size: 16pt; font-weight: 800; margin-top: 20pt; color: #1e293b; }
+        .reflection-content p { margin-bottom: 14pt; color: #334155; }
+        .reflection-content ul { margin-bottom: 14pt; padding-left: 20pt; }
+        .reflection-content li { margin-bottom: 8pt; color: #475569; }
+        .paper-ruled { background-image: linear-gradient(#f1f5f9 2px, transparent 2px) !important; background-size: 100% 2.25rem !important; }
+        .paper-grid { background-image: linear-gradient(#f1f5f9 1px, transparent 1px), linear-gradient(90deg, #f1f5f9 1px, transparent 1px) !important; background-size: 1.5rem 1.5rem !important; }
+        .paper-dots { background-image: radial-gradient(#e2e8f0 2px, transparent 2px) !important; background-size: 1.5rem 1.5rem !important; }
+        .paper-engineering { background-color: #f0f9ff !important; background-image: linear-gradient(rgba(14, 165, 233, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(14, 165, 233, 0.1) 1px, transparent 1px) !important; background-size: 1rem 1rem !important; }
+        .synthesis-card-wrapper, .qa-board-wrapper { border: 2px solid #e2e8f0 !important; border-radius: 15px !important; padding: 25px !important; margin: 25px 0 !important; page-break-inside: avoid; background-color: #f8fafc !important; }
+        .markdown-body table { width: 100% !important; border-collapse: collapse; margin: 20px 0; }
+        .markdown-body th, .markdown-body td { border: 1px solid #e2e8f0; padding: 12px; text-align: left; }
+        .markdown-body th { background-color: #f1f5f9; font-weight: bold; }
+      </style>
+    `;
 
     const opt = {
       margin:       10,
-      filename:     `Strategic_Summary.pdf`,
-      image:        { type: 'jpeg' as 'jpeg', quality: 1 },
-      html2canvas:  { scale: 2, useCORS: true, logging: false },
-      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' as 'portrait' }
+      filename:     `Strategic_Summary_${format(new Date(), 'yyyy-MM-dd')}.pdf`,
+      image:        { type: 'jpeg' as const, quality: 0.98 },
+      html2canvas:  { scale: 2, useCORS: true, logging: false, width: 800 },
+      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' as const }
     };
 
     try {
-      await html2pdf().set(opt).from(wrapper).save();
+      await html2pdf().set(opt).from(exportContainer).save();
     } catch (e) {
       console.error(e);
+      alert('Export failed. Please try again.');
+    } finally {
+      document.body.removeChild(exportContainer);
     }
   };
 
   const exportWord = () => {
     if (!summaryRef.current) return;
     
-    const wrapper = document.createElement('div');
-    wrapper.innerHTML = summaryRef.current.innerHTML;
-    wrapper.style.color = '#000';
-    wrapper.style.backgroundColor = '#fff';
-    wrapper.querySelectorAll('*').forEach((el: any) => {
-        el.style.color = '#000';
-    });
-
-    const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' " +
-      "xmlns:w='urn:schemas-microsoft-com:office:word' " +
-      "xmlns='http://www.w3.org/TR/REC-html40'>" +
-      "<head><meta charset='utf-8'><title>Export HTML to Word</title></head><body>";
-    const footer = "</body></html>";
-    const sourceHTML = header + wrapper.outerHTML + footer;
+    const title = (data.settings as any)?.name || 'Growth Mastery Summary';
+    const header = `
+      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+      <head>
+        <meta charset='utf-8'>
+        <style>
+          body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40pt; color: #334155; }
+          h1 { color: #0f172a; font-size: 26pt; font-weight: bold; }
+          h2 { color: #ea580c; font-size: 18pt; margin-top: 25pt; font-weight: bold; }
+          h3 { color: #1e293b; font-size: 14pt; margin-top: 15pt; font-weight: bold; }
+          p { margin-bottom: 10pt; line-height: 1.5; }
+          .synthesis-card-wrapper, .qa-board-wrapper { 
+            border: 1pt solid #cbd5e1; 
+            padding: 15pt; 
+            margin: 15pt 0; 
+            background-color: #f8fafc;
+          }
+          table { width: 100% !important; border-collapse: collapse; margin: 15pt 0; }
+          th, td { border: 1pt solid #e2e8f0; padding: 8pt; text-align: left; }
+          th { background-color: #f1f5f9; font-weight: bold; color: #475569; }
+        </style>
+      </head>
+      <body>
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-bottom: 4px solid #ea580c; margin-bottom: 30pt;">
+          <tr>
+            <td style="padding-bottom: 15pt;">
+              <h1 style="margin: 0;">${title}</h1>
+              <p style="font-size: 10pt; color: #64748b; margin: 5pt 0 0 0; text-transform: uppercase;">Strategic Reflection Summary • ${new Date().toLocaleDateString()}</p>
+            </td>
+          </tr>
+        </table>
+        ${summaryRef.current.innerHTML}
+      </body>
+      </html>
+    `;
     
-    const source = 'data:application/vnd.ms-word;charset=utf-8,' + encodeURIComponent(sourceHTML);
-    const fileDownload = document.createElement("a");
-    document.body.appendChild(fileDownload);
-    fileDownload.href = source;
-    fileDownload.download = `Strategic_Summary.doc`;
-    fileDownload.click();
-    document.body.removeChild(fileDownload);
+    const blob = new Blob(['\ufeff', header], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `Strategic_Summary.doc`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportImage = async () => {
+    if (!summaryRef.current) return;
+    
+    const exportContainer = document.createElement('div');
+    exportContainer.style.width = '800px';
+    exportContainer.style.padding = '50px';
+    exportContainer.style.backgroundColor = '#ffffff';
+    exportContainer.style.color = '#000';
+    exportContainer.style.fontFamily = "'Inter', sans-serif";
+    exportContainer.style.position = 'absolute';
+    exportContainer.style.left = '-9999px';
+    document.body.appendChild(exportContainer);
+    
+    const title = (data.settings as any)?.name || 'Growth Mastery Summary';
+    exportContainer.innerHTML = `
+      <div style="margin-bottom: 30px; border-bottom: 5px solid #ea580c; padding-bottom: 25px;">
+        <h1 style="font-size: 32pt; font-weight: 950; color: #0f172a; margin: 0; letter-spacing: -2px;">${title}</h1>
+        <p style="font-size: 12pt; color: #64748b; margin-top: 10px; text-transform: uppercase; letter-spacing: 4px; font-weight: 800;">Strategic Masterplan Summary</p>
+      </div>
+      <div class="content" style="line-height: 1.8; font-size: 13pt; color: #1e293b;">
+        ${summaryRef.current.innerHTML}
+      </div>
+      <style>
+        .content h2 { font-size: 24pt; font-weight: 950; color: #ea580c; margin-top: 40px; margin-bottom: 20px; border-left: 8px solid #ea580c; padding-left: 20px; }
+        .content h3 { font-size: 18pt; font-weight: 800; color: #1e293b; margin-top: 30px; }
+        .content p { margin-bottom: 20px; }
+        .content ul { margin-bottom: 20px; padding-left: 30px; }
+        .content li { margin-bottom: 10px; }
+        .synthesis-card-wrapper, .qa-board-wrapper { border: 3px solid #f1f5f9; background: #f8fafc; border-radius: 24px; padding: 30px; margin: 30px 0; }
+      </style>
+    `;
+    
+    try {
+      const canvas = await html2canvas(exportContainer, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff'
+      });
+      const imgData = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.href = imgData;
+      link.download = `Strategic_Summary_${format(new Date(), 'yyyy-MM-dd')}.png`;
+      link.click();
+    } catch (e) {
+      console.error(e);
+      alert('Image export failed.');
+    } finally {
+      document.body.removeChild(exportContainer);
+    }
   };
 
 
@@ -440,21 +545,29 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
                 </button>
                 
                 {showExportMenu && (
-                  <div className="absolute right-0 top-full mt-2 z-[250] w-[180px] bg-white rounded-2xl shadow-2xl border border-slate-200 p-2 flex flex-col gap-1 animate-in slide-in-from-top-2 duration-150">
+                  <div className="absolute right-0 top-full mt-2 z-[250] w-[200px] bg-white rounded-2xl shadow-2xl border border-slate-200 p-2 flex flex-col gap-1 animate-in slide-in-from-top-2 duration-150">
                     <button 
                       onClick={() => { exportWord(); setShowExportMenu(false); }}
-                      className="flex items-center justify-between w-full text-left px-3 py-2 hover:bg-blue-50 text-slate-700 hover:text-blue-700 rounded-xl transition-colors font-bold text-xs"
+                      className="flex items-center justify-between w-full text-left px-3 py-2.5 hover:bg-blue-50 text-slate-700 hover:text-blue-700 rounded-xl transition-colors font-bold text-xs"
                     >
                       <span className="flex items-center gap-2">
-                        <FileText size={14} className="text-blue-500" /> MS Word (.doc)
+                        <FileText size={14} className="text-blue-500" /> MS Word Document
                       </span>
                     </button>
                     <button 
                       onClick={() => { exportPDF(); setShowExportMenu(false); }}
-                      className="flex items-center justify-between w-full text-left px-3 py-2 hover:bg-red-50 text-slate-700 hover:text-red-700 rounded-xl transition-colors font-bold text-xs"
+                      className="flex items-center justify-between w-full text-left px-3 py-2.5 hover:bg-red-50 text-slate-700 hover:text-red-700 rounded-xl transition-colors font-bold text-xs"
                     >
                       <span className="flex items-center gap-2">
                         <FileDown size={14} className="text-red-500" /> PDF Document
+                      </span>
+                    </button>
+                    <button 
+                      onClick={() => { exportImage(); setShowExportMenu(false); }}
+                      className="flex items-center justify-between w-full text-left px-3 py-2.5 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 rounded-xl transition-colors font-bold text-xs"
+                    >
+                      <span className="flex items-center gap-2">
+                        <Palette size={14} className="text-emerald-500" /> High-Res Image
                       </span>
                     </button>
                   </div>

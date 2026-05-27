@@ -126,6 +126,13 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
     const dateKey = format(day, 'yyyy-MM-dd');
     const isCompletedNow = !completions[dateKey]?.[habitId];
 
+    // Optimistic UI check feedback animation
+    const target = document.querySelector(`[data-habit-id="${habitId}"][data-date="${dateKey}"]`);
+    if (target) {
+      target.classList.add('scale-75');
+      setTimeout(() => target.classList.remove('scale-75'), 200);
+    }
+
     if (onUpdateHabitCompletion) {
       onUpdateHabitCompletion(dateKey, habitId, isCompletedNow);
     } else {
@@ -465,10 +472,10 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
           <button 
             onClick={getAISuggestions}
             disabled={isSuggesting}
-            className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-5 md:px-7 py-3 md:py-4 rounded-2xl font-black text-[10px] md:text-xs tracking-widest hover:shadow-indigo-500/40 hover:-translate-y-1 transition-all shadow-xl disabled:opacity-50 uppercase"
+            className="flex items-center gap-2 bg-gradient-to-br from-emerald-600 to-emerald-400 text-white px-5 md:px-7 py-3 md:py-4 rounded-2xl font-black text-[10px] md:text-xs tracking-widest hover:shadow-emerald-500/40 hover:-translate-y-1 transition-all shadow-xl disabled:opacity-50 uppercase"
           >
             {isSuggesting ? <RefreshCw size={16} className="animate-spin" /> : <Wand2 size={16} />}
-            AI Suggestions
+            AI Lessons
           </button>
           <button 
             onClick={() => setIsFullScreen(true)}
@@ -496,8 +503,8 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
           >
             <div className="flex items-center justify-between mb-4">
                <h3 className="text-sm font-black text-slate-800 uppercase italic flex items-center gap-2">
-                 <Wand2 size={16} className="text-indigo-500" />
-                 AI Master Recommendations
+                 <Wand2 size={16} className="text-emerald-500" />
+                 Growth Mastery Insights
                </h3>
                <button onClick={() => setSuggestedHabits([])} className="text-[9px] font-black uppercase text-slate-400 hover:text-slate-900 transition-colors tracking-widest">Clear</button>
             </div>
@@ -508,7 +515,7 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
                   onClick={() => applySuggestedHabit(h)}
                   className="px-4 py-2 bg-white/40 hover:bg-white/60 border border-white/20 rounded-xl text-xs font-bold text-slate-800 transition-all flex items-center gap-2 group"
                 >
-                  <Plus size={14} className="text-indigo-500 group-hover:scale-125 transition-transform" />
+                  <Plus size={14} className="text-emerald-500 group-hover:scale-125 transition-transform" />
                   {h}
                 </button>
               ))}
@@ -596,24 +603,24 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
         <div ref={tableContainerRef} className="overflow-x-auto overflow-y-hidden relative scroll-smooth custom-scrollbar-orange">
           <table className="w-full border-collapse">
             <thead>
-              <tr className="bg-slate-900/5 text-slate-900 backdrop-blur-md">
-                <th className="sticky left-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl p-3 md:p-8 text-left border-b border-slate-200/50 w-[100px] md:w-72 min-w-[100px] md:min-w-[240px] shadow-[2px_0_10px_rgba(0,0,0,0.08)]">
+              <tr className="bg-zinc-900/5 text-zinc-900 backdrop-blur-md">
+                <th className="sticky left-0 z-30 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl p-3 md:p-8 text-left border-b border-zinc-200/50 w-[100px] md:w-72 min-w-[100px] md:min-w-[240px] shadow-[2px_0_10px_rgba(0,0,0,0.08)]">
                   <span className="text-[7px] md:text-[10px] font-black uppercase tracking-[1px] md:tracking-[4px] text-orange-600">Disciplines</span>
                 </th>
                 {daysInMonth.map(day => (
-                  <th key={day.toString()} className={`p-2 md:p-6 border-b border-slate-200/50 min-w-[44px] md:min-w-[72px] text-center ${isToday(day) ? 'bg-orange-500 text-white font-black shadow-lg shadow-orange-500/30 rounded-b-2xl today-cell' : 'hover:bg-slate-100/50 transition-colors'}`}>
+                  <th key={day.toString()} className={`p-2 md:p-6 border-b border-zinc-200/50 min-w-[44px] md:min-w-[72px] text-center ${isToday(day) ? 'bg-orange-500 text-white font-black shadow-lg shadow-orange-500/30 rounded-b-2xl today-cell' : 'hover:bg-zinc-100/50 transition-colors'}`}>
                     <span className="text-[9px] font-black uppercase block mb-0.5 opacity-60 tracking-wider ">{format(day, 'EEE')}</span>
                     <span className="text-xs font-black tracking-tight">{format(day, 'd')}</span>
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-zinc-100">
               {habits.map((habit, idx) => {
                 const streak = getStreak(habit.id);
                 return (
                  <tr key={habit.id} className="group hover:bg-black/5 transition-colors">
-                    <td className="sticky left-0 z-10 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl p-3 md:p-6 border-b border-black/10 w-[100px] md:w-72 min-w-[100px] md:min-w-[240px] shadow-[2px_0_10px_rgba(0,0,0,0.05)]">
+                    <td className="sticky left-0 z-10 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl p-3 md:p-6 border-b border-black/10 w-[100px] md:w-72 min-w-[100px] md:min-w-[240px] shadow-[2px_0_10px_rgba(0,0,0,0.05)]">
                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-1 md:gap-4">
                        <div className="flex flex-col gap-0.5 min-w-0 overflow-hidden">
                          <RichTextDiv 
@@ -670,14 +677,14 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
                       return (
                         <td key={day.toString()} className="p-2 border-b border-black/10 text-center">
                           <div className="flex flex-col items-center justify-center gap-1 select-none w-16 mx-auto">
-                            <span className="text-[8px] font-black text-slate-400 tracking-tighter leading-none mb-0.5" style={{ color: isFullDone ? (habit.color || '#10b981') : '' }}>
+                            <span className="text-[8px] font-black text-zinc-400 tracking-tighter leading-none mb-0.5" style={{ color: isFullDone ? (habit.color || '#10b981') : '' }}>
                               {isFullDone ? '✅ DONE' : '🏃 GOAL'}
                             </span>
-                            <div className="flex items-center gap-1 bg-white/40 border border-slate-200/50 p-1 rounded-full shadow-sm">
+                            <div className="flex items-center gap-1 bg-white/40 border border-zinc-200/50 p-1 rounded-full shadow-sm">
                               <button 
                                 onClick={() => adjustNumericValue(habit.id, day, -0.5)}
                                 onDoubleClick={(e) => { e.stopPropagation(); adjustNumericValue(habit.id, day, -1); }}
-                                className="w-5 h-5 rounded-full bg-slate-100 hover:bg-slate-250 text-[10px] font-black flex items-center justify-center cursor-pointer border border-slate-200/60"
+                                className="w-5 h-5 rounded-full bg-zinc-100 hover:bg-zinc-250 text-[10px] font-black flex items-center justify-center cursor-pointer border border-zinc-200/60"
                                 title="Subtract 0.5 (Double-click: -1)"
                               >
                                 -
@@ -688,7 +695,7 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
                                 className={`px-1.5 py-0.5 rounded-full text-[9px] font-black cursor-pointer transition-all ${
                                   isFullDone
                                     ? 'text-white font-extrabold shadow-sm'
-                                    : 'text-slate-700 hover:bg-slate-100'
+                                    : 'text-zinc-700 hover:bg-zinc-100'
                                 }`}
                                 style={{
                                   backgroundColor: isFullDone ? (habit.color || '#ea580c') : '',
@@ -702,13 +709,13 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
                               <button 
                                 onClick={() => adjustNumericValue(habit.id, day, 0.5)}
                                 onDoubleClick={(e) => { e.stopPropagation(); adjustNumericValue(habit.id, day, 1); }}
-                                className="w-5 h-5 rounded-full bg-slate-100 hover:bg-slate-250 text-[10px] font-black flex items-center justify-center cursor-pointer border border-slate-200/60"
+                                className="w-5 h-5 rounded-full bg-zinc-100 hover:bg-zinc-250 text-[10px] font-black flex items-center justify-center cursor-pointer border border-zinc-200/60"
                                 title="Add 0.5 (Double-click: +1)"
                               >
                                 +
                               </button>
                             </div>
-                            <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest leading-none truncate max-w-[55px] mt-0.5">
+                            <span className="text-[7px] font-black text-zinc-400 uppercase tracking-widest leading-none truncate max-w-[55px] mt-0.5">
                               {habit.targetValue} {habit.unit || 'units'}
                             </span>
                           </div>
@@ -721,6 +728,8 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
                       <td key={day.toString()} className="p-4 border-b border-black/10 text-center">
                         <button 
                           onClick={() => handleToggleHabit(habit.id, day)}
+                          data-habit-id={habit.id}
+                          data-date={dateKey}
                           className={`w-8 h-8 rounded-full transition-all flex items-center justify-center ${
                             isCompleted 
                               ? 'scale-110 shadow-lg' 
@@ -794,80 +803,82 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
 
       <AnimatePresence>
         {isAddingHabit && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[150] bg-slate-900/60 backdrop-blur-md flex items-start justify-center p-4 md:p-6 overflow-y-auto"
-          >
             <motion.div 
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              className="bg-white w-full max-w-md rounded-[32px] p-6 md:p-10 shadow-2xl my-auto md:my-16 relative"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[200] bg-zinc-950/80 backdrop-blur-xl flex items-start justify-center p-4 overflow-y-auto"
             >
-              <button 
-                onClick={() => setIsAddingHabit(false)}
-                className="absolute top-6 right-6 p-2 text-slate-400 hover:text-slate-900 transition-colors"
-                aria-label="Close"
+              <motion.div 
+                initial={{ scale: 0.9, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                className="bg-white w-full max-w-md rounded-[40px] p-8 md:p-12 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] my-auto relative border border-zinc-100"
               >
-                <X size={20} />
-              </button>
+                <button 
+                  onClick={() => setIsAddingHabit(false)}
+                  className="absolute top-8 right-8 p-3 text-zinc-300 hover:text-zinc-900 transition-all z-10 bg-zinc-50 rounded-2xl hover:bg-zinc-100"
+                  aria-label="Close"
+                >
+                  <X size={20} />
+                </button>
 
-              <h3 className="text-xl md:text-2xl font-black text-slate-900 mb-6 uppercase tracking-tight">New Mastery Habit</h3>
-              
-              <div className="space-y-6 mb-8">
-                <div>
-                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-2">Habit Name</label>
-                  <input 
-                    autoFocus
-                    type="text"
-                    value={newHabitName}
-                    onChange={e => setNewHabitName(e.target.value)}
-                    placeholder="e.g., Drink water"
-                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-base font-bold outline-none focus:border-indigo-500 transition-all"
-                    onKeyDown={e => e.key === 'Enter' && handleAddHabit()}
-                  />
-                </div>
+                <h3 className="text-2xl md:text-3xl font-black text-zinc-900 mb-8 uppercase italic tracking-tight leading-none">New <br/>Mastery Habit</h3>
+                
+                <div className="space-y-8 mb-10 max-h-[70vh] md:max-h-none overflow-y-auto px-1">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest block ml-4 font-sans">Identity & Name</label>
+                    <input 
+                      autoFocus
+                      type="text"
+                      value={newHabitName}
+                      onChange={e => setNewHabitName(e.target.value)}
+                      placeholder="e.g., Deep Work Session"
+                      className="w-full bg-zinc-50 border-2 border-transparent rounded-[28px] py-6 px-8 text-lg font-black outline-none focus:border-orange-500 focus:bg-white transition-all placeholder:text-zinc-300 shadow-sm"
+                      onKeyDown={e => e.key === 'Enter' && handleAddHabit()}
+                    />
+                  </div>
 
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col gap-4">
-                  <div className="flex items-center justify-between cursor-pointer" onClick={() => setIsNumericHabit(!isNumericHabit)}>
+                <div className="p-8 bg-zinc-900/5 rounded-[36px] border border-zinc-100 flex flex-col gap-6 ">
+                  <div className="flex items-center justify-between cursor-pointer group px-2" onClick={() => setIsNumericHabit(!isNumericHabit)}>
                     <div>
-                      <span className="text-xs font-black text-slate-800 uppercase tracking-tight block">Numerical Goal?</span>
-                      <span className="text-[9px] text-slate-400 font-bold block">Track counts or levels (e.g. 2 liters of water)</span>
+                      <span className="text-[12px] font-black text-zinc-900 uppercase tracking-tight block">Numerical Tracking</span>
+                      <span className="text-[9px] text-zinc-400 font-bold block uppercase tracking-[0.1em] mt-1">Units (liters, reps, km)</span>
                     </div>
-                    <button 
-                      type="button"
-                      className={`w-12 h-6 flex items-center rounded-full p-1 cursor-pointer transition-all ${isNumericHabit ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                    <div 
+                      className={`w-14 h-8 flex items-center rounded-full p-1.5 cursor-pointer transition-all duration-500 ${isNumericHabit ? 'bg-orange-500 shadow-lg shadow-orange-500/20' : 'bg-zinc-200'}`}
                     >
-                      <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-all ${isNumericHabit ? 'translate-x-6' : 'translate-x-0'}`} />
-                    </button>
+                      <motion.div 
+                        animate={{ x: isNumericHabit ? 24 : 0 }}
+                        className="bg-white w-5 h-5 rounded-full shadow-md" 
+                      />
+                    </div>
                   </div>
 
                   {isNumericHabit && (
                     <motion.div 
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
-                      className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-200/50"
+                      className="grid grid-cols-2 gap-4 pt-4 border-t border-zinc-200/50"
                     >
-                      <div>
-                        <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider block mb-1">Daily Target</label>
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-black uppercase text-zinc-400 tracking-wider block ml-3">Daily Goal</label>
                         <input 
                           type="number"
                           value={habitTargetValue}
                           onChange={e => setHabitTargetValue(Math.max(0.1, parseFloat(e.target.value) || 1))}
-                          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold outline-none focus:border-indigo-500 transition-all"
+                          className="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-3 text-sm font-black outline-none focus:border-orange-500 transition-all"
                           min="0.1"
                           step="0.5"
                         />
                       </div>
-                      <div>
-                        <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider block mb-1">Unit</label>
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-black uppercase text-zinc-400 tracking-wider block ml-3">Metric Unit</label>
                         <input 
                           type="text"
                           value={habitUnit}
                           onChange={e => setHabitUnit(e.target.value)}
-                          placeholder="e.g. liters, pages, reps"
-                          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold outline-none focus:border-indigo-500 transition-all"
+                          placeholder="e.g. km"
+                          className="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-3 text-sm font-black outline-none focus:border-orange-500 transition-all placeholder:text-zinc-300"
                         />
                       </div>
                     </motion.div>
@@ -878,15 +889,15 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
               <div className="flex gap-4">
                 <button 
                   onClick={() => setIsAddingHabit(false)}
-                  className="flex-1 py-4 text-slate-500 font-black text-xs uppercase tracking-widest hover:text-slate-900 transition-all"
+                  className="flex-1 py-5 text-zinc-400 font-black text-[11px] uppercase tracking-[0.2em] hover:text-zinc-900 transition-all"
                 >
-                  Cancel
+                  DISCARD
                 </button>
                 <button 
                   onClick={handleAddHabit}
-                  className="flex-1 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-600/20 hover:scale-105 active:scale-95 transition-all"
+                  className="flex-1 bg-gradient-to-br from-orange-600 to-orange-400 text-white rounded-[24px] py-5 font-black text-[11px] uppercase tracking-[0.2em] shadow-2xl hover:scale-[1.03] active:scale-95 transition-all border-b-4 border-orange-800"
                 >
-                  Create Habit
+                  CREATE MASTERY HABIT
                 </button>
               </div>
             </motion.div>

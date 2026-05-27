@@ -54,6 +54,7 @@ export interface AppSettings {
   appBackgroundColor?: string;
   currency?: 'USD' | 'KHR';
   exchangeRate?: number;
+  monthlyBudgetGoal?: number;
   fontColor?: string;
   dateTextColor?: string;
   paperStyle?: string;

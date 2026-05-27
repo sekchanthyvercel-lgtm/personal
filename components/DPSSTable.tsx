@@ -2,10 +2,13 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Plus, Trash2, Calendar, AlignLeft, AlignCenter, AlignRight, Highlighter, Type, Settings2, MousePointer2, Minus, Layout, Square, Quote, FileUp, FileDown, Loader2, Wand2, Menu, ChevronLeft, FileText, ChevronDown, ChevronRight, Table, Grid3X3, Columns, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Palette, Italic, Underline, Strikethrough, Indent, Outdent, List, ListOrdered, CheckSquare, MoreHorizontal, Download, Maximize2, Minimize2 } from 'lucide-react';
 import { AppData, DPSSTopic } from '../types';
 import { v4 as uuidv4 } from 'uuid';
+import { format } from 'date-fns';
 import { callNeuralEngine } from '../services/neuralEngine';
 import { PAPER_STYLES } from '../src/styles/paperStyles';
 // @ts-ignore
 import html2pdf from 'html2pdf.js';
+// @ts-ignore
+import html2canvas from 'html2canvas';
 
 interface DPSSTableProps {
   data: AppData;
@@ -33,58 +36,172 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
 
   const exportPDF = async () => {
     if (!editorRef.current) return;
-    const originalBorder = editorRef.current.style.border;
-    const originalShadow = editorRef.current.style.boxShadow;
-    const originalOverflow = editorRef.current.style.overflow;
-    const originalMaxHeight = editorRef.current.style.maxHeight;
-    const originalHeight = editorRef.current.style.height;
-    
-    editorRef.current.style.border = 'none';
-    editorRef.current.style.boxShadow = 'none';
-    editorRef.current.style.overflow = 'visible';
-    editorRef.current.style.maxHeight = 'none';
-    editorRef.current.style.height = 'auto';
-
-    const element = editorRef.current;
     const activeTopic = data?.dpssTopics?.find((t: DPSSTopic) => t.id === selectedTopicId) || { title: 'Notes' };
+    
+    // Create a robust container for export
+    const exportContainer = document.createElement('div');
+    exportContainer.style.width = '800px';
+    exportContainer.style.padding = '50px';
+    exportContainer.style.backgroundColor = 'white';
+    exportContainer.style.color = '#000';
+    exportContainer.style.fontFamily = "'Inter', sans-serif";
+    exportContainer.style.position = 'absolute';
+    exportContainer.style.left = '-9999px';
+    document.body.appendChild(exportContainer);
+    
+    exportContainer.innerHTML = `
+      <div style="margin-bottom: 30px; border-bottom: 5px solid #0284c7; padding-bottom: 25px;">
+        <h1 style="font-size: 28pt; font-weight: 955; color: #0f172a; margin: 0; letter-spacing: -1.5px;">${activeTopic.title}</h1>
+        <p style="font-size: 11pt; color: #64748b; margin-top: 10px; text-transform: uppercase; letter-spacing: 4px; font-weight: 800;">High-Performance Strategic Notes • ${new Date().toLocaleDateString()}</p>
+      </div>
+      <div class="note-content" style="line-height: 1.8; font-size: 12pt;">
+        ${editorRef.current.innerHTML}
+      </div>
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=Caveat:wght@400;700&display=swap');
+        .note-content h1, .note-content h2 { font-size: 22pt; font-weight: 955; margin-top: 35pt; color: #0369a1; border-left: 10px solid #0369a1; padding-left: 20px; margin-bottom: 15pt; line-height: 1.2; }
+        .note-content h3 { font-size: 16pt; font-weight: 850; margin-top: 25pt; color: #1e293b; }
+        .note-content p { margin-bottom: 15pt; color: #334155; }
+        .note-content { font-family: 'Inter', sans-serif; }
+        .note-content[style*="font-family: cursive"], .note-content [style*="font-family: cursive"] { font-family: 'Dancing Script', cursive !important; }
+        .paper-ruled { background-image: linear-gradient(#f1f5f9 2px, transparent 2px) !important; background-size: 100% 2.25rem !important; }
+        .paper-grid { background-image: linear-gradient(#f1f5f9 1px, transparent 1px), linear-gradient(90deg, #f1f5f9 1px, transparent 1px) !important; background-size: 1.5rem 1.5rem !important; }
+        .paper-dots { background-image: radial-gradient(#e2e8f0 2px, transparent 2px) !important; background-size: 1.5rem 1.5rem !important; }
+        .paper-engineering { background-color: #f0f9ff !important; background-image: linear-gradient(rgba(14, 165, 233, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(14, 165, 233, 0.1) 1px, transparent 1px) !important; background-size: 1rem 1rem !important; }
+        .synthesis-card-wrapper, .qa-board-wrapper { border: 2.5px solid #e2e8f0 !important; border-radius: 20px !important; padding: 25px !important; margin: 25px 0 !important; page-break-inside: avoid; background-color: #f8fafc !important; }
+        table { width: 100% !important; border-collapse: collapse; margin: 20px 0; border: 1px solid #e2e8f0; }
+        th, td { border: 1px solid #e2e8f0; padding: 12px; }
+        th { background-color: #f8fafc; font-weight: bold; }
+        img { border-radius: 15px; margin: 15px 0; }
+      </style>
+    `;
+
     const opt = {
       margin:       10,
-      filename:     `${activeTopic.title}.pdf`,
-      image:        { type: 'jpeg' as 'jpeg', quality: 1 },
-      html2canvas:  { scale: 2, useCORS: true, logging: false },
-      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' as 'portrait' }
+      filename:     `${activeTopic.title || 'Strategic_Notes'}_${format(new Date(), 'yyyy-MM-dd')}.pdf`,
+      image:        { type: 'jpeg' as const, quality: 0.98 },
+      html2canvas:  { scale: 2, useCORS: true, logging: false, width: 800 },
+      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' as const }
     };
 
     try {
-      await html2pdf().set(opt).from(element).save();
+      await html2pdf().set(opt).from(exportContainer).save();
     } catch (e) {
       console.error(e);
+      alert('Export failed.');
     } finally {
-      editorRef.current.style.border = originalBorder;
-      editorRef.current.style.boxShadow = originalShadow;
-      editorRef.current.style.overflow = originalOverflow;
-      editorRef.current.style.maxHeight = originalMaxHeight;
-      editorRef.current.style.height = originalHeight;
+      document.body.removeChild(exportContainer);
     }
   };
 
   const exportWord = () => {
     if (!editorRef.current) return;
     const activeTopic = data?.dpssTopics?.find((t: DPSSTopic) => t.id === selectedTopicId) || { title: 'Notes' };
-    const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' " +
-      "xmlns:w='urn:schemas-microsoft-com:office:word' " +
-      "xmlns='http://www.w3.org/TR/REC-html40'>" +
-      "<head><meta charset='utf-8'><title>Export HTML to Word</title></head><body>";
-    const footer = "</body></html>";
-    const sourceHTML = header + editorRef.current.innerHTML + footer;
     
-    const source = 'data:application/vnd.ms-word;charset=utf-8,' + encodeURIComponent(sourceHTML);
-    const fileDownload = document.createElement("a");
-    document.body.appendChild(fileDownload);
-    fileDownload.href = source;
-    fileDownload.download = `${activeTopic.title}.doc`;
-    fileDownload.click();
-    document.body.removeChild(fileDownload);
+    const header = `
+      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+      <head>
+        <meta charset='utf-8'>
+        <style>
+          body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40pt; color: #334155; }
+          h1 { color: #0f172a; font-size: 26pt; font-weight: bold; }
+          h2 { color: #0369a1; font-size: 18pt; margin-top: 25pt; font-weight: bold; }
+          h3 { color: #1e293b; font-size: 14pt; margin-top: 15pt; font-weight: bold; }
+          p { margin-bottom: 10pt; line-height: 1.5; }
+          .synthesis-card-wrapper, .qa-board-wrapper { 
+            border: 1pt solid #cbd5e1; 
+            padding: 15pt; 
+            margin: 15pt 0; 
+            background-color: #f8fafc;
+          }
+          table { width: 100% !important; border-collapse: collapse; margin: 15pt 0; }
+          th, td { border: 1pt solid #e2e8f0; padding: 8pt; text-align: left; }
+          th { background-color: #f1f5f9; font-weight: bold; }
+          img { max-width: 500pt; height: auto; }
+        </style>
+      </head>
+      <body>
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-bottom: 5pt solid #0369a1; margin-bottom: 30pt;">
+          <tr>
+            <td style="padding-bottom: 15pt;">
+              <h1 style="margin: 0;">${activeTopic.title}</h1>
+              <p style="font-size: 10pt; color: #64748b; margin: 5pt 0 0 0; text-transform: uppercase;">Strategic Notes Export • ${new Date().toLocaleDateString()}</p>
+            </td>
+          </tr>
+        </table>
+        ${editorRef.current.innerHTML}
+      </body>
+      </html>
+    `;
+    
+    const blob = new Blob(['\ufeff', header], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${activeTopic.title || 'Notes'}.doc`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportImage = async () => {
+    if (!editorRef.current) return;
+    const activeTopic = data?.dpssTopics?.find((t: DPSSTopic) => t.id === selectedTopicId) || { title: 'Notes' };
+    
+    const exportContainer = document.createElement('div');
+    exportContainer.style.width = '1000px';
+    exportContainer.style.padding = '60px';
+    exportContainer.style.backgroundColor = '#ffffff';
+    exportContainer.style.color = '#0f172a';
+    exportContainer.style.fontFamily = "'Inter', sans-serif";
+    exportContainer.style.position = 'absolute';
+    exportContainer.style.left = '-9999px';
+    document.body.appendChild(exportContainer);
+    
+    exportContainer.innerHTML = `
+      <div style="margin-bottom: 40px; border-bottom: 8px solid #0284c7; padding-bottom: 30px;">
+        <h1 style="font-size: 36pt; font-weight: 955; color: #0f172a; margin: 0; letter-spacing: -2.5px; line-height: 1;">${activeTopic.title}</h1>
+        <div style="display: flex; align-items: center; gap: 15px; margin-top: 15px;">
+           <div style="height: 2px; width: 40px; background: #0284c7;"></div>
+           <p style="font-size: 12pt; color: #64748b; margin: 0; text-transform: uppercase; letter-spacing: 5px; font-weight: 800;">Strategic Intelligence Asset</p>
+        </div>
+      </div>
+      <div class="content" style="line-height: 1.9; font-size: 14pt; color: #1e293b;">
+        ${editorRef.current.innerHTML}
+      </div>
+      <style>
+        .content h1, .content h2 { font-size: 28pt; font-weight: 955; color: #0369a1; margin-top: 50px; margin-bottom: 25px; border-left: 12px solid #0369a1; padding-left: 25px; line-height: 1.1; }
+        .content h3 { font-size: 20pt; font-weight: 800; color: #0f172a; margin-top: 40px; margin-bottom: 15px; }
+        .content p { margin-bottom: 25px; }
+        .content ul { margin-bottom: 25px; padding-left: 35px; }
+        .content li { margin-bottom: 12px; }
+        .synthesis-card-wrapper, .qa-board-wrapper { border: 4px solid #f1f5f9; background: #f8fafc; border-radius: 32px; padding: 40px; margin: 40px 0; }
+        table { width: 100% !important; border-collapse: collapse; margin: 30px 0; border: 2px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
+        th, td { border: 1px solid #e2e8f0; padding: 15px; }
+        th { background: #f8fafc; font-weight: 900; }
+        img { border-radius: 20px; width: 100%; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+      </style>
+    `;
+    
+    try {
+      const canvas = await html2canvas(exportContainer, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false
+      });
+      const imgData = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.href = imgData;
+      link.download = `${activeTopic.title || 'Notes'}_${format(new Date(), 'yyyy-MM-dd')}.png`;
+      link.click();
+    } catch (e) {
+      console.error(e);
+      alert('Image export failed.');
+    } finally {
+      document.body.removeChild(exportContainer);
+    }
   };
 
 
@@ -1297,21 +1414,29 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
                         </button>
                         
                         {showExportMenu && (
-                          <div className="absolute right-0 top-full mt-2 z-[250] w-[180px] bg-white rounded-2xl shadow-2xl border border-slate-200 p-2 flex flex-col gap-1 animate-in slide-in-from-top-2 duration-150">
+                          <div className="absolute right-0 top-full mt-2 z-[250] w-[200px] bg-white rounded-2xl shadow-2xl border border-slate-200 p-2 flex flex-col gap-1 animate-in slide-in-from-top-2 duration-150">
                             <button 
                               onClick={() => { exportWord(); setShowExportMenu(false); }}
-                              className="flex items-center justify-between w-full text-left px-3 py-2 hover:bg-blue-50 text-slate-700 hover:text-blue-700 rounded-xl transition-colors font-bold text-xs"
+                              className="flex items-center justify-between w-full text-left px-3 py-2.5 hover:bg-blue-50 text-slate-700 hover:text-blue-700 rounded-xl transition-colors font-bold text-xs"
                             >
                               <span className="flex items-center gap-2">
-                                <FileText size={14} className="text-blue-500" /> MS Word (.doc)
+                                <FileText size={14} className="text-blue-500" /> MS Word Document
                               </span>
                             </button>
                             <button 
                               onClick={() => { exportPDF(); setShowExportMenu(false); }}
-                              className="flex items-center justify-between w-full text-left px-3 py-2 hover:bg-red-50 text-slate-700 hover:text-red-700 rounded-xl transition-colors font-bold text-xs"
+                              className="flex items-center justify-between w-full text-left px-3 py-2.5 hover:bg-red-50 text-slate-700 hover:text-red-700 rounded-xl transition-colors font-bold text-xs"
                             >
                               <span className="flex items-center gap-2">
                                 <FileDown size={14} className="text-red-500" /> PDF Document
+                              </span>
+                            </button>
+                            <button 
+                              onClick={() => { exportImage(); setShowExportMenu(false); }}
+                              className="flex items-center justify-between w-full text-left px-3 py-2.5 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 rounded-xl transition-colors font-bold text-xs"
+                            >
+                              <span className="flex items-center gap-2">
+                                <Palette size={14} className="text-emerald-500" /> High-Res Image
                               </span>
                             </button>
                           </div>

@@ -1,10 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AppData, JournalEntry, ReflectionData } from '../types';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, addDays, subDays, subMonths, addMonths, startOfWeek, endOfWeek } from 'date-fns';
-import { CheckCircle2, ChevronLeft, ChevronRight, Calendar as CalendarIcon, BookOpen, Clock, X, Target, Quote, Heart, Sparkles, Footprints, Zap, ShieldCheck, Lightbulb, Activity, Circle, CheckSquare, Palette, RefreshCw } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, ChevronRight, Calendar as CalendarIcon, BookOpen, Clock, X, Target, Quote, Heart, Sparkles, Footprints, Zap, ShieldCheck, Lightbulb, Activity, Circle, CheckSquare, Palette, RefreshCw, FileText, FileDown, ChevronDown, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { PAPER_STYLES } from '../src/styles/paperStyles';
 import { RichTextDiv } from './FloatingToolbar';
+// @ts-ignore
+import html2pdf from 'html2pdf.js';
+// @ts-ignore
+import html2canvas from 'html2canvas';
 
 interface DailyJournalProps {
   data: AppData;
@@ -45,6 +49,174 @@ const JournalBlock: React.FC<JournalBlockProps> = ({ title, icon, children, bgCo
   // AI Journal Insight States
   const [weeklyInsightLoading, setWeeklyInsightLoading] = useState<boolean>(false);
   const [weeklyInsightError, setWeeklyInsightError] = useState<string | null>(null);
+
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const journalRef = useRef<HTMLDivElement>(null);
+
+  const exportPDF = async () => {
+    if (!journalRef.current) return;
+    
+    // Create a robust container for export
+    const exportContainer = document.createElement('div');
+    exportContainer.style.width = '800px'; 
+    exportContainer.style.padding = '50px';
+    exportContainer.style.backgroundColor = 'white';
+    exportContainer.style.color = '#000';
+    exportContainer.style.fontFamily = "'Inter', sans-serif";
+    exportContainer.style.position = 'absolute';
+    exportContainer.style.left = '-9999px';
+    document.body.appendChild(exportContainer);
+    
+    const title = reflectionMode === 'Daily' ? `Daily Reflection - ${format(selectedDate, 'MMM d, yyyy')}` : `${reflectionMode} Performance Report`;
+    
+    exportContainer.innerHTML = `
+      <div style="margin-bottom: 30px; border-bottom: 5px solid #10b981; padding-bottom: 25px;">
+        <h1 style="font-size: 28pt; font-weight: 955; color: #064e3b; margin: 0; letter-spacing: -1.5px;">${title}</h1>
+        <p style="font-size: 11pt; color: #64748b; margin-top: 10px; text-transform: uppercase; letter-spacing: 4px; font-weight: 800;">Self-Reflection Masterpost • ${new Date().toLocaleDateString()}</p>
+      </div>
+      <div class="journal-content" style="line-height: 1.8; font-size: 12pt;">
+        ${journalRef.current.innerHTML}
+      </div>
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=Caveat:wght@400;700&display=swap');
+        .journal-content h3 { font-size: 16pt; font-weight: 900; margin-top: 25pt; color: #065f46; border-bottom: 2px solid #a7f3d0; padding-bottom: 8px; margin-bottom: 12pt; }
+        .journal-content p { margin-bottom: 14pt; color: #1e293b; }
+        .journal-content { font-family: 'Inter', sans-serif; }
+        .journal-content[style*="font-family: cursive"], .journal-content [style*="font-family: cursive"] { font-family: 'Dancing Script', cursive !important; }
+        .paper-ruled { background-image: linear-gradient(#f1f5f9 2px, transparent 2px) !important; background-size: 100% 2.25rem !important; background-color: #ffffff !important; }
+        .paper-grid { background-image: linear-gradient(#f1f5f9 1px, transparent 1px), linear-gradient(90deg, #f1f5f9 1px, transparent 1px) !important; background-size: 1.5rem 1.5rem !important; background-color: #ffffff !important; }
+        .paper-dots { background-image: radial-gradient(#e2e8f0 2px, transparent 2px) !important; background-size: 1.5rem 1.5rem !important; background-color: #ffffff !important; }
+        .rounded-[28px] { border: 2px solid #ecfdf5 !important; border-radius: 20px !important; padding: 25px !important; margin-bottom: 20px !important; background: #ffffff !important; }
+        .bg-white\\/\\[0\\.03\\] { background: #ffffff !important; border: 1px solid #f1f5f9; }
+        .flex { display: block !important; }
+        .rating-num { font-weight: 900; }
+        button, .no-print, input[type="checkbox"], .task-checkbox { display: none !important; }
+        .text-black\\/70 { color: #1e293b !important; }
+        img { border-radius: 12px; margin: 15px 0; }
+        .grid { display: block !important; }
+        .md\\:grid-cols-2 { display: block !important; }
+        /* Fix for checklist items missing icons in print */
+        .flex.items-center.gap-4 { display: flex !important; align-items: center !important; }
+      </style>
+    `;
+
+    const opt = {
+      margin:       10,
+      filename:     `Journal_${format(selectedDate, 'yyyy-MM-dd')}.pdf`,
+      image:        { type: 'jpeg' as const, quality: 0.98 },
+      html2canvas:  { scale: 2, useCORS: true, logging: false, width: 800 },
+      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' as const }
+    };
+
+    try {
+      await html2pdf().set(opt).from(exportContainer).save();
+    } catch (e) {
+      console.error(e);
+      alert('Export failed.');
+    } finally {
+      document.body.removeChild(exportContainer);
+    }
+  };
+
+  const exportWord = () => {
+    if (!journalRef.current) return;
+    
+    const title = reflectionMode === 'Daily' ? `Daily Reflection - ${format(selectedDate, 'MMM d, yyyy')}` : `${reflectionMode} Performance Report`;
+    const header = `
+      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+      <head>
+        <meta charset='utf-8'>
+        <style>
+          body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40pt; color: #334155; }
+          h1 { color: #064e3b; font-size: 26pt; font-weight: bold; }
+          h3 { color: #065f46; font-size: 14pt; margin-top: 15pt; font-weight: bold; border-bottom: 1pt solid #10b981; padding-bottom: 5pt; }
+          p { margin-bottom: 10pt; line-height: 1.5; }
+          .block { border: 1pt solid #ecfdf5; padding: 15pt; margin: 15pt 0; background-color: #f0fdf4; border-radius: 10pt; }
+          table { width: 100% !important; border-collapse: collapse; margin: 15pt 0; }
+          th, td { border: 1pt solid #e2e8f0; padding: 8pt; text-align: left; }
+          th { background-color: #f1f5f9; font-weight: bold; }
+        </style>
+      </head>
+      <body>
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-bottom: 5pt solid #10b981; margin-bottom: 30pt;">
+          <tr>
+            <td style="padding-bottom: 15pt;">
+              <h1 style="margin: 0;">${title}</h1>
+              <p style="font-size: 10pt; color: #64748b; margin: 5pt 0 0 0; text-transform: uppercase;">Self-Reflection Masterpost • ${new Date().toLocaleDateString()}</p>
+            </td>
+          </tr>
+        </table>
+        ${journalRef.current.innerHTML.replace(/<button[^>]*>.*?<\/button>/g, '')}
+      </body>
+      </html>
+    `;
+    
+    const blob = new Blob(['\ufeff', header], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `Journal_Export.doc`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportImage = async () => {
+    if (!journalRef.current) return;
+    
+    const exportContainer = document.createElement('div');
+    exportContainer.style.width = '1000px';
+    exportContainer.style.padding = '60px';
+    exportContainer.style.backgroundColor = '#ffffff';
+    exportContainer.style.color = '#064e3b';
+    exportContainer.style.fontFamily = "'Inter', sans-serif";
+    exportContainer.style.position = 'absolute';
+    exportContainer.style.left = '-9999px';
+    document.body.appendChild(exportContainer);
+    
+    const title = reflectionMode === 'Daily' ? `DAILY REFLECTION - ${format(selectedDate, 'MMM d, yyyy')}` : `${reflectionMode.toUpperCase()} PERFORMANCE ASSET`;
+
+    exportContainer.innerHTML = `
+      <div style="margin-bottom: 40px; border-bottom: 8px solid #10b981; padding-bottom: 30px;">
+        <h1 style="font-size: 36pt; font-weight: 955; color: #064e3b; margin: 0; letter-spacing: -2.5px; line-height: 1;">${title}</h1>
+        <div style="display: flex; align-items: center; gap: 15px; margin-top: 15px;">
+           <div style="height: 2px; width: 40px; background: #10b981;"></div>
+           <p style="font-size: 12pt; color: #64748b; margin: 0; text-transform: uppercase; letter-spacing: 5px; font-weight: 800;">Strategic Mindset Protocol</p>
+        </div>
+      </div>
+      <div class="content" style="line-height: 1.9; font-size: 14pt; color: #1e293b;">
+        ${journalRef.current.innerHTML}
+      </div>
+      <style>
+        .content h3 { font-size: 22pt; font-weight: 955; color: #065f46; margin-top: 40px; margin-bottom: 20px; border-left: 10px solid #10b981; padding-left: 20px; }
+        .content p { margin-bottom: 25px; }
+        .content .block { border: 4px solid #f0fdf4; border-radius: 32px; padding: 40px; margin: 40px 0; background: #fafdfc; }
+        button, .no-print, input[type="checkbox"], .task-checkbox { display: none !important; }
+        .flex { display: block !important; }
+        .text-black\\/70 { color: #1e293b !important; }
+      </style>
+    `;
+    
+    try {
+      const canvas = await html2canvas(exportContainer, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false
+      });
+      const imgData = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.href = imgData;
+      link.download = `Journal_Insight_${format(selectedDate, 'yyyy-MM-dd')}.png`;
+      link.click();
+    } catch (e) {
+      console.error(e);
+      alert('Image export failed.');
+    } finally {
+      document.body.removeChild(exportContainer);
+    }
+  };
 
   const generateDailyPrompt = async (force: boolean = false) => {
     if (promptLoading) return;
@@ -336,6 +508,47 @@ Keep the advice direct, mature, and completely focused on human performance. Avo
         </div>
 
         <div className="flex items-center gap-3">
+          <div className="relative group no-print">
+              <button 
+                onClick={() => setShowExportMenu(!showExportMenu)}
+                className="flex items-center gap-2 px-5 py-3 bg-white/10 hover:bg-white/20 text-slate-800 rounded-2xl text-[12px] font-black uppercase tracking-widest transition-all border border-slate-200/50 shadow-sm backdrop-blur-xl group cursor-pointer active:scale-95"
+                title="Export your reflection"
+              >
+                <Download size={16} className="text-emerald-600" />
+                Export
+                <ChevronDown size={14} className={`transition-transform duration-200 text-slate-400 ${showExportMenu ? 'rotate-180' : ''}`} />
+              </button>
+              
+              {showExportMenu && (
+                <div className="absolute right-0 top-full mt-2 z-[250] w-[200px] bg-white rounded-2xl shadow-2xl border border-slate-200 p-2 flex flex-col gap-1 animate-in slide-in-from-top-2 duration-150">
+                  <button 
+                    onClick={() => { exportWord(); setShowExportMenu(false); }}
+                    className="flex items-center justify-between w-full text-left px-3 py-2.5 hover:bg-blue-50 text-slate-700 hover:text-blue-700 rounded-xl transition-colors font-bold text-xs"
+                  >
+                    <span className="flex items-center gap-2">
+                      <FileText size={14} className="text-blue-500" /> MS Word Document
+                    </span>
+                  </button>
+                  <button 
+                    onClick={() => { exportPDF(); setShowExportMenu(false); }}
+                    className="flex items-center justify-between w-full text-left px-3 py-2.5 hover:bg-red-50 text-slate-700 hover:text-red-700 rounded-xl transition-colors font-bold text-xs"
+                  >
+                    <span className="flex items-center gap-2">
+                      <FileDown size={14} className="text-red-500" /> PDF Document
+                    </span>
+                  </button>
+                  <button 
+                    onClick={() => { exportImage(); setShowExportMenu(false); }}
+                    className="flex items-center justify-between w-full text-left px-3 py-2.5 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 rounded-xl transition-colors font-bold text-xs"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Palette size={14} className="text-emerald-500" /> High-Res Image
+                    </span>
+                  </button>
+                </div>
+              )}
+          </div>
+
           <button 
             onClick={() => setShowCalendar(true)}
             className="p-3 bg-emerald-600 text-white rounded-2xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-500/20 active:scale-95 flex items-center justify-center"
@@ -360,7 +573,7 @@ Keep the advice direct, mature, and completely focused on human performance. Avo
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar-green px-4 md:px-8 pb-20">
-        <div className="max-w-4xl mx-auto space-y-6">
+        <div ref={journalRef} className="max-w-4xl mx-auto space-y-6">
           <div className="flex gap-3 mb-8 overflow-x-auto no-scrollbar pb-2">
               {[
                   { id: 'Daily', label: 'Self-Reflection' },

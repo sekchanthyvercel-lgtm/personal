@@ -47,57 +47,103 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
   const editorRef = useRef<HTMLDivElement>(null);
 
   const exportPDF = async () => {
-    if (!editorRef.current) return;
-    const originalBorder = editorRef.current.style.border;
-    const originalShadow = editorRef.current.style.boxShadow;
-    const originalOverflow = editorRef.current.style.overflow;
-    const originalMaxHeight = editorRef.current.style.maxHeight;
-    const originalHeight = editorRef.current.style.height;
+    if (!editorRef.current || !selectedTopic) return;
     
-    editorRef.current.style.border = 'none';
-    editorRef.current.style.boxShadow = 'none';
-    editorRef.current.style.overflow = 'visible';
-    editorRef.current.style.maxHeight = 'none';
-    editorRef.current.style.height = 'auto';
+    // Create a temporary container for pristine export
+    const exportContainer = document.createElement('div');
+    exportContainer.style.padding = '40px';
+    exportContainer.style.backgroundColor = 'white';
+    exportContainer.style.color = '#0f172a';
+    exportContainer.style.fontFamily = "'Inter', sans-serif";
+    exportContainer.innerHTML = `
+      <div style="margin-bottom: 30px; border-bottom: 2px solid #f1f5f9; padding-bottom: 20px;">
+        <h1 style="font-size: 28px; font-weight: 900; color: #0f172a; margin-bottom: 5px;">${selectedTopic.title}</h1>
+        <p style="font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 1px;">Exported on ${new Date().toLocaleDateString()}</p>
+      </div>
+      <div class="export-content">
+        ${editorRef.current.innerHTML}
+      </div>
+    `;
+    
+    // Add necessary Tailwind styles for the export (basic set)
+    const style = document.createElement('style');
+    style.innerHTML = `
+      .export-content { line-height: 1.6; font-size: 14px; }
+      .export-content p { margin-bottom: 1em; }
+      .export-content h1, .export-content h2, .export-content h3 { font-weight: 800; color: #0f172a; margin-top: 1.5em; margin-bottom: 0.5em; }
+      .export-content table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+      .export-content th, .export-content td { border: 1px solid #e2e8f0; padding: 12px; }
+      .synthesis-card-wrapper, .qa-board-wrapper { page-break-inside: avoid; }
+    `;
+    exportContainer.appendChild(style);
+    document.body.appendChild(exportContainer);
 
-    const element = editorRef.current;
     const opt = {
       margin:       10,
-      filename:     `${selectedTopic?.title || 'Self-Learning-Notes'}.pdf`,
-      image:        { type: 'jpeg' as 'jpeg', quality: 1 },
+      filename:     `${selectedTopic.title || 'Self-Learning-Notes'}.pdf`,
+      image:        { type: 'jpeg' as const, quality: 0.98 },
       html2canvas:  { scale: 2, useCORS: true, logging: false },
-      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' as 'portrait' }
+      jsPDF:        { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const }
     };
 
     try {
-      await html2pdf().set(opt).from(element).save();
+      await html2pdf().set(opt).from(exportContainer).save();
     } catch (e) {
       console.error(e);
+      alert('Export failed. Please try again.');
     } finally {
-      editorRef.current.style.border = originalBorder;
-      editorRef.current.style.boxShadow = originalShadow;
-      editorRef.current.style.overflow = originalOverflow;
-      editorRef.current.style.maxHeight = originalMaxHeight;
-      editorRef.current.style.height = originalHeight;
+      document.body.removeChild(exportContainer);
     }
   };
 
   const exportWord = () => {
-    if (!editorRef.current) return;
-    const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' " +
-      "xmlns:w='urn:schemas-microsoft-com:office:word' " +
-      "xmlns='http://www.w3.org/TR/REC-html40'>" +
-      "<head><meta charset='utf-8'><title>Export HTML to Word</title></head><body>";
-    const footer = "</body></html>";
-    const sourceHTML = header + editorRef.current.innerHTML + footer;
+    if (!editorRef.current || !selectedTopic) return;
     
-    const source = 'data:application/vnd.ms-word;charset=utf-8,' + encodeURIComponent(sourceHTML);
-    const fileDownload = document.createElement("a");
-    document.body.appendChild(fileDownload);
-    fileDownload.href = source;
-    fileDownload.download = `${selectedTopic?.title || 'Self-Learning-Notes'}.doc`;
-    fileDownload.click();
-    document.body.removeChild(fileDownload);
+    // Better Word styling header
+    const header = `
+      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+      <head>
+        <meta charset='utf-8'>
+        <title>${selectedTopic.title}</title>
+        <style>
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.5; padding: 40px; }
+          h1 { color: #0f172a; font-size: 24pt; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+          h2 { color: #1e293b; font-size: 18pt; margin-top: 20pt; }
+          p { margin-bottom: 10pt; }
+          table { width: 100% !important; border-collapse: collapse; margin-top: 15pt; }
+          th, td { border: 1px solid #cbd5e1; padding: 8pt; text-align: left; }
+          th { background-color: #f8fafc; font-weight: bold; }
+          .synthesis-card-wrapper, .qa-board-wrapper { 
+            border: 1px solid #e2e8f0; 
+            background-color: #f8fafc; 
+            border-radius: 10pt; 
+            padding: 15pt; 
+            margin-top: 15pt; 
+            margin-bottom: 15pt;
+          }
+        </style>
+      </head>
+      <body>
+        <h1>${selectedTopic.title}</h1>
+        <div class="content">
+          ${editorRef.current.innerHTML}
+        </div>
+      </body>
+      </html>
+    `;
+    
+    const blob = new Blob(['\ufeff', header], {
+      type: 'application/msword'
+    });
+    
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${selectedTopic.title || 'Self-Learning-Notes'}.doc`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
 
