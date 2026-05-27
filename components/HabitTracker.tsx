@@ -27,12 +27,28 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
   const [suggestedHabits, setSuggestedHabits] = useState<string[]>([]);
   const [milestoneCelebration, setMilestoneCelebration] = useState<{ habitName: string; color: string; streak: number } | null>(null);
 
+  const tableContainerRef = React.useRef<HTMLDivElement>(null);
+
   // Auto request browser notification permission on mount
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
     }
   }, []);
+
+  // Ensure scroll is positioned at today on mount or month change
+  useEffect(() => {
+    if (tableContainerRef.current && !isFullScreen) {
+      setTimeout(() => {
+        const todayCell = tableContainerRef.current?.querySelector('.today-cell');
+        if (todayCell && tableContainerRef.current) {
+          const scrollLeft = (todayCell as HTMLElement).offsetLeft - 120;
+          tableContainerRef.current.scrollTo({ left: Math.max(0, scrollLeft), behavior: 'smooth' });
+        }
+      }, 100);
+    }
+  }, [currentDate, isFullScreen]);
+
 
   const habits = data.habits || [];
   const completions = data.habitCompletions || {};
@@ -576,7 +592,7 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
       </div>
 
       <div className={`w-full bg-white/5 backdrop-blur-3xl border border-white/10 rounded-[32px] shadow-2xl overflow-hidden mt-6 flex flex-col ${isFullScreen ? 'hidden' : ''}`}>
-        <div className="overflow-x-auto custom-scrollbar-orange">
+        <div ref={tableContainerRef} className="overflow-x-auto custom-scrollbar-orange relative">
           <table className="w-full border-collapse">
             <thead>
               <tr className="bg-slate-900/5 text-slate-900 backdrop-blur-md">
@@ -584,7 +600,7 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
                   <span className="text-[10px] font-black uppercase tracking-[4px] text-orange-600">Mastery Disciplines</span>
                 </th>
                 {daysInMonth.map(day => (
-                  <th key={day.toString()} className={`p-4 md:p-6 border-b border-slate-200/50 min-w-[60px] md:min-w-[72px] text-center ${isToday(day) ? 'bg-orange-500 text-white font-black shadow-lg shadow-orange-500/30 rounded-b-2xl' : 'hover:bg-slate-100/50 transition-colors'}`}>
+                  <th key={day.toString()} className={`p-4 md:p-6 border-b border-slate-200/50 min-w-[60px] md:min-w-[72px] text-center ${isToday(day) ? 'bg-orange-500 text-white font-black shadow-lg shadow-orange-500/30 rounded-b-2xl today-cell' : 'hover:bg-slate-100/50 transition-colors'}`}>
                     <span className="text-[9px] font-black uppercase block mb-0.5 opacity-60 tracking-wider ">{format(day, 'EEE')}</span>
                     <span className="text-xs font-black tracking-tight">{format(day, 'd')}</span>
                   </th>
@@ -784,7 +800,7 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
             <motion.div 
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
-              className="bg-white w-full max-w-md rounded-[32px] p-10 shadow-2xl"
+              className="bg-white w-full max-w-md rounded-[32px] p-6 md:p-10 shadow-2xl max-h-[90vh] overflow-y-auto"
             >
               <h3 className="text-2xl font-black text-slate-900 mb-6 uppercase tracking-tight">New Mastery Habit</h3>
               

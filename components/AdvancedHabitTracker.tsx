@@ -2975,7 +2975,7 @@ date format must be 'yyyy-MM-dd'.`;
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-[36px] p-8 md:p-10 w-full max-w-lg border border-slate-200 relative shadow-2xl"
+              className="bg-white rounded-[36px] p-6 md:p-10 w-full max-w-lg border border-slate-200 relative shadow-2xl max-h-[90vh] overflow-y-auto"
             >
               <button 
                 onClick={() => setIsAddingHabit(false)}
