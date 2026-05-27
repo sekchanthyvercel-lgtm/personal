@@ -295,7 +295,7 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
   if (isFullScreen) {
     return (
       <div className="flex-1 flex flex-col p-4 md:p-8 lg:p-12 overflow-y-auto bg-transparent font-sans relative">
-        <div className="max-w-[98dvw] lg:max-w-[90dvw] xl:max-w-7xl mx-auto w-full bg-white/70 backdrop-blur-3xl rounded-[32px] p-6 md:p-10 border border-white/20 shadow-2xl">
+        <div className="w-full bg-white/70 backdrop-blur-3xl rounded-[32px] p-6 md:p-10 border border-white/20 shadow-2xl">
           {/* Full Screen Header */}
           <div className="flex items-center justify-between mb-8 pb-4 border-b border-black/10">
              <h2 className="text-2xl md:text-5xl font-black text-slate-800 tracking-tighter uppercase italic flex items-center gap-4">

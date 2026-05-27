@@ -152,6 +152,7 @@ export interface AppData {
   advancedHabits?: AdvancedHabit[];
   advancedHabitLogs?: Record<string, Record<string, number>>; // Key: YYYY-MM-DD, value: { habitId: value }
   habitReframers?: HabitReframerRecord[];
+  recurringExpenses?: RecurringExpense[];
 }
 
 export interface HabitReframerRecord {
@@ -195,6 +196,17 @@ export interface AdvancedHabit {
   goalType: 'limit' | 'target'; // limit = do not exceed; target = achieve at least
   color: string; // e.g. emerald, rose, sky, indigo
   createdAt: string;
+}
+
+export interface RecurringExpense {
+  id: string;
+  description: string;
+  category: string;
+  amount: number;
+  currency: 'USD' | 'KHR';
+  dayOfMonth: number; // e.g. 1 to 31
+  lastLoggedDate?: string; // YYYY-MM-DD format to prevent duplicate logs
+  active?: boolean;
 }
 
 export interface ExpenseEntry {

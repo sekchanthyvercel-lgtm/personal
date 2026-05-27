@@ -26,6 +26,8 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
   const [showAllHighlightColors, setShowAllHighlightColors] = useState(false);
   const [activeColor, setActiveColor] = useState<string | null>(null);
   const [isAILoading, setIsAILoading] = useState(false);
+  const [isStudyPlanLoading, setIsStudyPlanLoading] = useState(false);
+  const [isActionPlanLoading, setIsActionPlanLoading] = useState(false);
   const [showAIModal, setShowAIModal] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(window.innerWidth < 768 ? 200 : 300);
@@ -846,7 +848,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
   }, [selectedTopic?.id, selectedTopic?.content]);
 
   const generateStudyPlan = async () => {
-    if (isAILoading) return;
+    if (isStudyPlanLoading || isActionPlanLoading || isAILoading) return;
     
     let prompt = '';
     let newTopicTitle = '';
@@ -868,7 +870,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
       newTopicTitle = '🎯 4-Week Study Plan';
     }
 
-    setIsAILoading(true);
+    setIsStudyPlanLoading(true);
     try {
       const result = await callNeuralEngine(
         'gemini-3-flash-preview',
@@ -923,19 +925,19 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
       console.error(e);
       alert('Failed to generate study plan.');
     } finally {
-      setIsAILoading(false);
+      setIsStudyPlanLoading(false);
     }
   };
 
   const generateActionPlan = async () => {
-    if (isAILoading) return;
+    if (isStudyPlanLoading || isActionPlanLoading || isAILoading) return;
     
     if (!selectedTopic) {
       alert("Please select a specific topic in the list first (for example, 'Get up early' or book 'Deep Work') to generate a custom Action Plan.");
       return;
     }
 
-    setIsAILoading(true);
+    setIsActionPlanLoading(true);
     try {
       const prompt = `Generate a highly practical, step-by-step Action Plan specifically for mastering or implementing the goal or topic: "${selectedTopic.title}". 
       Include daily routines, specific micro-habits, friction-reduction techniques, obstacles handling, and measurable criteria for success. 
@@ -985,7 +987,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
       console.error(e);
       alert('Failed to generate action plan.');
     } finally {
-      setIsAILoading(false);
+      setIsActionPlanLoading(false);
     }
   };
 
@@ -1022,22 +1024,22 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
           
           <button 
             onClick={generateStudyPlan}
-            disabled={isAILoading}
+            disabled={isStudyPlanLoading || isActionPlanLoading || isAILoading}
             className="w-full py-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-2xl text-[10px] font-black flex items-center justify-center gap-2 hover:from-indigo-600 hover:to-purple-600 shadow-xl shadow-indigo-500/20 active:scale-95 transition-all whitespace-nowrap disabled:opacity-50"
             title={selectedTopic ? `Generate dynamic Study Plan for: ${selectedTopic.title}` : `Generate general Study Plan for all topics`}
           >
-            {isAILoading ? <Loader2 size={16} className="animate-spin" /> : <Wand2 size={16} />}
-            {selectedTopic ? `Study Plan: ${selectedTopic.title.substring(0, 15)}${selectedTopic.title.length > 15 ? '...' : ''}` : `Generate Study Plan`}
+            {isStudyPlanLoading ? <Loader2 size={16} className="animate-spin" /> : <Wand2 size={16} />}
+            {selectedTopic ? `Study Plan: ${selectedTopic.title.replace(/^(🎯|⚡)\s*(Study Plan:|Action Plan:)\s*/i, '').substring(0, 15)}` : `Generate Study Plan`}
           </button>
 
           <button 
             onClick={generateActionPlan}
-            disabled={isAILoading}
+            disabled={isStudyPlanLoading || isActionPlanLoading || isAILoading}
             className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-2xl text-[10px] font-black flex items-center justify-center gap-2 hover:from-orange-600 hover:to-amber-600 shadow-xl shadow-orange-500/20 active:scale-95 transition-all whitespace-nowrap disabled:opacity-50"
             title={selectedTopic ? `Generate custom Action Plan for: ${selectedTopic.title}` : `Select a topic to generate Action Plan`}
           >
-            {isAILoading ? <Loader2 size={16} className="animate-spin" /> : <Zap size={16} />}
-            {selectedTopic ? `Action Plan: ${selectedTopic.title.substring(0, 15)}${selectedTopic.title.length > 15 ? '...' : ''}` : `Generate Action Plan`}
+            {isActionPlanLoading ? <Loader2 size={16} className="animate-spin" /> : <Zap size={16} />}
+            {selectedTopic ? `Action Plan: ${selectedTopic.title.replace(/^(🎯|⚡)\s*(Study Plan:|Action Plan:)\s*/i, '').substring(0, 15)}` : `Generate Action Plan`}
           </button>
         </div>
 

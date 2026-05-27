@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { AppSettings, CurrentUser } from '../types';
-import { X, Save, Settings2, Type, Baseline, Paintbrush, Check, Cloud, LogIn, LogOut, Image as ImageIcon, Trash2, FileText } from 'lucide-react';
+import { X, Save, Settings2, Type, Baseline, Paintbrush, Check, Cloud, LogIn, LogOut, Image as ImageIcon, Trash2, FileText, Coins } from 'lucide-react';
 import { PAPER_STYLES } from '../src/styles/paperStyles';
 import { signInWithEmailAndPassword, auth } from '../services/firebase';
 
@@ -415,7 +415,57 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onUp
                 </div>
             </div>
 
-            {/* Financial settings could go here as well if needed: currency/rate */}
+            {/* Financial Settings */}
+            <div className="space-y-4">
+                <div className="flex items-center gap-2 text-slate-800 font-black mb-2">
+                    <Coins size={18} className="text-orange-500 animate-pulse" />
+                    <h3 className="tracking-wide">Currency & Rate Settings</h3>
+                </div>
+
+                <div className="bg-white/50 border border-white/60 p-4 rounded-2xl space-y-4 shadow-sm">
+                    <div className="flex flex-col gap-2">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">Default Base Currency</label>
+                        <div className="grid grid-cols-2 gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setLocalSettings(prev => ({...prev, currency: 'USD'}))}
+                                className={`py-3 px-4 rounded-xl font-black text-xs uppercase tracking-wider border transition-all ${localSettings.currency === 'USD' ? 'bg-orange-500 text-white border-transparent shadow shadow-orange-500/25' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                            >
+                                💵 USD ($)
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setLocalSettings(prev => ({...prev, currency: 'KHR'}))}
+                                className={`py-3 px-4 rounded-xl font-black text-xs uppercase tracking-wider border transition-all ${localSettings.currency === 'KHR' ? 'bg-orange-500 text-white border-transparent shadow shadow-orange-500/25' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                            >
+                                🇰🇭 KHR (Riel)
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2 pt-2 border-t border-slate-200/50">
+                        <div className="flex justify-between items-center pl-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Exchange Rate (1 USD = ? Riels)</label>
+                            <span className="text-xs font-black text-orange-600 bg-orange-100 px-2 py-0.5 rounded-md">
+                                {localSettings.exchangeRate?.toLocaleString()} Riels
+                            </span>
+                        </div>
+                        <input
+                            type="number"
+                            min="1000"
+                            max="10000"
+                            step="100"
+                            value={localSettings.exchangeRate}
+                            onChange={(e) => setLocalSettings(prev => ({...prev, exchangeRate: parseInt(e.target.value) || 4000}))}
+                            className="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm font-semibold outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 transition-all text-slate-800"
+                            placeholder="KHR per 1 USD (e.g., 4000)"
+                        />
+                        <p className="text-[9.5px] font-bold text-slate-400 italic pl-1 leading-relaxed">
+                            This custom exchange rate is used to convert and present transaction amounts when viewing stats or filtering. Default is 4,000 Riels per Dollar.
+                        </p>
+                    </div>
+                </div>
+            </div>
 
         </div>
 

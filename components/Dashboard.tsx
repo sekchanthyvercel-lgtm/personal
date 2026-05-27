@@ -4,7 +4,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
   LineChart, Line, PieChart, Pie, Cell, AreaChart, Area 
 } from 'recharts';
-import { format, subDays, eachDayOfInterval, isSameDay, parseISO, isValid } from 'date-fns';
+import { format, subDays, eachDayOfInterval, isSameDay, parseISO, isValid, startOfWeek } from 'date-fns';
 import { TrendingUp, TrendingDown, Activity, Wallet, Target, Sparkles, Brain, ArrowUpRight, Download } from 'lucide-react';
 
 interface DashboardProps {
@@ -249,9 +249,64 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
     })).sort((a, b) => b.streak - a.streak).slice(0, 10); // Show top 10
   }, [data.habits, data.habitCompletions]);
 
+  // Weekly comparisons of Income vs. Expense
+  const weeklyFinanceData = useMemo(() => {
+    const expenses = data.expenses || [];
+    const exchangeRate = data.settings?.exchangeRate || 4000;
+    
+    // Group entries by week start (Monday)
+    const weekMap: Record<string, { income: number; expense: number }> = {};
+    
+    expenses.forEach(e => {
+      if (!e.date) return;
+      let d: Date;
+      try {
+        d = new Date(e.date);
+        if (isNaN(d.getTime())) return;
+      } catch (err) {
+        return;
+      }
+      
+      const wkStart = startOfWeek(d, { weekStartsOn: 1 }); // Monday start
+      const key = format(wkStart, 'yyyy-MM-dd');
+      
+      if (!weekMap[key]) {
+        weekMap[key] = { income: 0, expense: 0 };
+      }
+      
+      const val = e.currency === 'KHR' ? e.amount / exchangeRate : e.amount;
+      if (e.type === 'Income') {
+        weekMap[key].income += val;
+      } else {
+        weekMap[key].expense += val;
+      }
+    });
+    
+    // Turn map into sorted list of recent 6 weeks
+    const allWeeks = Object.keys(weekMap).sort();
+    
+    // If we have no weeks at all, add a default fallback empty week so the chart doesn't look bad
+    if (allWeeks.length === 0) {
+      const todayWk = startOfWeek(new Date(), { weekStartsOn: 1 });
+      allWeeks.push(format(todayWk, 'yyyy-MM-dd'));
+      weekMap[format(todayWk, 'yyyy-MM-dd')] = { income: 0, expense: 0 };
+    }
+    
+    return allWeeks.slice(-6).map(key => {
+      const d = new Date(key);
+      const values = weekMap[key];
+      return {
+        _rawDate: key,
+        week: `Wk of ${format(d, 'MMM dd')}`,
+        Income: Math.round(values.income * 100) / 100,
+        Expense: Math.round(values.expense * 100) / 100,
+      };
+    });
+  }, [data.expenses, data.settings?.exchangeRate]);
+
   return (
     <div className="h-full overflow-y-auto custom-scrollbar-amber p-4 md:p-8 bg-slate-50/50 dark:bg-slate-900/50 transition-colors">
-      <div className="max-w-7xl mx-auto space-y-8">
+      <div className="w-full space-y-8">
         
         {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -364,6 +419,28 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
                     </div>
                  ))}
               </div>
+            </div>
+          </ChartContainer>
+
+          {/* Weekly Income vs. Expense Comparison */}
+          <ChartContainer title="Weekly Cashflow Comparison" icon={Activity} color="indigo" className="lg:col-span-2">
+            <div className="space-y-4">
+              <p className="text-[11px] text-slate-500 font-bold uppercase tracking-wider pl-1">Identify your best earning and worst spending periods week-by-week (normalized to USD $)</p>
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={weeklyFinanceData} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="week" axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 700, fill: '#64748b'}} />
+                  <YAxis axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 700, fill: '#64748b'}} tickFormatter={(val) => `$${val}`} />
+                  <Tooltip 
+                    formatter={(value: any) => [`$${value}`, '']}
+                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontWeight: 'bold' }}
+                    cursor={{ fill: '#f8fafc' }}
+                  />
+                  <Legend />
+                  <Bar dataKey="Income" fill="#10b981" radius={[4, 4, 0, 0]} barSize={22} />
+                  <Bar dataKey="Expense" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={22} />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           </ChartContainer>
 

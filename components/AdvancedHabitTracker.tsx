@@ -991,7 +991,7 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
     <div id="advanced-habit-tracker-root" className="flex-1 bg-[#fcfcfc] p-4 md:p-8 overflow-y-auto font-sans text-slate-900">
       
       {/* Header and Metaphor Explanation */}
-      <div className="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="w-full mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-black text-slate-900 tracking-tighter uppercase italic flex items-center gap-3">
              <Scale className="text-amber-500 animate-pulse" size={32} />
@@ -1096,7 +1096,7 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
         )}
       </AnimatePresence>
 
-      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="w-full grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         {/* LEFT TWO COLUMNS: Weekly Time Loggers and Lists */}
         <div className="lg:col-span-2 space-y-6">
@@ -1764,7 +1764,7 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
       </div>
 
       {/* COGNITIVE BEHAVIORAL HABIT REFRAMER TABLE (CBT) */}
-      <div className="max-w-7xl mx-auto mt-12 bg-white/40 backdrop-blur-3xl rounded-[36px] p-6 md:p-8 border border-slate-200/65 shadow-xl">
+      <div className="w-full mt-12 bg-white/40 backdrop-blur-3xl rounded-[36px] p-6 md:p-8 border border-slate-200/65 shadow-xl">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div>
             <span className="text-[10px] uppercase font-black tracking-widest text-[#1b254b]/50 block mb-1">COGNITIVE BEHAVIORAL PROTOCOL</span>
