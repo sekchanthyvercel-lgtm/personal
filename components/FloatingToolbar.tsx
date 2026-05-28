@@ -231,9 +231,12 @@ export const RichTextDiv: React.FC<{
     const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
     const lastSavedValueRef = useRef(value);
 
-    // Only update innerHTML if not focused & content differs (prevents caret jump for typing user)
+    const initialValueRef = useRef(value || '');
+
+    // Only update innerHTML if content differs (prevents caret jump for typing user)
+    // We do NOT use dangerouslySetInnerHTML to prevent React from force-updating DOM and resetting caret
     useEffect(() => {
-        if (editorRef.current && !isFocusedRef.current && editorRef.current.innerHTML !== value) {
+        if (editorRef.current && editorRef.current.innerHTML !== (value || '')) {
             editorRef.current.innerHTML = value || '';
             lastSavedValueRef.current = value || '';
         }
@@ -318,7 +321,7 @@ export const RichTextDiv: React.FC<{
             onFocus={handleFocus}
             onClick={handleClick}
             placeholder={placeholder}
-            dangerouslySetInnerHTML={{ __html: value || '' }}
+            dangerouslySetInnerHTML={{ __html: initialValueRef.current }}
         />
     );
 };
