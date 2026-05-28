@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { RichTextDiv } from './FloatingToolbar';
 import { AppData, Habit, HabitCompletion } from '../types';
-import { CheckSquare, ChevronLeft, ChevronRight, Plus, Trash2, CheckCircle2, Zap, Maximize2, Minimize2, Calendar as CalendarIcon, Edit3, Target, Wand2, RefreshCw, X } from 'lucide-react';
+import { CheckSquare, ChevronLeft, ChevronRight, Plus, Trash2, CheckCircle2, Zap, Maximize2, Minimize2, Calendar as CalendarIcon, Edit3, Target, Wand2, RefreshCw, X, Download } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isToday, isSameDay, subDays, startOfWeek, endOfWeek, addMonths, subMonths, isSameMonth } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 import { motion, AnimatePresence } from 'motion/react';
@@ -186,6 +186,85 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
         habits: (prev.habits || []).filter(h => h.id !== id)
       }));
     }
+  };
+
+  const handleExportCSV = () => {
+    if (habits.length === 0) {
+      alert("No habits available to export.");
+      return;
+    }
+
+    const csvRows: string[] = [];
+    csvRows.push("Habit Tracker Mastery - 30-Day Completion History Ledger");
+    csvRows.push(`Exported on: ${format(new Date(), 'yyyy-MM-dd HH:mm')}`);
+    csvRows.push("");
+
+    // 1. Habit Completion Summary section
+    csvRows.push("HABIT SUMMARY STATUS");
+    csvRows.push("Habit Name,Current Streak,Habit Type,Target Goal,Unit,Days Completed (Out of 30),Achievement Rate (%)");
+
+    const last30Days: Date[] = [];
+    const today = new Date();
+    for (let i = 29; i >= 0; i--) {
+      last30Days.push(subDays(today, i));
+    }
+
+    habits.forEach(habit => {
+      let completedCount = 0;
+      last30Days.forEach(day => {
+        const dateKey = format(day, 'yyyy-MM-dd');
+        if (isHabitCompletedOnDay(habit, dateKey)) {
+          completedCount++;
+        }
+      });
+
+      const streak = getStreak(habit.id);
+      const habitType = habit.isNumeric ? "Numeric" : "Checkbox";
+      const targetGoal = habit.isNumeric ? (habit.targetValue || 0) : "N/A";
+      const unit = habit.isNumeric ? (habit.unit || "units") : "N/A";
+      const achievementRate = ((completedCount / 30) * 100).toFixed(1);
+
+      const nameEscaped = habit.name.replace(/"/g, '""');
+      csvRows.push(`"${nameEscaped}",${streak},${habitType},"${targetGoal}","${unit}",${completedCount},${achievementRate}%`);
+    });
+
+    csvRows.push("");
+    csvRows.push("DETAILED COMPLETED LOG (LAST 30 DAYS)");
+    csvRows.push("Date,Day of Week,Habit Name,Habit Type,Value/Status,Target Goal,Achieved (Yes/No)");
+
+    last30Days.forEach(day => {
+      const dateKey = format(day, 'yyyy-MM-dd');
+      const dayOfWeek = format(day, 'EEEE');
+
+      habits.forEach(habit => {
+        const isCompleted = isHabitCompletedOnDay(habit, dateKey);
+        const compVal = completions[dateKey]?.[habit.id];
+        
+        let valueStr = "No";
+        if (habit.isNumeric) {
+          valueStr = compVal !== undefined && compVal !== null ? String(compVal) : "0";
+        } else {
+          valueStr = compVal ? "Yes" : "No";
+        }
+
+        const habitType = habit.isNumeric ? "Numeric" : "Checkbox";
+        const targetGoal = habit.isNumeric ? (habit.targetValue || 0) : "N/A";
+        const achievedStr = isCompleted ? "Yes" : "No";
+        const nameEscaped = habit.name.replace(/"/g, '""');
+
+        csvRows.push(`${dateKey},${dayOfWeek},"${nameEscaped}",${habitType},"${valueStr}","${targetGoal}",${achievedStr}`);
+      });
+    });
+
+    const blob = new Blob(['\ufeff' + csvRows.join("\n")], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `Habit_Tracker_30_Day_Mastery_Export_${format(today, 'yyyyMMdd')}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const isHabitCompletedOnDay = (habit: Habit | undefined, dateKey: string): boolean => {
@@ -476,6 +555,13 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
           >
             {isSuggesting ? <RefreshCw size={16} className="animate-spin" /> : <Wand2 size={16} />}
             AI Lessons
+          </button>
+          <button 
+            onClick={handleExportCSV}
+            className="flex items-center gap-2 bg-slate-800 text-white px-5 md:px-7 py-3 md:py-4 rounded-2xl font-black text-[10px] md:text-xs tracking-widest hover:bg-slate-700 hover:-translate-y-1 transition-all shadow-xl uppercase"
+            title="Export Last 30 Days completion log, streaks & achievements to CSV"
+          >
+            <Download size={16} strokeWidth={3} /> Export CSV
           </button>
           <button 
             onClick={() => setIsFullScreen(true)}

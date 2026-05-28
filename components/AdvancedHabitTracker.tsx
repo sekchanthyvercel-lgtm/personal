@@ -698,7 +698,26 @@ date format must be 'yyyy-MM-dd'.`;
       <head>
         <title>${title}</title>
         <style>
-          body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #333333; line-height: 1.6; }
+          @page {
+            size: A4;
+            margin: 1in;
+          }
+          body { 
+            font-family: 'Segoe UI', Arial, sans-serif; 
+            margin: 0;
+            padding: 0; 
+            color: #333333; 
+            line-height: 1.6; 
+            background-color: #ffffff;
+          }
+          h1, h2, h3, h4, h5, h6 {
+            page-break-after: avoid;
+            break-after: avoid;
+          }
+          p, li, tr, .question-box, .btn-pivot, .problem-cell, table {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
           h1 { color: #1e293b; font-size: 24px; border-bottom: 2px solid #ca8a04; padding-bottom: 10px; margin-bottom: 5px; text-transform: uppercase; }
           h2 { color: #334155; font-size: 15px; margin-top: 25px; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; text-transform: uppercase; }
           .meta { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 30px; }
@@ -708,7 +727,7 @@ date format must be 'yyyy-MM-dd'.`;
           .value { font-size: 13px; font-weight: 500; color: #0f172a; white-space: pre-wrap; }
           .problem-grid { display: table; width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 25px; }
           .problem-row { display: table-row; }
-          .problem-cell { display: table-cell; border: 1px solid #e2e8f0; padding: 12px; width: 50%; vertical-align: top; }
+          .problem-cell { display: table-cell; border: 1px solid #e2e8f0; padding: 12px; width: 50%; vertical-align: top; background-color: #faf9f6; }
           .problem-title { font-weight: bold; font-size: 11px; color: #e11d48; text-transform: uppercase; margin-bottom: 4px; }
         </style>
       </head>
@@ -829,7 +848,7 @@ date format must be 'yyyy-MM-dd'.`;
     }
 
     contentHtml += `
-        <div style="margin-top: 50px; text-align: center; border-open: 1px solid #e2e8f0; padding-top: 20px; font-size: 11px; color: #94a3b8;">
+        <div style="margin-top: 50px; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 20px; font-size: 11px; color: #94a3b8;">
           Balanced Reset System &bull; Printed from Neurochemical Balance Register Workspace
         </div>
       </body>
@@ -855,7 +874,7 @@ date format must be 'yyyy-MM-dd'.`;
       : 'Cognitive Trigger & Core Loop Audit';
 
     const container = document.createElement('div');
-    container.style.padding = '40px';
+    container.style.padding = '0px';
     container.style.backgroundColor = 'white';
     container.style.color = '#334155';
     container.style.fontFamily = "'Inter', sans-serif";
@@ -887,19 +906,19 @@ date format must be 'yyyy-MM-dd'.`;
             <div style="margin-bottom: 25px;">
               <h2 style="font-size: 11px; font-weight: 900; color: #ef4444; text-transform: uppercase; margin-bottom: 10px; letter-spacing: 0.5px;">P. Problems (6-Dimensional Matrix)</h2>
               <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                <div style="padding: 10px; border: 1px solid #f1f5f9; border-radius: 8px;">
+                <div style="padding: 10px; border: 1px solid #f1f5f9; border-radius: 8px; background-color: #faf9f6;">
                   <strong style="display: block; font-size: 8px; color: #94a3b8; text-transform: uppercase;">Neuroadaptation</strong>
                   <p style="font-size: 11px; margin: 3px 0 0 0;">${record.pNeuroadaptation || 'None'}</p>
                 </div>
-                <div style="padding: 10px; border: 1px solid #f1f5f9; border-radius: 8px;">
+                <div style="padding: 10px; border: 1px solid #f1f5f9; border-radius: 8px; background-color: #faf9f6;">
                   <strong style="display: block; font-size: 8px; color: #94a3b8; text-transform: uppercase;">Relationships</strong>
                   <p style="font-size: 11px; margin: 3px 0 0 0;">${record.pRelationships || 'None'}</p>
                 </div>
-                <div style="padding: 10px; border: 1px solid #f1f5f9; border-radius: 8px;">
+                <div style="padding: 10px; border: 1px solid #f1f5f9; border-radius: 8px; background-color: #faf9f6;">
                   <strong style="display: block; font-size: 8px; color: #94a3b8; text-transform: uppercase;">Work/School</strong>
                   <p style="font-size: 11px; margin: 3px 0 0 0;">${record.pWork || 'None'}</p>
                 </div>
-                <div style="padding: 10px; border: 1px solid #f1f5f9; border-radius: 8px;">
+                <div style="padding: 10px; border: 1px solid #f1f5f9; border-radius: 8px; background-color: #faf9f6;">
                   <strong style="display: block; font-size: 8px; color: #94a3b8; text-transform: uppercase;">Financial</strong>
                   <p style="font-size: 11px; margin: 3px 0 0 0;">${record.pFinancial || 'None'}</p>
                 </div>
@@ -908,7 +927,7 @@ date format must be 'yyyy-MM-dd'.`;
           `;
         } else {
           html += `
-            <div style="margin-bottom: 20px; padding: 15px; background-color: ${s.primary ? '#f0fdf4' : '#f8fbfc'}; border-left: 4px solid ${s.primary ? '#22c55e' : '#cbd5e1'}; border-radius: 4px;">
+            <div style="margin-bottom: 20px; padding: 15px; background-color: ${s.primary ? '#f0fdf4' : '#faf9f6'}; border-left: 4px solid ${s.primary ? '#22c55e' : '#cbd5e1'}; border-radius: 4px;">
               <h3 style="font-size: 9px; font-weight: 900; color: ${s.primary ? '#166534' : '#475569'}; text-transform: uppercase; margin: 0 0 5px 0;">${s.label}</h3>
               <p style="font-size: 12px; margin: 0; color: #1e293b; font-weight: ${s.primary ? '700' : '500'};">${s.val || 'N/A'}</p>
             </div>
@@ -926,7 +945,7 @@ date format must be 'yyyy-MM-dd'.`;
 
       stages.forEach(s => {
         html += `
-          <div style="margin-bottom: 20px; padding: 15px; background-color: ${s.primary ? '#f0fdf4' : '#f8fafc'}; border: 1px solid ${s.primary ? '#bcf0da' : '#e2e8f0'}; border-radius: 12px;">
+          <div style="margin-bottom: 20px; padding: 15px; background-color: ${s.primary ? '#f0fdf4' : '#faf9f6'}; border: 1px solid ${s.primary ? '#bcf0da' : '#e2e8f0'}; border-radius: 12px;">
             <h3 style="font-size: 9px; font-weight: 900; color: ${s.primary ? '#065f46' : '#64748b'}; text-transform: uppercase; margin: 0 0 5px 0;">${s.label}</h3>
             <p style="font-size: 12px; margin: 0; color: #0f172a; font-weight: ${s.primary ? '700' : '500'};">${s.val || 'N/A'}</p>
           </div>
@@ -935,14 +954,39 @@ date format must be 'yyyy-MM-dd'.`;
     }
 
     container.innerHTML = html;
+    
+    // Append styles for PDF matching
+    const style = document.createElement('style');
+    style.innerHTML = `
+      @page {
+        size: A4;
+        margin: 1in;
+      }
+      body {
+        background-color: #ffffff;
+        color: #334155;
+        font-family: 'Segoe UI', Arial, sans-serif;
+      }
+      h1, h2, h3, h4, h5, h6 {
+        page-break-after: avoid;
+        break-after: avoid;
+      }
+      p, li, tr, .question-box, .btn-pivot, .problem-cell, table {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+    `;
+    container.appendChild(style);
+    
     document.body.appendChild(container);
 
     const opt = {
-      margin: 10,
+      margin: 25.4,
       filename: `Audit_${subjectName}_${format(new Date(record.date), 'yyyyMMdd')}.pdf`,
       image: { type: 'jpeg' as const, quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true },
-      jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const }
+      jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const },
+      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
     };
 
     try {
@@ -1087,7 +1131,26 @@ date format must be 'yyyy-MM-dd'.`;
       <head>
         <title>Completed Dopamine Reset Fast Archive</title>
         <style>
-          body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #333333; line-height: 1.6; }
+          @page {
+            size: A4;
+            margin: 1in;
+          }
+          body { 
+            font-family: 'Segoe UI', Arial, sans-serif; 
+            margin: 0;
+            padding: 0; 
+            color: #333333; 
+            line-height: 1.6; 
+            background-color: #ffffff;
+          }
+          h1, h2, h3, h4, h5, h6 {
+            page-break-after: avoid;
+            break-after: avoid;
+          }
+          p, li, tr, .detail-box, .reflection-box, .final-box, table {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
           h1 { color: #ca8a04; font-size: 24px; border-bottom: 2px solid #ca8a04; padding-bottom: 10px; margin-bottom: 10px; text-transform: uppercase; }
           .meta { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 35px; }
           .detail-box { border: 1px solid #e2e8f0; background-color: #fafaf9; padding: 18px; margin-bottom: 25px; border-radius: 8px; }
@@ -1140,7 +1203,7 @@ date format must be 'yyyy-MM-dd'.`;
           <div class="value" style="font-size: 13px; font-weight: 500; color: #14532d; white-space: pre-wrap; margin-top: 5px;">${fast.finalReflection}</div>
         </div>
 
-        <div style="margin-top: 60px; text-align: center; border-open: 1px solid #e2e8f0; padding-top: 20px; font-size: 11px; color: #94a3b8;">
+        <div style="margin-top: 60px; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 20px; font-size: 11px; color: #94a3b8;">
           Neurochemical Balance Systems &bull; Printed from Personal Resilience Workspace
         </div>
       </body>
