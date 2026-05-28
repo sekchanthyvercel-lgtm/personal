@@ -27,6 +27,7 @@ import { Student, FilterState, UserRole } from '../types';
 import { format } from 'date-fns';
 
 import { RichTextDiv } from './FloatingToolbar';
+import { DictationButton } from './DictationButton';
 
 const MultilineInput: React.FC<{
   value: string;
@@ -519,7 +520,7 @@ const ReminderTable: React.FC<ReminderTableProps> = ({
                       <option value="Urgent">Urgent</option>
                     </select>
                   </td>
-                  <td className="px-4">
+                  <td className="px-4 relative group/note">
                     <MultilineInput 
                       value={s.note || ''} 
                       onChange={val => updateField(s.id, 'note', val)}
@@ -530,6 +531,9 @@ const ReminderTable: React.FC<ReminderTableProps> = ({
                       }}
                       className="w-full bg-transparent font-bold text-slate-500 outline-none placeholder:text-slate-200"
                     />
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/note:opacity-100 transition-opacity">
+                      <DictationButton onResult={(text) => { const prev = s.note || ''; updateField(s.id, 'note', prev + text); }} />
+                    </div>
                   </td>
                   <td className="text-center px-4">
                     <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

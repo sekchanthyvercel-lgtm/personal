@@ -180,6 +180,37 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
     link.click();
     document.body.removeChild(link);
   };
+  const quickGlanceStats = useMemo(() => {
+    if (!data.habits || data.habits.length === 0) return null;
+    
+    const currentWeekStart = subDays(new Date(), 6);
+    const prevWeekStart = subDays(new Date(), 13);
+
+    const habitStats = (data.habits || []).map(habit => {
+      let currentWeekCompleted = 0;
+      let prevWeekCompleted = 0;
+
+      for (let i = 0; i < 7; i++) {
+        const cDay = format(addDays(currentWeekStart, i), 'yyyy-MM-dd');
+        const pDay = format(addDays(prevWeekStart, i), 'yyyy-MM-dd');
+        
+        if (data.habitCompletions?.[cDay]?.[habit.id]) currentWeekCompleted++;
+        if (data.habitCompletions?.[pDay]?.[habit.id]) prevWeekCompleted++;
+      }
+
+      const currentRate = currentWeekCompleted / 7;
+      const prevRate = prevWeekCompleted / 7;
+      const improvement = currentRate - prevRate;
+
+      return { habit, improvement, currentRate, currentWeekCompleted };
+    });
+
+    const mostImproved = [...habitStats].sort((a, b) => b.improvement - a.improvement)[0];
+    const highestRisk = [...habitStats].sort((a, b) => a.currentRate - b.currentRate)[0];
+
+    return { mostImproved, highestRisk };
+  }, [data.habits, data.habitCompletions]);
+
   // 1. Habit Completion Data (Last 7 days)
   const habitData = useMemo(() => {
     const days = eachDayOfInterval({
@@ -593,6 +624,36 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
               trend="Knowledge base"
            />
         </div>
+
+        {/* Quick Glance Section */}
+        {quickGlanceStats && (
+          <div className="flex flex-col md:flex-row gap-6">
+            {quickGlanceStats.mostImproved && (
+              <div className="flex-1 bg-gradient-to-br from-emerald-500/10 to-teal-500/5 backdrop-blur-3xl border border-emerald-500/20 p-6 rounded-3xl shadow-sm flex items-center gap-6 group hover:scale-[1.01] transition-all">
+                <div className="p-4 bg-emerald-500 text-white rounded-2xl shadow-lg shadow-emerald-500/20 group-hover:rotate-6 transition-transform">
+                  <TrendingUp size={24} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black tracking-widest text-emerald-600 uppercase mb-1">Most Improved Habit</p>
+                  <h3 className="text-xl font-bold text-slate-900 leading-tight truncate max-w-[200px]" title={quickGlanceStats.mostImproved.habit.name}>{quickGlanceStats.mostImproved.habit.name}</h3>
+                  <p className="text-sm font-semibold text-emerald-600 mt-1">+{Math.round(quickGlanceStats.mostImproved.improvement * 100)}% vs last week</p>
+                </div>
+              </div>
+            )}
+            {quickGlanceStats.highestRisk && (
+              <div className="flex-1 bg-gradient-to-br from-rose-500/10 to-orange-500/5 backdrop-blur-3xl border border-rose-500/20 p-6 rounded-3xl shadow-sm flex items-center gap-6 group hover:scale-[1.01] transition-all">
+                <div className="p-4 bg-rose-500 text-white rounded-2xl shadow-lg shadow-rose-500/20 group-hover:-rotate-6 transition-transform">
+                  <TrendingDown size={24} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black tracking-widest text-rose-600 uppercase mb-1">Highest Risk Habit</p>
+                  <h3 className="text-xl font-bold text-slate-900 leading-tight truncate max-w-[200px]" title={quickGlanceStats.highestRisk.habit.name}>{quickGlanceStats.highestRisk.habit.name}</h3>
+                  <p className="text-sm font-semibold text-rose-600 mt-1">Only {Math.round(quickGlanceStats.highestRisk.currentRate * 100)}% completion rate</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Charts Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

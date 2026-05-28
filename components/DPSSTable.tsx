@@ -49,7 +49,7 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
     exportContainer.style.position = 'relative';
     exportContainer.style.zIndex = '999999';
     exportContainer.style.pointerEvents = 'none';
-    exportContainer.style.width = '1100px';
+    exportContainer.style.width = '1200px';
     exportContainer.style.boxSizing = 'border-box';
     exportContainer.style.padding = '40px';
     exportContainer.style.backgroundColor = bgColor;
@@ -108,18 +108,18 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
     `;
 
     const opt = {
-      margin:       [25.4, 25.4, 25.4, 25.4] as [number, number, number, number],
+      margin:       [15, 15, 15, 15] as [number, number, number, number],
       filename:     `${activeTopic.title || 'Notes'}.pdf`,
       image:        { type: 'jpeg' as const, quality: 0.98 },
       html2canvas:  { 
         scale: 2, 
         useCORS: true, 
         logging: false,
-        windowWidth: 1100,
+        windowWidth: 1200,
         scrollX: 0,
         scrollY: 0
       },
-      jsPDF:        { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const },
+      jsPDF:        { unit: 'mm' as const, format: 'a4' as const, orientation: 'landscape' as const },
       pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
     };
 

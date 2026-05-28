@@ -6,6 +6,7 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, isToday, isSameDay
 import { v4 as uuidv4 } from 'uuid';
 import { motion, AnimatePresence } from 'motion/react';
 import { callNeuralEngine } from '../services/neuralEngine';
+import { ConfettiOverlay } from './ConfettiOverlay';
 
 interface HabitTrackerProps {
   data: AppData;
@@ -17,6 +18,7 @@ interface HabitTrackerProps {
 export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUpdateHabitCompletion, onUpdateDailyNote }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedPlanningDate, setSelectedPlanningDate] = useState(new Date());
+  const [streakMilestoneEvent, setStreakMilestoneEvent] = useState<{streak: number, habitName: string} | null>(null);
   const [isAddingHabit, setIsAddingHabit] = useState(false);
   const [newHabitName, setNewHabitName] = useState('');
   const [isNumericHabit, setIsNumericHabit] = useState(false);
@@ -1040,6 +1042,8 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
         )}
         {/* Milestone Celebration Overlay Pop-up Modal */}
         {milestoneCelebration && (
+          <>
+          <ConfettiOverlay streak={milestoneCelebration.streak} habitName={milestoneCelebration.habitName} onComplete={() => {}} />
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -1088,6 +1092,7 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
               </button>
             </motion.div>
           </motion.div>
+          </>
         )}
 
         {/* Date-specific Habit Note Modal */}
