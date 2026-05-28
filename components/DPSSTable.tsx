@@ -49,7 +49,7 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
     exportContainer.style.position = 'absolute';
     exportContainer.style.left = '0px';
     exportContainer.style.top = '0px';
-    exportContainer.style.zIndex = '-9999';
+    exportContainer.style.zIndex = '99999';
     exportContainer.style.pointerEvents = 'none';
     exportContainer.style.width = '1100px';
     exportContainer.style.boxSizing = 'border-box';
@@ -125,6 +125,18 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
       pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
     };
 
+    // Save original scroll and body class configs to prevent standard SPA clipping
+    const originalBodyOverflow = document.body.style.overflow;
+    const originalHtmlOverflow = document.documentElement.style.overflow;
+    const bodyClassList = document.body.className;
+    const htmlClassList = document.documentElement.className;
+
+    // Temporarily unlock overflow-hidden restrictions for a solid render height calculation
+    document.body.style.overflow = 'visible';
+    document.documentElement.style.overflow = 'visible';
+    document.body.classList.remove('overflow-hidden');
+    document.documentElement.classList.remove('overflow-hidden');
+
     document.body.appendChild(exportContainer);
 
     try {
@@ -134,6 +146,12 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
       alert('Export failed.');
     } finally {
       document.body.removeChild(exportContainer);
+      
+      // Restore standard layout restrictions styles perfectly
+      document.body.style.overflow = originalBodyOverflow;
+      document.documentElement.style.overflow = originalHtmlOverflow;
+      document.body.className = bodyClassList;
+      document.documentElement.className = htmlClassList;
     }
   };
 

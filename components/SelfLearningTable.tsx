@@ -62,7 +62,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
     exportContainer.style.position = 'absolute';
     exportContainer.style.left = '0px';
     exportContainer.style.top = '0px';
-    exportContainer.style.zIndex = '-9999';
+    exportContainer.style.zIndex = '99999';
     exportContainer.style.pointerEvents = 'none';
     exportContainer.style.width = '1100px';
     exportContainer.style.boxSizing = 'border-box';
@@ -123,7 +123,6 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
       .paper-dots, .paper-grid, .paper-ruled, .paper-engineering { background-image: none !important; background-color: ${isDark ? '#1e293b' : '#f8fafc'} !important; border: 1px solid ${isDark ? '#334155' : '#e2e8f0'} !important; border-radius: 12px !important; padding: 15px !important; }
     `;
     exportContainer.appendChild(style);
-    document.body.appendChild(exportContainer);
 
     const opt = {
       margin:       [25.4, 25.4, 25.4, 25.4] as [number, number, number, number],
@@ -141,6 +140,20 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
       pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
     };
 
+    // Save original scroll and body class configs to prevent standard SPA clipping
+    const originalBodyOverflow = document.body.style.overflow;
+    const originalHtmlOverflow = document.documentElement.style.overflow;
+    const bodyClassList = document.body.className;
+    const htmlClassList = document.documentElement.className;
+
+    // Temporarily unlock overflow-hidden restrictions for a solid render height calculation
+    document.body.style.overflow = 'visible';
+    document.documentElement.style.overflow = 'visible';
+    document.body.classList.remove('overflow-hidden');
+    document.documentElement.classList.remove('overflow-hidden');
+
+    document.body.appendChild(exportContainer);
+
     try {
       await html2pdf().set(opt).from(exportContainer).save();
     } catch (e) {
@@ -148,6 +161,12 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
       alert('Export failed. Please try again.');
     } finally {
       document.body.removeChild(exportContainer);
+
+      // Restore standard layout restrictions styles perfectly
+      document.body.style.overflow = originalBodyOverflow;
+      document.documentElement.style.overflow = originalHtmlOverflow;
+      document.body.className = bodyClassList;
+      document.documentElement.className = htmlClassList;
     }
   };
 
