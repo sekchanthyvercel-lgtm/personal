@@ -114,9 +114,11 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
 
     // Create a robust container for export with fixed layout width
     const exportContainer = document.createElement('div');
-    exportContainer.style.position = 'absolute';
-    exportContainer.style.left = '-9999px';
+    exportContainer.style.position = 'fixed';
+    exportContainer.style.left = '0px';
     exportContainer.style.top = '0px';
+    exportContainer.style.zIndex = '-9999';
+    exportContainer.style.pointerEvents = 'none';
     exportContainer.style.width = '1100px';
     exportContainer.style.boxSizing = 'border-box';
     exportContainer.style.padding = '40px';
@@ -268,7 +270,7 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
           }
         </style>
       </head>
-      <body style="background-color: ${bgColor}; color: ${textColor}; padding: 1in;">
+      <body style="background-color: ${bgColor}; color: ${textColor}; margin: 0; padding: 0;">
         <h1>${title}</h1>
         ${summaryRef.current.innerHTML}
       </body>

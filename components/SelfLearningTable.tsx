@@ -59,9 +59,11 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
 
     // Create a temporary container for pristine export
     const exportContainer = document.createElement('div');
-    exportContainer.style.position = 'absolute';
-    exportContainer.style.left = '-9999px';
+    exportContainer.style.position = 'fixed';
+    exportContainer.style.left = '0px';
     exportContainer.style.top = '0px';
+    exportContainer.style.zIndex = '-9999';
+    exportContainer.style.pointerEvents = 'none';
     exportContainer.style.width = '1100px';
     exportContainer.style.boxSizing = 'border-box';
     exportContainer.style.padding = '40px';
@@ -217,7 +219,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
           }
         </style>
       </head>
-      <body style="background-color: ${bgColor}; color: ${textColor}; padding: 1in;">
+      <body style="background-color: ${bgColor}; color: ${textColor}; margin: 0; padding: 0;">
         <h1>${selectedTopic.title}</h1>
         <div class="content">
           ${editorRef.current.innerHTML}

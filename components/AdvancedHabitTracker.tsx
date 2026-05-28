@@ -874,9 +874,11 @@ date format must be 'yyyy-MM-dd'.`;
       : 'Cognitive Trigger & Core Loop Audit';
 
     const container = document.createElement('div');
-    container.style.position = 'absolute';
-    container.style.left = '-9999px';
+    container.style.position = 'fixed';
+    container.style.left = '0px';
     container.style.top = '0px';
+    container.style.zIndex = '-9999';
+    container.style.pointerEvents = 'none';
     container.style.width = '1100px';
     container.style.boxSizing = 'border-box';
     container.style.padding = '40px';
