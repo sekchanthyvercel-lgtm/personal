@@ -35,19 +35,33 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
     if (!editorRef.current) return;
     const activeTopic = data?.dpssTopics?.find((t: DPSSTopic) => t.id === selectedTopicId) || { title: 'Notes' };
     
-    // Create a robust container for export
+    const settings = data.settings || { fontSize: 12, fontFamily: "'Inter', sans-serif" };
+    const paperStyle = settings.paperStyle || 'none';
+    const selectedPaper = PAPER_STYLES.find(s => s.id === paperStyle) || PAPER_STYLES[0];
+
+    const isDark = selectedPaper.id === 'stars' || selectedPaper.id === 'none-dark';
+    const bgColor = isDark ? '#0f172a' : '#ffffff';
+    const textColor = isDark ? '#f8fafc' : '#1e293b';
+    const accentColor = '#0284c7';
+
+    // Create a robust container for export with fixed layout width
     const exportContainer = document.createElement('div');
-    exportContainer.style.padding = '0px';
-    exportContainer.style.backgroundColor = 'white';
-    exportContainer.style.color = '#000';
-    exportContainer.style.fontFamily = "'Inter', sans-serif";
+    exportContainer.style.position = 'absolute';
+    exportContainer.style.left = '-9999px';
+    exportContainer.style.top = '0px';
+    exportContainer.style.width = '1100px';
+    exportContainer.style.boxSizing = 'border-box';
+    exportContainer.style.padding = '40px';
+    exportContainer.style.backgroundColor = bgColor;
+    exportContainer.style.color = textColor;
+    exportContainer.style.fontFamily = "'Inter', 'Segoe UI', Arial, sans-serif";
     
     exportContainer.innerHTML = `
-      <div style="margin-bottom: 30px; border-bottom: 3px solid #0284c7; padding-bottom: 20px;">
-        <h1 style="font-size: 24pt; font-weight: 900; color: #0f172a; margin: 0;">${activeTopic.title}</h1>
-        <p style="font-size: 10pt; color: #64748b; margin-top: 5px; text-transform: uppercase; letter-spacing: 2px;">Strategic Notes Export • ${new Date().toLocaleDateString()}</p>
+      <div style="margin-bottom: 30px; border-bottom: 3px solid ${accentColor}; padding-bottom: 20px;">
+        <h1 style="font-size: 26pt; font-weight: 900; color: ${isDark ? '#38bdf8' : '#0f172a'}; margin: 0; line-height: 1.2;">${activeTopic.title}</h1>
+        <p style="font-size: 10pt; color: ${isDark ? '#94a3b8' : '#64748b'}; margin-top: 8px; text-transform: uppercase; letter-spacing: 2px;">Strategic Notes Export • ${new Date().toLocaleDateString()}</p>
       </div>
-      <div class="note-content" style="line-height: 1.6;">
+      <div class="note-content" style="line-height: 1.6; font-size: 11.5pt;">
         ${editorRef.current.innerHTML}
       </div>
       <style>
@@ -56,34 +70,53 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
           margin: 1in;
         }
         body {
-          background-color: #ffffff;
-          color: #334155;
-          font-family: 'Segoe UI', Arial, sans-serif;
+          background-color: ${bgColor};
+          color: ${textColor};
+          font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+          -webkit-font-smoothing: antialiased;
         }
         h1, h2, h3, h4, h5, h6 {
           page-break-after: avoid;
           break-after: avoid;
+          color: ${isDark ? '#38bdf8' : '#0f172a'};
         }
-        p, li, tr, .synthesis-card-wrapper, .qa-board-wrapper, table {
+        
+        /* Prevent slicing lines of text and elements horizontally during page break */
+        p, li, tr, th, td, blockquote, pre,
+        h1, h2, h3, h4, h5, h6,
+        .synthesis-card-wrapper, .qa-board-wrapper,
+        .note-content > p, .note-content > div,
+        .grid > div, [class*="grid-cols"] > div,
+        [style*="border"], [style*="background"] {
           page-break-inside: avoid !important;
           break-inside: avoid !important;
         }
-        .note-content h1, .note-content h2 { font-size: 18pt; font-weight: 900; margin-top: 25pt; color: #0369a1; }
-        .note-content h3 { font-size: 14pt; font-weight: 800; margin-top: 15pt; color: #1e293b; }
-        .note-content p { margin-bottom: 12pt; font-size: 11pt; }
-        .paper-dots, .paper-grid, .paper-ruled, .paper-engineering { background-image: none !important; background-color: #f8fafc !important; border: 1px solid #e2e8f0 !important; border-radius: 12px !important; padding: 15px !important; }
-        .synthesis-card-wrapper, .qa-board-wrapper { border: 2px solid #e2e8f0 !important; border-radius: 15px !important; padding: 20px !important; margin: 20px 0 !important; background-color: #f8fafc !important; }
+
+        .flex { display: flex !important; }
+        .grid { display: grid !important; }
+
+        .note-content h1, .note-content h2 { font-size: 18pt; font-weight: 900; margin-top: 25pt; margin-bottom: 12pt; color: ${isDark ? '#38bdf8' : '#0369a1'}; }
+        .note-content h3 { font-size: 14pt; font-weight: 800; margin-top: 18pt; margin-bottom: 10pt; color: ${isDark ? '#e2e8f0' : '#1e293b'}; }
+        .note-content p { margin-bottom: 12pt; }
+        .paper-dots, .paper-grid, .paper-ruled, .paper-engineering { background-image: none !important; background-color: ${isDark ? '#1e293b' : '#f8fafc'} !important; border: 1px solid ${isDark ? '#334155' : '#e2e8f0'} !important; border-radius: 12px !important; padding: 15px !important; }
+        .synthesis-card-wrapper, .qa-board-wrapper { border: 2px solid ${isDark ? '#334155' : '#e2e8f0'} !important; border-radius: 15px !important; padding: 20px !important; margin: 20px 0 !important; background-color: ${isDark ? '#1e293b' : '#f8fafc'} !important; color: ${textColor} !important; }
+        
         table { width: 100% !important; border-collapse: collapse; margin: 20px 0; }
-        th, td { border: 1px solid #e2e8f0; padding: 12px; }
-        th { background-color: #f8fafc; font-weight: bold; }
+        th, td { border: 1px solid ${isDark ? '#334155' : '#e2e8f0'}; padding: 12px; }
+        th { background-color: ${isDark ? '#1e293b' : '#f8fafc'}; font-weight: bold; color: ${isDark ? '#ffffff' : '#000000'}; }
       </style>
     `;
 
     const opt = {
-      margin:       25.4,
+      margin:       [25.4, 25.4, 25.4, 25.4] as [number, number, number, number],
       filename:     `${activeTopic.title || 'Notes'}.pdf`,
       image:        { type: 'jpeg' as const, quality: 0.98 },
-      html2canvas:  { scale: 2, useCORS: true, logging: false },
+      html2canvas:  { 
+        scale: 2, 
+        useCORS: true, 
+        logging: false,
+        windowWidth: 1100
+      },
       jsPDF:        { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const },
       pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
     };
@@ -105,10 +138,27 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
     if (!editorRef.current) return;
     const activeTopic = data?.dpssTopics?.find((t: DPSSTopic) => t.id === selectedTopicId) || { title: 'Notes' };
     
+    const settings = data.settings || { fontSize: 12, fontFamily: "'Inter', sans-serif" };
+    const paperStyle = settings.paperStyle || 'none';
+    const selectedPaper = PAPER_STYLES.find(s => s.id === paperStyle) || PAPER_STYLES[0];
+
+    const isDark = selectedPaper.id === 'stars' || selectedPaper.id === 'none-dark';
+    const bgColor = isDark ? '#0f172a' : '#ffffff';
+    const textColor = isDark ? '#f8fafc' : '#334155';
+    
     const header = `
       <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
       <head>
         <meta charset='utf-8'>
+        <!--[if gte mso 9]>
+        <xml>
+          <w:WordDocument>
+            <w:View>Print</w:View>
+            <w:Zoom>100</w:Zoom>
+            <w:DoNotOptimizeForBrowser/>
+          </w:WordDocument>
+        </xml>
+        <![endif]-->
         <style>
           @page {
             size: A4;
@@ -116,36 +166,43 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
           }
           body {
             font-family: 'Segoe UI', Arial, sans-serif;
-            color: #334155;
-            background-color: #ffffff;
+            color: ${textColor};
+            background-color: ${bgColor};
             margin: 0;
             padding: 0;
           }
           h1, h2, h3, h4, h5, h6 {
             page-break-after: avoid;
             break-after: avoid;
+            color: ${isDark ? '#38bdf8' : '#0f172a'};
           }
           p, li, tr, .synthesis-card-wrapper, .qa-board-wrapper, table {
             page-break-inside: avoid !important;
             break-inside: avoid !important;
           }
-          h1 { color: #0f172a; font-size: 26pt; font-weight: bold; border-bottom: 2pt solid #0369a1; padding-bottom: 10pt; margin-bottom: 20pt; }
+          h1 { color: ${isDark ? '#38bdf8' : '#0f172a'}; font-size: 26pt; font-weight: bold; border-bottom: 2pt solid #0369a1; padding-bottom: 10pt; margin-bottom: 20pt; }
           h2 { color: #0369a1; font-size: 18pt; margin-top: 25pt; border-left: 4pt solid #0369a1; padding-left: 10pt; }
-          h3 { color: #1e293b; font-size: 14pt; margin-top: 15pt; font-weight: bold; }
+          h3 { color: ${isDark ? '#e2e8f0' : '#1e293b'}; font-size: 14pt; margin-top: 15pt; font-weight: bold; }
           p { margin-bottom: 10pt; line-height: 1.5; }
           .synthesis-card-wrapper, .qa-board-wrapper { 
-            border: 1pt solid #cbd5e1; 
+            border: 1pt solid ${isDark ? '#334155' : '#cbd5e1'}; 
             padding: 15pt; 
             margin: 15pt 0; 
-            background-color: #f8fafc;
+            background-color: ${isDark ? '#1e293b' : '#f8fafc'};
             border-radius: 10pt;
+            color: ${textColor};
           }
           table { width: 100% !important; border-collapse: collapse; margin: 15pt 0; }
-          th, td { border: 1pt solid #e2e8f0; padding: 8pt; text-align: left; }
-          th { background-color: #f1f5f9; font-weight: bold; }
+          th, td { border: 1pt solid ${isDark ? '#334155' : '#e2e8f0'}; padding: 8pt; text-align: left; }
+          th { background-color: ${isDark ? '#1e293b' : '#f1f5f9'}; font-weight: bold; color: ${isDark ? '#ffffff' : '#000000'}; }
+          .paper-dots, .paper-grid, .paper-ruled, .paper-engineering {
+            background-color: ${isDark ? '#1e293b' : '#f8fafc'} !important;
+            border: 1px solid ${isDark ? '#334155' : '#e2e8f0'} !important;
+            padding: 15px !important;
+          }
         </style>
       </head>
-      <body>
+      <body style="background-color: ${bgColor}; color: ${textColor}; padding: 1in;">
         <h1>${activeTopic.title}</h1>
         ${editorRef.current.innerHTML}
       </body>

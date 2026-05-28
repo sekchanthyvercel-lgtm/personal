@@ -49,18 +49,32 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
   const exportPDF = async () => {
     if (!editorRef.current || !selectedTopic) return;
     
+    const settings = data.settings || { fontSize: 12, fontFamily: "'Inter', sans-serif" };
+    const paperStyle = settings.paperStyle || 'none';
+    const selectedPaper = PAPER_STYLES.find(s => s.id === paperStyle) || PAPER_STYLES[0];
+
+    const isDark = selectedPaper.id === 'stars' || selectedPaper.id === 'none-dark';
+    const bgColor = isDark ? '#0f172a' : '#ffffff';
+    const textColor = isDark ? '#f8fafc' : '#1e293b';
+
     // Create a temporary container for pristine export
     const exportContainer = document.createElement('div');
-    exportContainer.style.padding = '0px';
-    exportContainer.style.backgroundColor = 'white';
-    exportContainer.style.color = '#0f172a';
+    exportContainer.style.position = 'absolute';
+    exportContainer.style.left = '-9999px';
+    exportContainer.style.top = '0px';
+    exportContainer.style.width = '1100px';
+    exportContainer.style.boxSizing = 'border-box';
+    exportContainer.style.padding = '40px';
+    exportContainer.style.backgroundColor = bgColor;
+    exportContainer.style.color = textColor;
     exportContainer.style.fontFamily = "'Inter', sans-serif";
+    
     exportContainer.innerHTML = `
-      <div style="margin-bottom: 30px; border-bottom: 2px solid #f1f5f9; padding-bottom: 20px;">
-        <h1 style="font-size: 28px; font-weight: 900; color: #0f172a; margin-bottom: 5px;">${selectedTopic.title}</h1>
-        <p style="font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 1px;">Exported on ${new Date().toLocaleDateString()}</p>
+      <div style="margin-bottom: 30px; border-bottom: 2px solid ${isDark ? '#334155' : '#f1f5f9'}; padding-bottom: 20px;">
+        <h1 style="font-size: 28px; font-weight: 900; color: ${isDark ? '#38bdf8' : '#0f172a'}; margin-bottom: 5px;">${selectedTopic.title}</h1>
+        <p style="font-size: 12px; color: ${isDark ? '#94a3b8' : '#64748b'}; text-transform: uppercase; letter-spacing: 1px;">Exported on ${new Date().toLocaleDateString()}</p>
       </div>
-      <div class="export-content">
+      <div class="export-content" style="line-height: 1.6; font-size: 11.5pt;">
         ${editorRef.current.innerHTML}
       </div>
     `;
@@ -73,33 +87,52 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
         margin: 1in;
       }
       body {
-        background-color: #ffffff;
-        color: #0f172a;
-        font-family: 'Segoe UI', Arial, sans-serif;
+        background-color: ${bgColor};
+        color: ${textColor};
+        font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+        -webkit-font-smoothing: antialiased;
       }
       h1, h2, h3, h4, h5, h6 {
         page-break-after: avoid;
         break-after: avoid;
+        color: ${isDark ? '#38bdf8' : '#0f172a'};
       }
-      p, li, tr, .synthesis-card-wrapper, .qa-board-wrapper, table {
+      
+      /* Avoid slicing lines vertically */
+      p, li, tr, th, td, blockquote, pre,
+      h1, h2, h3, h4, h5, h6,
+      .synthesis-card-wrapper, .qa-board-wrapper,
+      .export-content > p, .export-content > div,
+      .grid > div, [class*="grid-cols"] > div,
+      [style*="border"], [style*="background"] {
         page-break-inside: avoid !important;
         break-inside: avoid !important;
       }
+
+      .flex { display: flex !important; }
+      .grid { display: grid !important; }
+
       .export-content { line-height: 1.6; font-size: 14px; }
       .export-content p { margin-bottom: 1em; }
-      .export-content h1, .export-content h2, .export-content h3 { font-weight: 800; color: #0f172a; margin-top: 1.5em; margin-bottom: 0.5em; }
+      .export-content h1, .export-content h2, .export-content h3 { font-weight: 800; color: ${isDark ? '#38bdf8' : '#0f172a'}; margin-top: 1.5em; margin-bottom: 0.5em; }
       .export-content table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-      .export-content th, .export-content td { border: 1px solid #e2e8f0; padding: 12px; }
-      .synthesis-card-wrapper, .qa-board-wrapper { border: 1px solid #cbd5e1 !important; background-color: #f8fafc !important; border-radius: 12px !important; padding: 20px !important; margin: 20px 0 !important; }
+      .export-content th, .export-content td { border: 1px solid ${isDark ? '#334155' : '#e2e8f0'}; padding: 12px; }
+      .synthesis-card-wrapper, .qa-board-wrapper { border: 1px solid ${isDark ? '#334155' : '#cbd5e1'} !important; background-color: ${isDark ? '#1e293b' : '#f8fafc'} !important; border-radius: 12px !important; padding: 20px !important; margin: 20px 0 !important; color: ${textColor} !important; }
+      .paper-dots, .paper-grid, .paper-ruled, .paper-engineering { background-image: none !important; background-color: ${isDark ? '#1e293b' : '#f8fafc'} !important; border: 1px solid ${isDark ? '#334155' : '#e2e8f0'} !important; border-radius: 12px !important; padding: 15px !important; }
     `;
     exportContainer.appendChild(style);
     document.body.appendChild(exportContainer);
 
     const opt = {
-      margin:       25.4,
+      margin:       [25.4, 25.4, 25.4, 25.4] as [number, number, number, number],
       filename:     `${selectedTopic.title || 'Self-Learning-Notes'}.pdf`,
       image:        { type: 'jpeg' as const, quality: 0.98 },
-      html2canvas:  { scale: 2, useCORS: true, logging: false },
+      html2canvas:  { 
+        scale: 2, 
+        useCORS: true, 
+        logging: false,
+        windowWidth: 1100
+      },
       jsPDF:        { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const },
       pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
     };
@@ -117,12 +150,29 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
   const exportWord = () => {
     if (!editorRef.current || !selectedTopic) return;
     
+    const settings = data.settings || { fontSize: 12, fontFamily: "'Inter', sans-serif" };
+    const paperStyle = settings.paperStyle || 'none';
+    const selectedPaper = PAPER_STYLES.find(s => s.id === paperStyle) || PAPER_STYLES[0];
+
+    const isDark = selectedPaper.id === 'stars' || selectedPaper.id === 'none-dark';
+    const bgColor = isDark ? '#0f172a' : '#ffffff';
+    const textColor = isDark ? '#f8fafc' : '#0f172a';
+
     // Better Word styling header
     const header = `
       <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
       <head>
         <meta charset='utf-8'>
         <title>${selectedTopic.title}</title>
+        <!--[if gte mso 9]>
+        <xml>
+          <w:WordDocument>
+            <w:View>Print</w:View>
+            <w:Zoom>100</w:Zoom>
+            <w:DoNotOptimizeForBrowser/>
+          </w:WordDocument>
+        </xml>
+        <![endif]-->
         <style>
           @page {
             size: A4;
@@ -130,8 +180,8 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
           }
           body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: #0f172a;
-            background-color: #ffffff;
+            color: ${textColor};
+            background-color: ${bgColor};
             line-height: 1.5;
             margin: 0;
             padding: 0;
@@ -139,28 +189,35 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
           h1, h2, h3, h4, h5, h6 {
             page-break-after: avoid;
             break-after: avoid;
+            color: ${isDark ? '#38bdf8' : '#0f172a'};
           }
           p, li, tr, .synthesis-card-wrapper, .qa-board-wrapper, table {
             page-break-inside: avoid !important;
             break-inside: avoid !important;
           }
-          h1 { color: #0f172a; font-size: 24pt; border-bottom: 1px solid #eee; padding-bottom: 10px; }
-          h2 { color: #1e293b; font-size: 18pt; margin-top: 20pt; }
+          h1 { color: ${isDark ? '#38bdf8' : '#0f172a'}; font-size: 24pt; border-bottom: 1px solid ${isDark ? '#334155' : '#eee'}; padding-bottom: 10px; }
+          h2 { color: ${isDark ? '#38bdf8' : '#1e293b'}; font-size: 18pt; margin-top: 20pt; }
           p { margin-bottom: 10pt; }
           table { width: 100% !important; border-collapse: collapse; margin-top: 15pt; }
-          th, td { border: 1px solid #cbd5e1; padding: 8pt; text-align: left; }
-          th { background-color: #f8fafc; font-weight: bold; }
+          th, td { border: 1px solid ${isDark ? '#334155' : '#cbd5e1'}; padding: 8pt; text-align: left; }
+          th { background-color: ${isDark ? '#1e293b' : '#f8fafc'}; font-weight: bold; color: ${isDark ? '#ffffff' : '#000000'}; }
           .synthesis-card-wrapper, .qa-board-wrapper { 
-            border: 1px solid #cbd5e1; 
-            background-color: #f8fafc; 
+            border: 1px solid ${isDark ? '#334155' : '#cbd5e1'}; 
+            background-color: ${isDark ? '#1e293b' : '#f8fafc'}; 
             border-radius: 10pt; 
             padding: 15pt; 
             margin-top: 15pt; 
             margin-bottom: 15pt;
+            color: ${textColor};
+          }
+          .paper-dots, .paper-grid, .paper-ruled, .paper-engineering {
+            background-color: ${isDark ? '#1e293b' : '#f8fafc'} !important;
+            border: 1px solid ${isDark ? '#334155' : '#cbd5e1'} !important;
+            padding: 15px !important;
           }
         </style>
       </head>
-      <body>
+      <body style="background-color: ${bgColor}; color: ${textColor}; padding: 1in;">
         <h1>${selectedTopic.title}</h1>
         <div class="content">
           ${editorRef.current.innerHTML}

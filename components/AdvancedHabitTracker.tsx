@@ -874,7 +874,12 @@ date format must be 'yyyy-MM-dd'.`;
       : 'Cognitive Trigger & Core Loop Audit';
 
     const container = document.createElement('div');
-    container.style.padding = '0px';
+    container.style.position = 'absolute';
+    container.style.left = '-9999px';
+    container.style.top = '0px';
+    container.style.width = '1100px';
+    container.style.boxSizing = 'border-box';
+    container.style.padding = '40px';
     container.style.backgroundColor = 'white';
     container.style.color = '#334155';
     container.style.fontFamily = "'Inter', sans-serif";
@@ -903,7 +908,7 @@ date format must be 'yyyy-MM-dd'.`;
       sections.forEach(s => {
         if (s.grid) {
           html += `
-            <div style="margin-bottom: 25px;">
+            <div style="margin-bottom: 25px;" class="problem-box">
               <h2 style="font-size: 11px; font-weight: 900; color: #ef4444; text-transform: uppercase; margin-bottom: 10px; letter-spacing: 0.5px;">P. Problems (6-Dimensional Matrix)</h2>
               <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                 <div style="padding: 10px; border: 1px solid #f1f5f9; border-radius: 8px; background-color: #faf9f6;">
@@ -971,7 +976,8 @@ date format must be 'yyyy-MM-dd'.`;
         page-break-after: avoid;
         break-after: avoid;
       }
-      p, li, tr, .question-box, .btn-pivot, .problem-cell, table {
+      p, li, tr, th, td, .question-box, .btn-pivot, .problem-cell, table,
+      .problem-box, .problem-box > div, .problem-box div {
         page-break-inside: avoid !important;
         break-inside: avoid !important;
       }
@@ -981,10 +987,14 @@ date format must be 'yyyy-MM-dd'.`;
     document.body.appendChild(container);
 
     const opt = {
-      margin: 25.4,
+      margin: [25.4, 25.4, 25.4, 25.4] as [number, number, number, number],
       filename: `Audit_${subjectName}_${format(new Date(record.date), 'yyyyMMdd')}.pdf`,
       image: { type: 'jpeg' as const, quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true },
+      html2canvas: { 
+        scale: 2, 
+        useCORS: true,
+        windowWidth: 1100
+      },
       jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const },
       pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
     };
