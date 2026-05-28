@@ -153,6 +153,8 @@ export interface AppData {
   dailyNotes?: Record<string, string>;
   advancedHabits?: AdvancedHabit[];
   advancedHabitLogs?: Record<string, Record<string, number>>; // Key: YYYY-MM-DD, value: { habitId: value }
+  habitNotes?: Record<string, Record<string, string>>; // Key: YYYY-MM-DD, value: { habitId: notesText }
+  advancedHabitNotes?: Record<string, Record<string, string>>; // Key: YYYY-MM-DD, value: { habitId: notesText }
   habitReframers?: HabitReframerRecord[];
   recurringExpenses?: RecurringExpense[];
 }

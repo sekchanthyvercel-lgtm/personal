@@ -22,7 +22,8 @@ import {
   Sliders,
   Check,
   Edit,
-  Edit3
+  Edit3,
+  MessageSquare
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell 
@@ -74,6 +75,25 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
   const [isCompletingFast, setIsCompletingFast] = useState(false);
   const [finalReflectionText, setFinalReflectionText] = useState('');
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+
+  const [editingAdvancedNoteState, setEditingAdvancedNoteState] = useState<{
+    habitId: string;
+    habitName: string;
+    habitColor?: string;
+    date: string;
+    noteText: string;
+  } | null>(null);
+
+  const openAdvancedNoteDialog = (habit: AdvancedHabit, dateStr: string) => {
+    const existingNote = data.advancedHabitNotes?.[dateStr]?.[habit.id] || '';
+    setEditingAdvancedNoteState({
+      habitId: habit.id,
+      habitName: habit.name,
+      habitColor: habit.color === 'emerald' ? '#10b981' : habit.color === 'rose' ? '#f43f5e' : habit.color === 'sky' ? '#0ea5e9' : '#6366f1',
+      date: dateStr,
+      noteText: existingNote
+    });
+  };
 
   // CBT Habit Writing states
   const [isAddingReframer, setIsAddingReframer] = useState(false);
@@ -874,10 +894,10 @@ date format must be 'yyyy-MM-dd'.`;
       : 'Cognitive Trigger & Core Loop Audit';
 
     const container = document.createElement('div');
-    container.style.position = 'fixed';
+    container.style.position = 'absolute';
     container.style.left = '0px';
     container.style.top = '0px';
-    container.style.zIndex = '-999999';
+    container.style.zIndex = '999999';
     container.style.pointerEvents = 'none';
     container.style.width = '1100px';
     container.style.boxSizing = 'border-box';
@@ -1003,10 +1023,46 @@ date format must be 'yyyy-MM-dd'.`;
       pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
     };
 
+    // Show full-screen loading spinner/overlay to hide the print generation process
+    const overlay = document.createElement('div');
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100vw';
+    overlay.style.height = '100vh';
+    overlay.style.backgroundColor = 'rgba(15, 23, 42, 0.95)';
+    overlay.style.color = '#ffffff';
+    overlay.style.display = 'flex';
+    overlay.style.flexDirection = 'column';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.zIndex = '9999999';
+    overlay.style.fontFamily = "'Inter', sans-serif";
+    overlay.innerHTML = `
+      <div style="text-align: center;">
+        <div style="margin-bottom: 20px; font-size: 20px; font-weight: 900; tracking: tight;">GENERATING CBT AUDIT PDF...</div>
+        <div style="font-size: 13px; color: #94a3b8; font-weight: bold; margin-bottom: 20px;">Formatting cognitive pathways and triggers loop</div>
+        <div style="display: inline-block; width: 32px; height: 32px; border: 4px solid #6366f1; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+      </div>
+      <style>
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      </style>
+    `;
+    document.body.appendChild(overlay);
+
+    const originalScrollY = window.scrollY || window.pageYOffset || 0;
+    const originalScrollX = window.scrollX || window.pageXOffset || 0;
+    window.scrollTo(0, 0);
+
     try {
       await html2pdf().set(opt).from(container).save();
     } finally {
       document.body.removeChild(container);
+      document.body.removeChild(overlay);
+      window.scrollTo(originalScrollX, originalScrollY);
     }
   };
 
@@ -1583,11 +1639,30 @@ date format must be 'yyyy-MM-dd'.`;
                       {dailyValues.map(({ day, val }) => {
                         const isToday = checkIsToday(day);
                         const style = getDayStyle(day, isToday);
+                        const dateStr = format(day, 'yyyy-MM-dd');
+                        const noteText = data.advancedHabitNotes?.[dateStr]?.[habit.id] || '';
                         return (
                           <div 
                             key={day.toISOString()} 
-                            className={`p-2.5 rounded-2xl flex flex-col items-center justify-between min-h-[75px] border transition-all ${style.bg}`}
+                            className={`p-2.5 rounded-2xl flex flex-col items-center justify-between min-h-[75px] border transition-all ${style.bg} relative group/daycell`}
                           >
+                            {/* Daily note button */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openAdvancedNoteDialog(habit, dateStr);
+                              }}
+                              className={`absolute top-1 right-1 p-0.5 rounded hover:bg-black/5 transition-all ${
+                                noteText ? 'text-indigo-600 scale-110 opacity-100' : 'text-slate-400 opacity-0 group-hover/daycell:opacity-100'
+                              }`}
+                              title={noteText ? `Note: ${noteText}` : "Add date-specific note"}
+                            >
+                              <MessageSquare size={9} />
+                              {noteText && (
+                                <span className="absolute -top-0.5 -right-0.5 w-1 h-1 bg-indigo-600 rounded-full" />
+                              )}
+                            </button>
+
                             <span className={`text-[9.5px] uppercase font-black tracking-widest ${style.labelColor}`}>
                               {format(day, 'EEE')}
                             </span>
@@ -3855,6 +3930,81 @@ date format must be 'yyyy-MM-dd'.`;
 
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Advanced Habit Note Modal */}
+      <AnimatePresence>
+        {editingAdvancedNoteState && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-md bg-white rounded-3xl overflow-hidden shadow-2xl border border-slate-100 flex flex-col"
+            >
+              {/* Header */}
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <div>
+                  <p className="text-[9px] font-bold text-indigo-600 uppercase tracking-widest mb-1">Advanced Habit Daily Context</p>
+                  <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                    <span className="w-3.5 h-3.5 rounded-full inline-block" style={{ backgroundColor: editingAdvancedNoteState.habitColor || '#6366f1' }} />
+                    {editingAdvancedNoteState.habitName}
+                  </h3>
+                  <p className="text-xs text-slate-400 font-mono mt-0.5">{editingAdvancedNoteState.date}</p>
+                </div>
+                <button 
+                  onClick={() => setEditingAdvancedNoteState(null)}
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-all"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              
+              {/* Body */}
+              <div className="p-6 flex flex-col gap-4">
+                <label className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                  Why was this goal met or missed?
+                </label>
+                <textarea
+                  className="w-full h-32 p-4 border border-slate-200 rounded-2xl focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-slate-800 placeholder:text-slate-400 text-sm font-medium resize-none transition-all shadow-inner"
+                  placeholder="e.g., Struggled with a craving around 4 PM but pivot strategy kept me focused on writing instead!"
+                  value={editingAdvancedNoteState.noteText}
+                  onChange={(e) => setEditingAdvancedNoteState(prev => prev ? { ...prev, noteText: e.target.value } : null)}
+                  autoFocus
+                />
+              </div>
+              
+              {/* Footer */}
+              <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+                <button 
+                  onClick={() => setEditingAdvancedNoteState(null)}
+                  className="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-2xl text-xs font-bold hover:bg-slate-100 transition-all font-sans"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={() => {
+                    const updatedNotes = { ...(data.advancedHabitNotes || {}) };
+                    if (!updatedNotes[editingAdvancedNoteState.date]) {
+                      updatedNotes[editingAdvancedNoteState.date] = {};
+                    }
+                    updatedNotes[editingAdvancedNoteState.date][editingAdvancedNoteState.habitId] = editingAdvancedNoteState.noteText;
+                    
+                    onUpdate((prev: AppData) => ({
+                      ...prev,
+                      advancedHabitNotes: updatedNotes
+                    }));
+                    
+                    setEditingAdvancedNoteState(null);
+                  }}
+                  className="px-6 py-2.5 bg-indigo-600 text-white rounded-2xl text-xs font-bold hover:bg-indigo-700 hover:shadow-indigo-500/20 hover:-translate-y-0.5 transition-all shadow-lg font-sans"
+                >
+                  Save Context Note
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 

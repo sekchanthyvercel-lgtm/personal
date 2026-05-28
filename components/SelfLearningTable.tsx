@@ -59,10 +59,10 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
 
     // Create a temporary container for pristine export
     const exportContainer = document.createElement('div');
-    exportContainer.style.position = 'fixed';
+    exportContainer.style.position = 'absolute';
     exportContainer.style.left = '0px';
     exportContainer.style.top = '0px';
-    exportContainer.style.zIndex = '-999999';
+    exportContainer.style.zIndex = '999999';
     exportContainer.style.pointerEvents = 'none';
     exportContainer.style.width = '1100px';
     exportContainer.style.boxSizing = 'border-box';
@@ -140,6 +140,40 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
       pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
     };
 
+    // Show full-screen loading spinner/overlay to hide the print generation process
+    const overlay = document.createElement('div');
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100vw';
+    overlay.style.height = '100vh';
+    overlay.style.backgroundColor = 'rgba(15, 23, 42, 0.95)';
+    overlay.style.color = '#ffffff';
+    overlay.style.display = 'flex';
+    overlay.style.flexDirection = 'column';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.zIndex = '9999999';
+    overlay.style.fontFamily = "'Inter', sans-serif";
+    overlay.innerHTML = `
+      <div style="text-align: center;">
+        <div style="margin-bottom: 20px; font-size: 20px; font-weight: 900; tracking: tight;">GENERATING DOCUMENT PDF...</div>
+        <div style="font-size: 13px; color: #94a3b8; font-weight: bold; margin-bottom: 20px;">Applying professional themes and layout presets</div>
+        <div style="display: inline-block; width: 32px; height: 32px; border: 4px solid #38bdf8; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+      </div>
+      <style>
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      </style>
+    `;
+    document.body.appendChild(overlay);
+
+    const originalScrollY = window.scrollY || window.pageYOffset || 0;
+    const originalScrollX = window.scrollX || window.pageXOffset || 0;
+    window.scrollTo(0, 0);
+
     document.body.appendChild(exportContainer);
 
     try {
@@ -149,6 +183,8 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
       alert('Export failed. Please try again.');
     } finally {
       document.body.removeChild(exportContainer);
+      document.body.removeChild(overlay);
+      window.scrollTo(originalScrollX, originalScrollY);
     }
   };
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { RichTextDiv } from './FloatingToolbar';
 import { AppData, Habit, HabitCompletion } from '../types';
-import { CheckSquare, ChevronLeft, ChevronRight, Plus, Trash2, CheckCircle2, Zap, Maximize2, Minimize2, Calendar as CalendarIcon, Edit3, Target, Wand2, RefreshCw, X, Download } from 'lucide-react';
+import { CheckSquare, ChevronLeft, ChevronRight, Plus, Trash2, CheckCircle2, Zap, Maximize2, Minimize2, Calendar as CalendarIcon, Edit3, Target, Wand2, RefreshCw, X, Download, MessageSquare } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isToday, isSameDay, subDays, startOfWeek, endOfWeek, addMonths, subMonths, isSameMonth } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 import { motion, AnimatePresence } from 'motion/react';
@@ -26,6 +26,25 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [suggestedHabits, setSuggestedHabits] = useState<string[]>([]);
   const [milestoneCelebration, setMilestoneCelebration] = useState<{ habitName: string; color: string; streak: number } | null>(null);
+
+  const [editingNoteState, setEditingNoteState] = useState<{
+    habitId: string;
+    habitName: string;
+    habitColor?: string;
+    date: string;
+    noteText: string;
+  } | null>(null);
+
+  const openNoteDialog = (habit: Habit, dateStr: string) => {
+    const existingNote = data.habitNotes?.[dateStr]?.[habit.id] || '';
+    setEditingNoteState({
+      habitId: habit.id,
+      habitName: habit.name,
+      habitColor: habit.color,
+      date: dateStr,
+      noteText: existingNote
+    });
+  };
 
   const tableContainerRef = React.useRef<HTMLDivElement>(null);
 
@@ -753,6 +772,7 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
                    </td>
                   {daysInMonth.map(day => {
                     const dateKey = format(day, 'yyyy-MM-dd');
+                    const noteText = data.habitNotes?.[dateKey]?.[habit.id] || '';
                     
                     if (habit.isNumeric) {
                       const progressVal = typeof completions[dateKey]?.[habit.id] === 'number' 
@@ -801,9 +821,23 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
                                 +
                               </button>
                             </div>
-                            <span className="text-[7px] font-black text-zinc-400 uppercase tracking-widest leading-none truncate max-w-[55px] mt-0.5">
-                              {habit.targetValue} {habit.unit || 'units'}
-                            </span>
+                            <div className="flex items-center justify-center gap-1.5 mt-0.5">
+                              <span className="text-[7.5px] font-black text-zinc-400 uppercase tracking-widest leading-none truncate max-w-[45px]">
+                                {habit.targetValue} {habit.unit || 'units'}
+                              </span>
+                              <button
+                                onClick={() => openNoteDialog(habit, dateKey)}
+                                className={`p-0.5 rounded hover:bg-black/5 transition-all relative ${
+                                  noteText ? 'text-orange-500 font-bold scale-110' : 'text-slate-400'
+                                }`}
+                                title={noteText ? `Note: ${noteText}` : "Add date-specific note"}
+                              >
+                                <MessageSquare size={10} />
+                                {noteText && (
+                                  <span className="absolute -top-0.5 -right-0.5 w-1 h-1 bg-orange-600 rounded-full" />
+                                )}
+                              </button>
+                            </div>
                           </div>
                         </td>
                       );
@@ -812,23 +846,38 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
                     const isCompleted = !!completions[dateKey]?.[habit.id];
                     return (
                       <td key={day.toString()} className="p-4 border-b border-black/10 text-center">
-                        <button 
-                          onClick={() => handleToggleHabit(habit.id, day)}
-                          data-habit-id={habit.id}
-                          data-date={dateKey}
-                          className={`w-8 h-8 rounded-full transition-all flex items-center justify-center ${
-                            isCompleted 
-                              ? 'scale-110 shadow-lg' 
-                              : 'bg-black/5 text-transparent hover:bg-black/10'
-                          }`}
-                          style={{ 
-                            backgroundColor: isCompleted ? (habit.color || '#10b981') : '',
-                            color: 'white',
-                            boxShadow: isCompleted ? `0 0 15px ${(habit.color || '#10b981')}44` : ''
-                          }}
-                        >
-                          <CheckCircle2 size={18} />
-                        </button>
+                        <div className="flex flex-col items-center justify-center gap-1.5 mx-auto">
+                          <button 
+                            onClick={() => handleToggleHabit(habit.id, day)}
+                            data-habit-id={habit.id}
+                            data-date={dateKey}
+                            className={`w-8 h-8 rounded-full transition-all flex items-center justify-center ${
+                              isCompleted 
+                                ? 'scale-110 shadow-lg' 
+                                : 'bg-black/5 text-transparent hover:bg-black/10'
+                            }`}
+                            style={{ 
+                              backgroundColor: isCompleted ? (habit.color || '#10b981') : '',
+                              color: 'white',
+                              boxShadow: isCompleted ? `0 0 15px ${(habit.color || '#10b981')}44` : ''
+                            }}
+                          >
+                            <CheckCircle2 size={18} />
+                          </button>
+                          
+                          <button
+                            onClick={() => openNoteDialog(habit, dateKey)}
+                            className={`p-1 rounded-md hover:bg-black/5 transition-all relative ${
+                              noteText ? 'text-orange-500 scale-110 font-bold' : 'text-slate-450'
+                            }`}
+                            title={noteText ? `Note: ${noteText}` : "Add date-specific note"}
+                          >
+                            <MessageSquare size={11} />
+                            {noteText && (
+                              <span className="absolute top-0 right-0 w-1.5 h-1.5 bg-orange-600 rounded-full animate-pulse" />
+                            )}
+                          </button>
+                        </div>
                       </td>
                     );
                   })}
@@ -1037,6 +1086,84 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
               >
                 Let's Keep Dominating
               </button>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* Date-specific Habit Note Modal */}
+        {editingNoteState && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] flex items-center justify-center p-4 select-none"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-md bg-white rounded-3xl overflow-hidden shadow-2xl border border-slate-100 flex flex-col"
+            >
+              {/* Header */}
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <div>
+                  <p className="text-[9px] font-bold text-orange-600 uppercase tracking-widest mb-1">Habit Daily Notes Context</p>
+                  <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                    <span className="w-3.5 h-3.5 rounded-full inline-block" style={{ backgroundColor: editingNoteState.habitColor || '#ea580c' }} />
+                    {editingNoteState.habitName}
+                  </h3>
+                  <p className="text-xs text-slate-400 font-mono mt-0.5">{editingNoteState.date}</p>
+                </div>
+                <button 
+                  onClick={() => setEditingNoteState(null)}
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-all"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              
+              {/* Body */}
+              <div className="p-6 flex flex-col gap-4">
+                <label className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                  Why was this habit goal met or missed?
+                </label>
+                <textarea
+                  className="w-full h-32 p-4 border border-slate-200 rounded-2xl focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-slate-800 placeholder:text-slate-400 text-sm font-medium resize-none transition-all shadow-inner"
+                  placeholder="Provide context e.g., Slept in late so had to rush work, missing the early workout window."
+                  value={editingNoteState.noteText}
+                  onChange={(e) => setEditingNoteState(prev => prev ? { ...prev, noteText: e.target.value } : null)}
+                  autoFocus
+                />
+              </div>
+              
+              {/* Footer */}
+              <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+                <button 
+                  onClick={() => setEditingNoteState(null)}
+                  className="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-2xl text-xs font-bold hover:bg-slate-100 transition-all font-sans"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={() => {
+                    const updatedNotes = { ...(data.habitNotes || {}) };
+                    if (!updatedNotes[editingNoteState.date]) {
+                      updatedNotes[editingNoteState.date] = {};
+                    }
+                    updatedNotes[editingNoteState.date][editingNoteState.habitId] = editingNoteState.noteText;
+                    
+                    onUpdate((prev: AppData) => ({
+                      ...prev,
+                      habitNotes: updatedNotes
+                    }));
+                    
+                    setEditingNoteState(null);
+                  }}
+                  className="px-6 py-2.5 bg-slate-900 border border-transparent text-white rounded-2xl text-xs font-bold hover:bg-slate-800 hover:-translate-y-0.5 transition-all shadow-lg font-sans"
+                >
+                  Save Daily Context
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}
