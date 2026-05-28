@@ -59,10 +59,10 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
 
     // Create a temporary container for pristine export
     const exportContainer = document.createElement('div');
-    exportContainer.style.position = 'absolute';
+    exportContainer.style.position = 'fixed';
     exportContainer.style.left = '0px';
     exportContainer.style.top = '0px';
-    exportContainer.style.zIndex = '99999';
+    exportContainer.style.zIndex = '-999999';
     exportContainer.style.pointerEvents = 'none';
     exportContainer.style.width = '1100px';
     exportContainer.style.boxSizing = 'border-box';
@@ -140,23 +140,6 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
       pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
     };
 
-    // Save original scroll and body class configs to prevent standard SPA clipping
-    const originalBodyOverflow = document.body.style.overflow;
-    const originalHtmlOverflow = document.documentElement.style.overflow;
-    const bodyClassList = document.body.className;
-    const htmlClassList = document.documentElement.className;
-    const originalScrollY = window.scrollY || window.pageYOffset || 0;
-    const originalScrollX = window.scrollX || window.pageXOffset || 0;
-
-    // Temporarily unlock overflow-hidden restrictions for a solid render height calculation
-    document.body.style.overflow = 'visible';
-    document.documentElement.style.overflow = 'visible';
-    document.body.className = '';
-    document.documentElement.className = '';
-
-    // Scroll to the very top to align our absolute top-positioned exportContainer with the captured viewport
-    window.scrollTo(0, 0);
-
     document.body.appendChild(exportContainer);
 
     try {
@@ -166,13 +149,6 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
       alert('Export failed. Please try again.');
     } finally {
       document.body.removeChild(exportContainer);
-
-      // Restore standard layout restrictions styles perfectly
-      document.body.style.overflow = originalBodyOverflow;
-      document.documentElement.style.overflow = originalHtmlOverflow;
-      document.body.className = bodyClassList;
-      document.documentElement.className = htmlClassList;
-      window.scrollTo(originalScrollX, originalScrollY);
     }
   };
 

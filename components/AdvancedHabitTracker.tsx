@@ -874,10 +874,10 @@ date format must be 'yyyy-MM-dd'.`;
       : 'Cognitive Trigger & Core Loop Audit';
 
     const container = document.createElement('div');
-    container.style.position = 'absolute';
+    container.style.position = 'fixed';
     container.style.left = '0px';
     container.style.top = '0px';
-    container.style.zIndex = '99999';
+    container.style.zIndex = '-999999';
     container.style.pointerEvents = 'none';
     container.style.width = '1100px';
     container.style.boxSizing = 'border-box';
@@ -986,23 +986,6 @@ date format must be 'yyyy-MM-dd'.`;
     `;
     container.appendChild(style);
     
-    // Save original scroll and body class configs to prevent standard SPA clipping
-    const originalBodyOverflow = document.body.style.overflow;
-    const originalHtmlOverflow = document.documentElement.style.overflow;
-    const bodyClassList = document.body.className;
-    const htmlClassList = document.documentElement.className;
-    const originalScrollY = window.scrollY || window.pageYOffset || 0;
-    const originalScrollX = window.scrollX || window.pageXOffset || 0;
-
-    // Temporarily unlock overflow-hidden restrictions for a solid render height calculation
-    document.body.style.overflow = 'visible';
-    document.documentElement.style.overflow = 'visible';
-    document.body.className = '';
-    document.documentElement.className = '';
-
-    // Scroll to the very top to align our absolute top-positioned container with the captured viewport
-    window.scrollTo(0, 0);
-
     document.body.appendChild(container);
 
     const opt = {
@@ -1024,13 +1007,6 @@ date format must be 'yyyy-MM-dd'.`;
       await html2pdf().set(opt).from(container).save();
     } finally {
       document.body.removeChild(container);
-
-      // Restore standard layout restrictions styles perfectly
-      document.body.style.overflow = originalBodyOverflow;
-      document.documentElement.style.overflow = originalHtmlOverflow;
-      document.body.className = bodyClassList;
-      document.documentElement.className = htmlClassList;
-      window.scrollTo(originalScrollX, originalScrollY);
     }
   };
 
