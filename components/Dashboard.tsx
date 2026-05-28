@@ -7,6 +7,7 @@ import {
 } from 'recharts';
 import { format, subDays, eachDayOfInterval, isSameDay, parseISO, isValid, startOfWeek, isWithinInterval, startOfDay, endOfDay, startOfMonth, endOfMonth, startOfYear } from 'date-fns';
 import { TrendingUp, TrendingDown, Activity, Wallet, Target, Sparkles, Brain, ArrowUpRight, Download, Calendar } from 'lucide-react';
+import html2pdf from 'html2pdf.js';
 
 interface DashboardProps {
   data: AppData;
@@ -302,10 +303,123 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
   // 5. Habit Streaks Data
   const streakData = useMemo(() => {
     return (data.habits || []).map(habit => ({
-      name: habit.name.length > 15 ? habit.name.substring(0, 15) + '...' : habit.name,
+      name: habit.name.length > 25 ? habit.name.substring(0, 25) + '...' : habit.name,
       streak: calculateStreak(habit, data.habitCompletions || {})
-    })).sort((a, b) => b.streak - a.streak).slice(0, 10); // Show top 10
+    })).sort((a, b) => b.streak - a.streak).slice(0, 5); // Show top 5
   }, [data.habits, data.habitCompletions]);
+
+  const exportExecutiveSummary = async () => {
+    const container = document.createElement('div');
+    container.style.position = 'relative';
+    container.style.zIndex = '999999';
+    container.style.pointerEvents = 'none';
+    container.style.width = '794px';
+    container.style.boxSizing = 'border-box';
+    container.style.padding = '40px';
+    container.style.backgroundColor = 'white';
+    container.style.color = '#0f172a';
+    container.style.fontFamily = "'Inter', sans-serif";
+    container.style.lineHeight = '1.6';
+
+    const inc = financeOverview.income;
+    const exp = financeOverview.expense;
+    const bal = financeOverview.balance;
+
+    const avgCompletion = habitData.length > 0 
+      ? Math.round(habitData.reduce((acc, curr) => acc + curr.percentage, 0) / habitData.length)
+      : 0;
+
+    const topCategories = expenseData.slice(0, 8);
+    const catColors = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#06b6d4', '#64748b'];
+
+    const html = `
+      <div style="border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px;">
+        <h1 style="font-size: 28px; font-weight: 900; margin: 0; text-transform: uppercase;">Executive Performance Summary</h1>
+        <p style="font-size: 12px; font-weight: 600; color: #64748b; margin-top: 5px; text-transform: uppercase; letter-spacing: 1px;">
+          Report Window: ${format(financeFilterInterval.start, 'MMM dd')} - ${format(financeFilterInterval.end, 'MMM dd, yyyy')} • Generated: ${format(new Date(), 'MMM dd, yyyy HH:mm')}
+        </p>
+      </div>
+
+      <div style="display: flex; gap: 20px; margin-bottom: 30px;">
+        <!-- Habit Insights -->
+        <div style="flex: 1; padding: 25px; background-color: #f8fafc; border-radius: 16px; border: 1px solid #e2e8f0;">
+          <h2 style="font-size: 14px; font-weight: 900; color: #0284c7; text-transform: uppercase; margin-top: 0;">Habit Execution Rate</h2>
+          <div style="font-size: 36px; font-weight: 900; margin-top: 15px;">${avgCompletion}%</div>
+          <p style="font-size: 11px; font-weight: bold; color: #64748b; margin: 0; text-transform: uppercase; letter-spacing: 1px;">Average Task Completion</p>
+        </div>
+
+        <!-- Financial Overview -->
+        <div style="flex: 1; padding: 25px; background-color: #f8fafc; border-radius: 16px; border: 1px solid #e2e8f0;">
+          <h2 style="font-size: 14px; font-weight: 900; color: ${bal >= 0 ? '#10b981' : '#ef4444'}; text-transform: uppercase; margin-top: 0;">Operating Cashflow</h2>
+          <div style="font-size: 36px; font-weight: 900; margin-top: 15px; color: ${bal >= 0 ? '#059669' : '#dc2626'};">$${bal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+          <div style="display: flex; gap: 10px; margin-top: 5px;">
+            <p style="font-size: 10px; font-weight: bold; color: #10b981; margin: 0; display: flex; align-items: center; gap: 4px;">+$${inc.toLocaleString(undefined, { minimumFractionDigits: 0 })} IN</p>
+            <p style="font-size: 10px; font-weight: bold; color: #ef4444; margin: 0; display: flex; align-items: center; gap: 4px;">-$${exp.toLocaleString(undefined, { minimumFractionDigits: 0 })} OUT</p>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 20px; margin-bottom: 30px;">
+        
+        <div style="flex: 1;">
+          <h2 style="font-size: 13px; font-weight: 900; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 15px; color: #1e293b; text-transform: uppercase; letter-spacing: 1px;">Top Streaks (High Priority)</h2>
+          <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr style="text-align: left;">
+                <th style="padding: 10px 0; font-size: 10px; font-weight: 900; color: #94a3b8; text-transform: uppercase; border-bottom: 1px solid #e2e8f0;">Discipline</th>
+                <th style="padding: 10px 0; font-size: 10px; font-weight: 900; color: #94a3b8; text-transform: uppercase; text-align: right; border-bottom: 1px solid #e2e8f0;">Streak</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${streakData.length > 0 ? streakData.map(s => `
+                <tr style="border-bottom: 1px solid #f8fafc;">
+                  <td style="padding: 12px 0; font-size: 13px; font-weight: bold; color: #334155;">${s.name}</td>
+                  <td style="padding: 12px 0; font-size: 13px; font-weight: 900; color: #f59e0b; text-align: right;">${s.streak} Days 🔥</td>
+                </tr>
+              `).join('') : `<tr><td colspan="2" style="padding: 15px 0; text-align: center; color: #94a3b8; font-size: 11px;">No active streaks found.</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+
+        <div style="flex: 1;">
+          <h2 style="font-size: 13px; font-weight: 900; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 15px; color: #1e293b; text-transform: uppercase; letter-spacing: 1px;">Expense Distribution</h2>
+          <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px;">
+            ${topCategories.length > 0 ? topCategories.map((c, idx) => `
+              <li style="font-size: 12px; font-weight: bold; border-bottom: 1px solid #f8fafc; padding-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                <span style="display: flex; align-items: center; gap: 8px; color: #475569;">
+                  <div style="width: 12px; height: 12px; border-radius: 4px; background-color: ${catColors[idx % catColors.length]}"></div>
+                  ${c.name}
+                </span>
+                <span style="font-weight: 900; color: #0f172a;">$${c.value.toLocaleString(undefined, { minimumFractionDigits: 0 })}</span>
+              </li>
+            `).join('') : `<li style="text-align: center; color: #94a3b8; font-size: 11px; padding: 15px 0;">No active expenses found in this range.</li>`}
+          </ul>
+        </div>
+      </div>
+    `;
+
+    container.innerHTML = html;
+    document.body.appendChild(container);
+
+    // Give browser brief window to layout and paint the added container
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    try {
+      const opt = {
+        margin: [20, 20, 20, 20] as [number, number, number, number],
+        filename: 'Executive_Summary_Report.pdf',
+        image: { type: 'jpeg' as const, quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const }
+      };
+      await html2pdf().set(opt).from(container).save();
+    } catch (e) {
+      console.error(e);
+      alert('Export failed. Please try again.');
+    } finally {
+      document.body.removeChild(container);
+    }
+  };
 
   // Weekly comparisons of Income vs. Expense
   const weeklyFinanceData = useMemo(() => {
@@ -421,12 +535,20 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
           </div>
           <div className="flex flex-wrap gap-4 items-center">
              <button
+                id="export-executive-summary-btn"
+                onClick={exportExecutiveSummary}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-3xl shadow-lg border border-indigo-500 flex items-center gap-2 hover:scale-105 active:scale-95 transition-all shadow-indigo-500/25"
+             >
+                <Download size={14} strokeWidth={3} />
+                <span>Executive Summary PDF</span>
+             </button>
+             <button
                 id="export-progress-stats-btn"
                 onClick={exportToCSV}
                 className="bg-slate-900 hover:bg-slate-800 text-white font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-3xl shadow-sm border border-slate-800 flex items-center gap-2 hover:scale-105 active:scale-95 transition-all"
              >
                 <Download size={14} strokeWidth={3} />
-                <span>Export Stats</span>
+                <span>Export CSV Stats</span>
              </button>
              <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm flex items-center gap-4">
                 <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl">

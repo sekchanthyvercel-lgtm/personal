@@ -78,6 +78,7 @@ const ReminderTable: React.FC<ReminderTableProps> = ({
   settings,
   onUpdateSettings
 }) => {
+  const [viewMode, setViewMode] = useState<'All' | 'Active' | 'Completed' | 'Archived'>('All');
   const [showHistory, setShowHistory] = useState(false);
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
 
@@ -97,6 +98,18 @@ const ReminderTable: React.FC<ReminderTableProps> = ({
 
   const archivedReminders = filteredReminders
     .filter(s => !!s.isArchived);
+
+  // View state dispatcher
+  let displayedReminders = [];
+  if (viewMode === 'Archived') {
+    displayedReminders = archivedReminders;
+  } else if (viewMode === 'Active') {
+    displayedReminders = activeReminders.filter(s => s.status !== 'Completed');
+  } else if (viewMode === 'Completed') {
+    displayedReminders = activeReminders.filter(s => s.status === 'Completed');
+  } else {
+    displayedReminders = activeReminders;
+  }
 
   const isoToDisplay = (iso: string) => {
       if (!iso) return '';
@@ -119,6 +132,34 @@ const ReminderTable: React.FC<ReminderTableProps> = ({
     }
     
     onUpdateStudent(id, updates);
+  };
+
+  const handleStatusChange = (s: Student, newStatus: string) => {
+    updateField(s.id, 'status', newStatus);
+    
+    if (newStatus === 'Completed' && s.recurring && s.recurring !== 'None') {
+      // Create new duplicated task
+      const newDeadlineDate = new Date();
+      if (s.recurring === 'Daily') newDeadlineDate.setDate(newDeadlineDate.getDate() + 1);
+      if (s.recurring === 'Weekly') newDeadlineDate.setDate(newDeadlineDate.getDate() + 7);
+      if (s.recurring === 'Monthly') newDeadlineDate.setMonth(newDeadlineDate.getMonth() + 1);
+      
+      const newDeadline = format(newDeadlineDate, 'dd/MM/yy');
+      
+      setTimeout(() => {
+        onAddStudent({
+          category: 'Reminder',
+          name: s.name,
+          deadline: newDeadline,
+          status: 'Pending',
+          note: s.note,
+          priority: s.priority,
+          recurring: s.recurring,
+          // Reset subtasks to incomplete
+          subtasks: Array.isArray(s.subtasks) ? s.subtasks.map((st: any) => ({ ...st, isCompleted: false })) : []
+        });
+      }, 0);
+    }
   };
 
   const getRowBg = (idx: number) => {
@@ -179,6 +220,18 @@ const ReminderTable: React.FC<ReminderTableProps> = ({
         </div>
 
         <div className="flex items-center gap-3">
+          <div className="flex bg-white/50 border border-slate-100 rounded-xl p-1 relative z-50">
+            {(['All', 'Active', 'Completed', 'Archived'] as const).map(mode => (
+              <button 
+                key={mode}
+                onClick={() => setViewMode(mode)}
+                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === mode ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-400 hover:text-slate-900'}`}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+
           <div className="relative w-64">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input 
@@ -249,7 +302,7 @@ const ReminderTable: React.FC<ReminderTableProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-white/10 font-sans">
-              {activeReminders
+              {displayedReminders
                 .filter(s => filters.showHidden || !s.isHidden)
                 .map((s, idx) => (
                 <tr 
@@ -324,6 +377,33 @@ const ReminderTable: React.FC<ReminderTableProps> = ({
                         <CheckSquare size={14} />
                       </button>
                     </div>
+
+                      {/* Priority and Recurring configuration */}
+                      <div className="mt-3 flex items-center gap-3">
+                        <select
+                          value={s.priority || 'Medium'}
+                          onChange={e => updateField(s.id, 'priority', e.target.value)}
+                          className={`text-[9px] font-black uppercase tracking-widest outline-none bg-transparent cursor-pointer transition-colors ${
+                            s.priority === 'High' ? 'text-red-500' :
+                            s.priority === 'Low' ? 'text-slate-400' :
+                            'text-amber-500'
+                          }`}
+                        >
+                          <option value="High">🔴 HIGH PRIORITY</option>
+                          <option value="Medium">🟡 MED PRIORITY</option>
+                          <option value="Low">⚪ LOW PRIORITY</option>
+                        </select>
+                        <select
+                          value={s.recurring || 'None'}
+                          onChange={e => updateField(s.id, 'recurring', e.target.value)}
+                          className="text-[9px] font-black uppercase tracking-widest text-indigo-500 outline-none bg-transparent cursor-pointer transition-colors"
+                        >
+                          <option value="None">↻ ONCE</option>
+                          <option value="Daily">↻ DAILY</option>
+                          <option value="Weekly">↻ WEEKLY</option>
+                          <option value="Monthly">↻ MONTHLY</option>
+                        </select>
+                      </div>
 
                     {/* Integrated subtask management */}
                     {(() => {
@@ -426,7 +506,7 @@ const ReminderTable: React.FC<ReminderTableProps> = ({
                   <td className="px-4 text-center">
                     <select 
                       value={s.status || 'Pending'} 
-                      onChange={e => updateField(s.id, 'status', e.target.value)}
+                      onChange={e => handleStatusChange(s, e.target.value)}
                       style={{ 
                         fontFamily: settings?.fontFamily || "Inter, sans-serif",
                         fontSize: `${settings?.fontSize || 10}px`

@@ -897,7 +897,7 @@ date format must be 'yyyy-MM-dd'.`;
     container.style.position = 'relative';
     container.style.zIndex = '999999';
     container.style.pointerEvents = 'none';
-    container.style.width = '1100px';
+    container.style.width = '794px';
     container.style.boxSizing = 'border-box';
     container.style.padding = '40px';
     container.style.backgroundColor = 'white';
