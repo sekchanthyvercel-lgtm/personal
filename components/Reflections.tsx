@@ -197,12 +197,17 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
     const originalHtmlOverflow = document.documentElement.style.overflow;
     const bodyClassList = document.body.className;
     const htmlClassList = document.documentElement.className;
+    const originalScrollY = window.scrollY || window.pageYOffset || 0;
+    const originalScrollX = window.scrollX || window.pageXOffset || 0;
 
     // Temporarily unlock overflow-hidden restrictions for a solid render height calculation
     document.body.style.overflow = 'visible';
     document.documentElement.style.overflow = 'visible';
-    document.body.classList.remove('overflow-hidden');
-    document.documentElement.classList.remove('overflow-hidden');
+    document.body.className = '';
+    document.documentElement.className = '';
+
+    // Scroll to the very top to align our absolute top-positioned exportContainer with the captured viewport
+    window.scrollTo(0, 0);
 
     document.body.appendChild(exportContainer);
 
@@ -219,6 +224,7 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
       document.documentElement.style.overflow = originalHtmlOverflow;
       document.body.className = bodyClassList;
       document.documentElement.className = htmlClassList;
+      window.scrollTo(originalScrollX, originalScrollY);
     }
   };
 
