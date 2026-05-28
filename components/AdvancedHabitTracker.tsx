@@ -894,9 +894,7 @@ date format must be 'yyyy-MM-dd'.`;
       : 'Cognitive Trigger & Core Loop Audit';
 
     const container = document.createElement('div');
-    container.style.position = 'absolute';
-    container.style.left = '0px';
-    container.style.top = '0px';
+    container.style.position = 'relative';
     container.style.zIndex = '999999';
     container.style.pointerEvents = 'none';
     container.style.width = '1100px';
@@ -1056,6 +1054,11 @@ date format must be 'yyyy-MM-dd'.`;
     const originalScrollY = window.scrollY || window.pageYOffset || 0;
     const originalScrollX = window.scrollX || window.pageXOffset || 0;
     window.scrollTo(0, 0);
+
+    document.body.appendChild(container);
+
+    // Give browser brief window to layout and paint the added container
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     try {
       await html2pdf().set(opt).from(container).save();

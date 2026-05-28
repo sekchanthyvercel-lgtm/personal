@@ -15,7 +15,13 @@ import {
   Eye,
   EyeOff,
   Palette,
-  CheckSquare
+  CheckSquare,
+  GripVertical,
+  Archive,
+  RotateCcw,
+  X,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
 import { Student, FilterState, UserRole } from '../types';
 import { format } from 'date-fns';
@@ -72,6 +78,9 @@ const ReminderTable: React.FC<ReminderTableProps> = ({
   settings,
   onUpdateSettings
 }) => {
+  const [showHistory, setShowHistory] = useState(false);
+  const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
+
   const filteredReminders = students
     .filter(s => s.category === 'Reminder' && !s.deletedAt)
     .filter(s => {
@@ -80,6 +89,14 @@ const ReminderTable: React.FC<ReminderTableProps> = ({
              (s.note || '').toLowerCase().includes(query) ||
              (s.status || '').toLowerCase().includes(query);
     });
+
+  // Separate reminders into active and archived lists. Sort active by order.
+  const activeReminders = filteredReminders
+    .filter(s => !s.isArchived)
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+  const archivedReminders = filteredReminders
+    .filter(s => !!s.isArchived);
 
   const isoToDisplay = (iso: string) => {
       if (!iso) return '';
@@ -127,6 +144,18 @@ const ReminderTable: React.FC<ReminderTableProps> = ({
     }
   };
 
+  const moveReminder = (fromIdx: number, toIdx: number) => {
+    const list = [...activeReminders];
+    if (toIdx < 0 || toIdx >= list.length) return;
+    
+    const [moved] = list.splice(fromIdx, 1);
+    list.splice(toIdx, 0, moved);
+    
+    list.forEach((item, index) => {
+      onUpdateStudent(item.id, { order: index });
+    });
+  };
+
   const fontFamilies = [
     { name: 'Modern', value: "Inter, sans-serif" },
     { name: 'Display', value: "Space Grotesk, sans-serif" },
@@ -161,6 +190,22 @@ const ReminderTable: React.FC<ReminderTableProps> = ({
             />
           </div>
 
+          {activeReminders.some(r => r.status === 'Completed') && (
+            <button 
+              onClick={() => {
+                activeReminders.forEach(r => {
+                  if (r.status === 'Completed') {
+                    onUpdateStudent(r.id, { isArchived: true });
+                  }
+                });
+              }}
+              className="flex items-center gap-2 h-10 px-4 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-amber-500/20 transition-all active:scale-95"
+              title="Archive Completed Reminders"
+            >
+              <Archive size={14} /> Archive Completed ({activeReminders.filter(r => r.status === 'Completed').length})
+            </button>
+          )}
+
           <button 
             onClick={() => onAddStudent({ category: 'Reminder' })}
             className="flex items-center gap-2 h-10 px-5 bg-orange-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-orange-500/20 hover:bg-orange-600 transition-all active:scale-95"
@@ -193,7 +238,7 @@ const ReminderTable: React.FC<ReminderTableProps> = ({
           <table className="w-full border-collapse table-fixed min-w-[900px]">
             <thead className="sticky top-0 z-40 bg-white/10 backdrop-blur-xl">
               <tr className="border-b border-white/20">
-                <th className="w-16 h-14 text-[10px] font-black text-slate-900 uppercase tracking-widest">#</th>
+                <th className="w-24 h-14 text-[10px] font-black text-slate-900 uppercase tracking-widest">#</th>
                 <th className="w-[300px] text-left px-4 text-[10px] font-black text-slate-900 uppercase tracking-widest pt-5">
                   Task / Item
                 </th>
@@ -204,12 +249,59 @@ const ReminderTable: React.FC<ReminderTableProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-white/10 font-sans">
-              {filteredReminders
+              {activeReminders
                 .filter(s => filters.showHidden || !s.isHidden)
                 .map((s, idx) => (
-                <tr key={s.id} className={`group hover:bg-white/30 transition-all h-11 ${getRowBg(idx)} ${s.isHidden ? 'opacity-50' : ''}`}>
-                  <td className="text-center text-[10px] font-bold text-slate-400">{idx + 1}</td>
-                  <td className="px-4 group/cell">
+                <tr 
+                  key={s.id} 
+                  className={`group hover:bg-white/30 transition-all ${getRowBg(idx)} ${s.isHidden ? 'opacity-50' : ''} ${draggedIdx === idx ? 'opacity-40 border-2 border-dashed border-orange-400 bg-orange-50/10' : ''}`}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (draggedIdx !== null && draggedIdx !== idx) {
+                      moveReminder(draggedIdx, idx);
+                    }
+                  }}
+                >
+                  <td className="text-center p-2 text-[10px] font-bold text-slate-400 select-none">
+                    <div className="flex items-center justify-center gap-1">
+                      <div 
+                        draggable
+                        onDragStart={(e) => {
+                          setDraggedIdx(idx);
+                        }}
+                        onDragEnd={() => {
+                          setDraggedIdx(null);
+                        }}
+                        className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-500 p-1 shrink-0"
+                        title="Drag to reorder"
+                      >
+                        <GripVertical size={14} />
+                      </div>
+                      <div className="flex flex-col shrink-0">
+                        <button 
+                          onClick={() => moveReminder(idx, idx - 1)}
+                          disabled={idx === 0}
+                          className="text-slate-300 hover:text-slate-500 disabled:opacity-30 disabled:pointer-events-none p-0.5"
+                          title="Move Up"
+                        >
+                          <ChevronUp size={12} />
+                        </button>
+                        <button 
+                          onClick={() => moveReminder(idx, idx + 1)}
+                          disabled={idx === activeReminders.length - 1}
+                          className="text-slate-300 hover:text-slate-500 disabled:opacity-30 disabled:pointer-events-none p-0.5"
+                          title="Move Down"
+                        >
+                          <ChevronDown size={12} />
+                        </button>
+                      </div>
+                      <span className="ml-1 w-4 text-left">{idx + 1}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 group/cell">
                     <div className="flex items-center justify-between gap-2">
                       <MultilineInput 
                         value={s.name || ''} 
@@ -232,6 +324,89 @@ const ReminderTable: React.FC<ReminderTableProps> = ({
                         <CheckSquare size={14} />
                       </button>
                     </div>
+
+                    {/* Integrated subtask management */}
+                    {(() => {
+                      const subtasks = s.subtasks || [];
+                      const completedSubCount = subtasks.filter((sub: any) => sub.isCompleted).length;
+                      const hasSubtasks = subtasks.length > 0;
+                      return (
+                        <div className="mt-2 text-left">
+                          {hasSubtasks && (
+                            <div className="flex items-center gap-1.5 mb-1.5 max-w-[200px]">
+                              <div className="flex-1 h-1 bg-slate-200/60 rounded-full overflow-hidden">
+                                <div 
+                                  className="h-full bg-orange-500 transition-all duration-300" 
+                                  style={{ width: `${(completedSubCount / subtasks.length) * 100}%` }}
+                                />
+                              </div>
+                              <span className="text-[9px] font-black tracking-widest text-slate-400 select-none shrink-0">
+                                {completedSubCount}/{subtasks.length} subtasks
+                              </span>
+                            </div>
+                          )}
+
+                          {hasSubtasks && (
+                            <div className="flex flex-col gap-1.5 pl-2 border-l-2 border-slate-100/80 mb-2">
+                              {subtasks.map((sub: any, subIdx: number) => (
+                                <div key={sub.id || subIdx} className="flex items-center gap-2 group/sub">
+                                  <input 
+                                    type="checkbox"
+                                    checked={!!sub.isCompleted}
+                                    onChange={(e) => {
+                                      const updated = [...subtasks];
+                                      updated[subIdx] = { ...sub, isCompleted: e.target.checked };
+                                      updateField(s.id, 'subtasks', updated);
+                                    }}
+                                    className="w-3.5 h-3.5 rounded border-slate-300 text-orange-500 focus:ring-orange-500/20 cursor-pointer"
+                                  />
+                                  <input 
+                                    type="text"
+                                    value={sub.text || ''}
+                                    onChange={(e) => {
+                                      const updated = [...subtasks];
+                                      updated[subIdx] = { ...sub, text: e.target.value };
+                                      updateField(s.id, 'subtasks', updated);
+                                    }}
+                                    className={`flex-1 text-[11px] font-bold bg-transparent outline-none text-slate-700 focus:text-slate-900 focus:border-b focus:border-indigo-400 ${sub.isCompleted ? 'line-through text-slate-400' : ''}`}
+                                  />
+                                  <button 
+                                    onClick={() => {
+                                      const updated = subtasks.filter((_: any, idx: number) => idx !== subIdx);
+                                      updateField(s.id, 'subtasks', updated);
+                                    }}
+                                    className="opacity-0 group-hover/sub:opacity-100 text-slate-300 hover:text-red-500 transition-all p-0.5"
+                                    title="Delete subtask"
+                                  >
+                                    <X size={10} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          <div className="flex items-center gap-2 max-w-[250px]">
+                            <Plus size={10} className="text-slate-400 shrink-0" />
+                            <input 
+                              type="text" 
+                              placeholder="Add subtask..."
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  const text = e.currentTarget.value.trim();
+                                  if (text) {
+                                    const newSub = { id: Math.random().toString(36).substr(2, 9), text, isCompleted: false };
+                                    updateField(s.id, 'subtasks', [...subtasks, newSub]);
+                                    e.currentTarget.value = '';
+                                  }
+                                }
+                              }}
+                              className="w-full text-[10px] font-bold text-slate-400 focus:text-slate-400 bg-transparent outline-none border-b border-dashed border-slate-200 focus:border-orange-500"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </td>
                   <td className="px-4">
                     <div className="flex items-center justify-center gap-2 px-3 py-1.5 bg-white/30 rounded-lg border border-white/20">
@@ -296,7 +471,7 @@ const ReminderTable: React.FC<ReminderTableProps> = ({
                   </td>
                 </tr>
               ))}
-              {filteredReminders.length === 0 && (
+              {activeReminders.length === 0 && (
                 <tr>
                   <td colSpan={6} className="py-20 text-center">
                     <div className="flex flex-col items-center gap-3 opacity-20">
@@ -309,6 +484,90 @@ const ReminderTable: React.FC<ReminderTableProps> = ({
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* Collapsible Archived Reminders History Section */}
+      <div className="mt-6 bg-white/[0.01] backdrop-blur-3xl rounded-[32px] border border-white/10 overflow-hidden shadow-xl">
+        <button 
+          onClick={() => setShowHistory(!showHistory)}
+          className="w-full px-6 py-4 flex items-center justify-between text-slate-850 hover:bg-white/5 transition-all outline-none"
+        >
+          <div className="flex items-center gap-2">
+            <Archive size={16} className="text-amber-500" />
+            <span className="text-[11px] font-black uppercase tracking-widest text-slate-900 select-none">
+              Archived History Section ({archivedReminders.length})
+            </span>
+          </div>
+          <span className="text-xs text-slate-400 font-bold select-none">
+            {showHistory ? 'Collapse' : 'Expand'}
+          </span>
+        </button>
+
+        {showHistory && (
+          <div className="px-6 pb-6 border-t border-white/10 pt-4 overflow-x-auto max-h-[300px] custom-scrollbar">
+            {archivedReminders.length === 0 ? (
+              <div className="text-center py-8 text-xs text-slate-450 font-bold uppercase tracking-widest select-none">
+                No archived reminders in history
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                <div className="flex justify-end mb-2">
+                  <button 
+                    onClick={() => {
+                      if (window.confirm('Are you sure you want to permanently delete all archived history?')) {
+                        archivedReminders.forEach(r => onDeleteStudent(r.id));
+                      }
+                    }}
+                    className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500 hover:text-white text-red-500 transition-all rounded-lg text-[9px] font-black uppercase tracking-widest"
+                  >
+                    Clear History Permanently
+                  </button>
+                </div>
+                <table className="w-full text-left border-collapse table-fixed min-w-[700px]">
+                  <thead>
+                    <tr className="border-b border-white/10 text-slate-400">
+                      <th className="w-12 pb-2 text-[9px] font-black uppercase tracking-wider">#</th>
+                      <th className="pb-2 text-[9px] font-black uppercase tracking-wider">Task Name</th>
+                      <th className="w-32 pb-2 text-[9px] font-black uppercase tracking-wider text-center">Deadline</th>
+                      <th className="w-32 pb-2 text-[9px] font-black uppercase tracking-wider text-center">Status</th>
+                      <th className="w-32 pb-2 text-[9px] font-black uppercase tracking-wider text-center flex justify-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5 text-slate-700">
+                    {archivedReminders.map((r, i) => (
+                      <tr key={r.id} className="hover:bg-white/5 h-10 transition-colors">
+                        <td className="text-[10px] font-bold text-slate-400">{i + 1}</td>
+                        <td className="truncate text-xs font-bold text-slate-800 pr-4">
+                          {r.name ? r.name.replace(/<[^>]*>/g, '') : 'Unnamed task'}
+                        </td>
+                        <td className="text-center text-[10px] font-medium text-slate-500">{r.deadline || 'No Deadline'}</td>
+                        <td className="text-center text-[10px] font-black text-emerald-500">{r.status || 'Completed'}</td>
+                        <td className="text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => onUpdateStudent(r.id, { isArchived: false })}
+                              className="p-1 text-slate-400 hover:text-indigo-600 transition-colors"
+                              title="Restore to active list"
+                            >
+                              <RotateCcw size={14} />
+                            </button>
+                            <button
+                              onClick={() => onDeleteStudent(r.id)}
+                              className="p-1 text-slate-400 hover:text-red-500 transition-colors"
+                              title="Delete permanently"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

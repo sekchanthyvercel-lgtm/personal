@@ -114,9 +114,7 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
 
     // Create a robust container for export with fixed layout width
     const exportContainer = document.createElement('div');
-    exportContainer.style.position = 'absolute';
-    exportContainer.style.left = '0px';
-    exportContainer.style.top = '0px';
+    exportContainer.style.position = 'relative';
     exportContainer.style.zIndex = '999999';
     exportContainer.style.pointerEvents = 'none';
     exportContainer.style.width = '1100px';
@@ -228,8 +226,11 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
 
     document.body.appendChild(exportContainer);
  
-     try {
-       await html2pdf().set(opt).from(exportContainer).save();
+    // Give browser brief window to layout and paint the added container
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    try {
+      await html2pdf().set(opt).from(exportContainer).save();
      } catch (e) {
        console.error(e);
        alert('Export failed. Please try again.');

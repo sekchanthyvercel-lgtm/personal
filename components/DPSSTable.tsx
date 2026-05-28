@@ -46,9 +46,7 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
 
     // Create a robust container for export with fixed layout width
     const exportContainer = document.createElement('div');
-    exportContainer.style.position = 'absolute';
-    exportContainer.style.left = '0px';
-    exportContainer.style.top = '0px';
+    exportContainer.style.position = 'relative';
     exportContainer.style.zIndex = '999999';
     exportContainer.style.pointerEvents = 'none';
     exportContainer.style.width = '1100px';
@@ -160,6 +158,9 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
     window.scrollTo(0, 0);
 
     document.body.appendChild(exportContainer);
+
+    // Give browser brief window to layout and paint the added container
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     try {
       await html2pdf().set(opt).from(exportContainer).save();
