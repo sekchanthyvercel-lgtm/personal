@@ -874,7 +874,7 @@ date format must be 'yyyy-MM-dd'.`;
       : 'Cognitive Trigger & Core Loop Audit';
 
     const container = document.createElement('div');
-    container.style.position = 'fixed';
+    container.style.position = 'absolute';
     container.style.left = '0px';
     container.style.top = '0px';
     container.style.zIndex = '-9999';
@@ -995,7 +995,9 @@ date format must be 'yyyy-MM-dd'.`;
       html2canvas: { 
         scale: 2, 
         useCORS: true,
-        windowWidth: 1100
+        windowWidth: 1100,
+        scrollX: 0,
+        scrollY: 0
       },
       jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const },
       pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }

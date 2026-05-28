@@ -114,7 +114,7 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
 
     // Create a robust container for export with fixed layout width
     const exportContainer = document.createElement('div');
-    exportContainer.style.position = 'fixed';
+    exportContainer.style.position = 'absolute';
     exportContainer.style.left = '0px';
     exportContainer.style.top = '0px';
     exportContainer.style.zIndex = '-9999';
@@ -184,7 +184,9 @@ const ReflectionCard: React.FC<ReflectionCardProps> = ({
         scale: 2, 
         useCORS: true, 
         logging: false,
-        windowWidth: 1100
+        windowWidth: 1100,
+        scrollX: 0,
+        scrollY: 0
       },
       jsPDF:        { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const },
       pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
