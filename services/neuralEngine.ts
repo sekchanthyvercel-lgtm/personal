@@ -34,22 +34,32 @@ export const getGeminiKeys = (userKey?: string): string[] => {
     return envKeys.split(',').map(k => k.trim()).filter(k => k.length > 0);
 };
 
-function isQuotaError(error: any): boolean {
+function isRetryableError(error: any): boolean {
     const msg = error?.message?.toLowerCase() || "";
-    return msg.includes("quota") || msg.includes("429") || msg.includes("resource_exhausted") || msg.includes("limit");
+    const status = error?.status || error?.code || 0;
+    return msg.includes("quota") || 
+           msg.includes("429") || 
+           msg.includes("resource_exhausted") || 
+           msg.includes("limit") || 
+           msg.includes("high demand") || 
+           msg.includes("unavailable") ||
+           msg.includes("503") ||
+           status === 429 || 
+           status === 503;
 }
 
 const withRetry = async <T>(
   fn: () => Promise<T>,
-  retries: number = 1,
-  delay: number = 1500
+  retries: number = 3,
+  delay: number = 2000
 ): Promise<T> => {
   try {
     return await fn();
   } catch (error) {
-    if (retries <= 0) throw error;
+    if (retries <= 0 || !isRetryableError(error)) throw error;
+    console.warn(`AI Synthesis failure (Retryable). Retrying in ${delay}ms...`, error);
     await new Promise(resolve => setTimeout(resolve, delay));
-    return withRetry(fn, retries - 1, delay * 2);
+    return withRetry(fn, retries - 1, delay * 1.5);
   }
 };
 
@@ -140,12 +150,12 @@ export const callNeuralEngine = async (
           };
         });
       } catch (error: any) {
-        // If Quota Error and we have more keys, try next key
-        if (isQuotaError(error) && i < availableKeys.length - 1) {
-          console.warn(`Gemini Key #${i + 1} exhausted (Quota). Rotating to next key...`);
+        // If Retryable Error and we have more keys, try next key
+        if (isRetryableError(error) && i < availableKeys.length - 1) {
+          console.warn(`Gemini Key #${i + 1} exhausted or unavailable. Rotating to next key...`);
           continue; 
         }
-        // If it's the last key or not a quota error, show the specific error
+        // If it's the last key or not a retryable error, show the specific error
         return { text: `<div class="p-6 bg-red-50 text-red-600 rounded-xl border border-red-200"><strong>Neural Error:</strong> ${error.message}</div>` };
       }
     }
@@ -252,7 +262,7 @@ export const generateNeuralOutline = async (
 
       return addIds(data);
     } catch (error: any) {
-      if (isQuotaError(error) && i < availableKeys.length - 1) {
+      if (isRetryableError(error) && i < availableKeys.length - 1) {
         continue; // Try next key
       }
       console.error(`Outline generation failed:`, error.message);

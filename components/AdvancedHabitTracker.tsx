@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { AppData, AdvancedHabit, HabitReframerRecord } from '../types';
 import { 
   Plus, 
@@ -9,6 +9,7 @@ import {
   Info, 
   ChevronLeft, 
   ChevronRight, 
+  ChevronDown,
   Flame, 
   Brain, 
   ShieldAlert, 
@@ -21,6 +22,7 @@ import {
   Hourglass,
   Sliders,
   Check,
+  Save,
   Edit,
   Edit3,
   MessageSquare
@@ -55,6 +57,413 @@ const DEFAULT_COLOR_THEMES = [
   { id: 'bronze', bg: 'bg-[#fcf9f2] border-yellow-300 text-amber-900', activeBg: 'bg-[#ca8a04]', barBg: 'bg-yellow-250', accent: 'text-[#854d0e]', ring: 'focus:ring-[#ca8a04]/20' }
 ];
 
+// Individual day input to prevent parent card re-renders on every keystroke
+const DailyValueInput = React.memo(({ initialValue, onSave, style }: { initialValue: number, onSave: (val: string) => void, style: any }) => {
+  const [localValue, setLocalValue] = useState(initialValue === 0 ? '' : initialValue.toString());
+  
+  useEffect(() => {
+    setLocalValue(initialValue === 0 ? '' : initialValue.toString());
+  }, [initialValue]);
+
+  return (
+    <input 
+      type="number"
+      min="0"
+      value={localValue}
+      onChange={(e) => setLocalValue(e.target.value)}
+      onBlur={() => {
+        if (localValue !== (initialValue === 0 ? '' : initialValue.toString())) {
+          onSave(localValue);
+        }
+      }}
+      placeholder="0"
+      className={`w-full text-center bg-transparent text-base font-black outline-none placeholder:text-slate-300 font-mono transition-all focus:scale-110 ${style.inputColor}`}
+    />
+  );
+});
+
+// Memoized Habit Card to isolate re-renders and fix typing lag issues
+const AdvancedHabitCard = React.memo(({ 
+  habit, 
+  stats, 
+  theme, 
+  onLogValue, 
+  onOpenLogging, 
+  onEdit, 
+  onDelete, 
+  onOpenNote,
+  logs 
+}: {
+  habit: AdvancedHabit;
+  stats: any;
+  theme: any;
+  onLogValue: (id: string, date: Date, val: string) => void;
+  onOpenLogging: (id: string) => void;
+  onEdit: (habit: AdvancedHabit) => void;
+  onDelete: (id: string) => void;
+  onOpenNote: (habit: AdvancedHabit, dateStr: string) => void;
+  logs: any;
+}) => {
+  const { dailyValues, total, average } = stats;
+  const isLimit = habit.goalType === 'limit';
+  const hasGoal = habit.weeklyGoal !== undefined;
+  const limitExceeded = hasGoal && isLimit && total > (habit.weeklyGoal || 0);
+  const targetAchieved = hasGoal && !isLimit && total >= (habit.weeklyGoal || 0);
+
+  // Heatmap color mapper helper
+  const getHeatmapColor = (habit: AdvancedHabit, val: number, themeId: string) => {
+    if (val === 0) return habit.type === 'dopamine' ? 'bg-emerald-500 hover:bg-emerald-600 shadow-[0_0_8px_rgba(16,185,129,0.3)]' : 'bg-slate-100 hover:bg-slate-200';
+    if (habit.type === 'dopamine') {
+      const dailyCap = habit.weeklyGoal ? (habit.weeklyGoal / 7) : 0;
+      if (dailyCap > 0 && val > dailyCap) return 'bg-rose-500 hover:bg-rose-600 shadow-[0_0_8px_rgba(244,63,94,0.3)]';
+      return 'bg-amber-400 hover:bg-amber-500 shadow-[0_0_8px_rgba(251,191,36,0.3)]';
+    }
+    const dailyTarget = habit.weeklyGoal ? (habit.weeklyGoal / 7) : 1;
+    const ratio = val / dailyTarget;
+    if (themeId === 'amber') return ratio >= 1 ? 'bg-amber-600 shadow-[0_0_8px_rgba(217,119,6,0.3)]' : ratio >= 0.5 ? 'bg-amber-400' : 'bg-amber-200';
+    if (themeId === 'emerald') return ratio >= 1 ? 'bg-emerald-600 shadow-[0_0_8px_rgba(5,150,105,0.3)]' : ratio >= 0.5 ? 'bg-emerald-400' : 'bg-emerald-200';
+    if (themeId === 'rose') return ratio >= 1 ? 'bg-rose-600 shadow-[0_0_8px_rgba(225,29,72,0.3)]' : ratio >= 0.5 ? 'bg-rose-400' : 'bg-rose-200';
+    return ratio >= 1 ? 'bg-indigo-600 shadow-[0_0_8px_rgba(79,70,229,0.3)]' : ratio >= 0.5 ? 'bg-indigo-400' : 'bg-indigo-200';
+  };
+
+  // Helper to color coordinate days
+  const getDayStyle = (day: Date) => {
+    const isToday = format(day, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+    const dayIndex = (day.getDay() + 6) % 7;
+    if (isToday) return { bg: 'bg-white border-indigo-200 shadow-lg shadow-indigo-100 ring-2 ring-indigo-50', labelColor: 'text-indigo-600 font-extrabold', inputColor: 'text-slate-900', numColor: 'text-indigo-400' };
+    return { bg: 'bg-slate-50/50 border-slate-100 hover:bg-white hover:border-slate-200 hover:shadow-sm', labelColor: 'text-slate-400', inputColor: 'text-slate-900', numColor: 'text-slate-400' };
+  };
+
+  const past30Days = Array.from({ length: 30 }).map((_, i) => subDays(startOfDay(new Date()), 29 - i));
+
+  return (
+    <motion.div layout className="bg-white/90 backdrop-blur-md rounded-[40px] border border-slate-100 shadow-[0_8px_32px_rgba(15,23,42,0.05)] p-8 relative group/card hover:shadow-[0_16px_48px_rgba(15,23,42,0.1)] hover:border-slate-200 transition-all duration-500">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-slate-50 mb-8">
+        <div className="flex items-start gap-5">
+          <div className={`w-14 h-14 rounded-[20px] flex items-center justify-center font-black shadow-inner ${theme.bg}`}>
+            {habit.type === 'dopamine' ? <Zap size={26} className="text-amber-500 drop-shadow-sm" /> : <Flame size={26} className="text-emerald-500 drop-shadow-sm" />}
+          </div>
+          <div>
+            <h3 className="text-2xl font-black text-slate-900 leading-tight tracking-[0.01em] uppercase italic">{habit.name}</h3>
+            <div className="flex flex-wrap gap-2.5 items-center mt-2">
+              <span className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-xl tracking-widest ${habit.type === 'dopamine' ? 'bg-rose-50 text-rose-600 border border-rose-100' : 'bg-emerald-50 text-emerald-600 border border-emerald-100'}`}>
+                {habit.type === 'dopamine' ? '🔴 Pleasure Limit' : '🟢 Resilience Target'}
+              </span>
+              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">{habit.unit}</span>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-6">
+          <div className="text-right">
+            <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Strategy</span>
+            <span className="text-base font-black text-slate-800">{hasGoal ? `${isLimit ? 'Limit' : 'Goal'} ${habit.weeklyGoal}` : 'Intuitive'} <span className="text-[10px] text-slate-400 uppercase">{habit.unit}</span></span>
+          </div>
+          <div className="h-10 w-px bg-slate-100" />
+          <div className="flex items-center gap-2">
+            <button onClick={() => onOpenLogging(habit.id)} className="p-3 bg-slate-50 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-[18px] transition-all hover:scale-105" title="Quick Batch Log"><Sliders size={18} /></button>
+            <button onClick={() => onEdit(habit)} className="p-3 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-[18px] transition-all hover:scale-105" title="Edit Metric"><Edit3 size={18} /></button>
+            <button onClick={() => onDelete(habit.id)} className="p-3 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-[18px] transition-all hover:scale-105" title="Delete Metric"><Trash2 size={18} /></button>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-7 gap-4 mb-8">
+        {dailyValues.map(({ day, val }: { day: Date, val: number }) => {
+          const style = getDayStyle(day);
+          const dateStr = format(day, 'yyyy-MM-dd');
+          return (
+            <div key={day.toISOString()} className={`p-4 rounded-[28px] flex flex-col items-center justify-between min-h-[100px] border-2 transition-all duration-300 ${style.bg} relative group/daycell`}>
+              <button 
+                onClick={(e) => { e.stopPropagation(); onOpenNote(habit, dateStr); }}
+                className="absolute top-2 right-2 p-1.5 rounded-xl hover:bg-slate-100 opacity-0 group-hover/daycell:opacity-100 transition-all text-slate-300 hover:text-indigo-500"
+              >
+                <MessageSquare size={14} />
+              </button>
+              <span className={`text-[10px] uppercase font-black tracking-[0.2em] ${style.labelColor}`}>{format(day, 'EEE')}</span>
+              <div className="my-2">
+                <DailyValueInput 
+                  initialValue={val} 
+                  onSave={(newVal) => onLogValue(habit.id, day, newVal)} 
+                  style={style} 
+                />
+              </div>
+              <span className={`text-[9px] font-bold text-slate-300 uppercase tracking-widest`}>{format(day, 'MMM d')}</span>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-8 border-t border-slate-50/50">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">30-Day Resilience Heatmap</span>
+            <div className="flex gap-1">
+              {[0, 1, 2, 3].map(i => <div key={i} className={`w-2 h-2 rounded ${i === 0 ? 'bg-slate-100' : 'bg-indigo-300 opacity-' + (i * 25)}`} />)}
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-1.5 p-3 rounded-[24px] bg-slate-50/50 border border-slate-50 justify-start">
+            {past30Days.map(day => {
+              const dateStr = format(day, 'yyyy-MM-dd');
+              const val = logs[dateStr]?.[habit.id] || 0;
+              const cellBg = getHeatmapColor(habit, val, theme.id);
+              return (
+                <div 
+                  key={dateStr}
+                  className={`w-5 h-5 rounded-lg transition-all cursor-crosshair relative group/heatmap ${cellBg}`}
+                >
+                  <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white rounded-xl px-3 py-1.5 text-[10px] font-black tracking-widest hidden group-hover/heatmap:block whitespace-nowrap shadow-2xl z-50 pointer-events-none border border-white/10 animate-in fade-in zoom-in duration-200">
+                    {format(day, 'MMM d')}: <span className="text-amber-400 font-mono">{val}</span> {habit.unit}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="bg-slate-50/30 p-6 rounded-[32px] border border-white/40 shadow-inner flex flex-col justify-center">
+            <div className="flex items-end justify-between mb-4">
+               <div>
+                  <span className="block text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-1">Accumulated Load</span>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-black text-slate-900 tracking-tighter">{total}</span>
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{habit.unit}</span>
+                  </div>
+               </div>
+               <div className="text-right">
+                  <span className="block text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-1">Status</span>
+                  <span className={`text-[11px] font-black uppercase tracking-widest px-3 py-1 rounded-lg ${limitExceeded ? 'bg-rose-100 text-rose-700' : targetAchieved ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'}`}>
+                    {limitExceeded ? 'Limit Hit' : targetAchieved ? 'Target Met' : 'In Progress'}
+                  </span>
+               </div>
+            </div>
+            {hasGoal && (
+               <div className="space-y-2">
+                  <div className="h-3 w-full bg-slate-200/50 rounded-full overflow-hidden shadow-inner border border-white/20">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min(100, (total / (habit.weeklyGoal || 1)) * 100)}%` }}
+                      transition={{ duration: 1, ease: "easeOut" }}
+                      className={`h-full ${limitExceeded ? 'bg-rose-500 shadow-[0_0_12px_rgba(244,63,94,0.4)]' : targetAchieved ? 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.4)]' : 'bg-indigo-600 shadow-[0_0_12px_rgba(79,70,229,0.4)]'}`}
+                    />
+                  </div>
+                  <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">
+                    <span>Baseline</span>
+                    <span>{Math.round((total / (habit.weeklyGoal || 1)) * 100)}% to Optima</span>
+                  </div>
+               </div>
+            )}
+        </div>
+      </div>
+    </motion.div>
+  );
+});
+
+// Cognitive Reframer Modal - FULL 8-STEP D.O.P.A.M.I.N.E Implementation
+const CognitiveReframerModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (formData: any) => void;
+  data: AppData;
+}> = ({ isOpen, onClose, onSave, data }) => {
+  const [form, setForm] = useState({
+    thought: '',
+    feeling: '',
+    intention: '',
+    actualOutcome: '',
+    alternativeStrategy: '',
+    studentId: '',
+    isFullDopamineAudit: false,
+    substanceOrBehavior: '',
+    frequencyAndAmount: '',
+    objectives: '',
+    pNeuroadaptation: '',
+    pRelationships: '',
+    pWork: '',
+    pFinancial: '',
+    pHealth: '',
+    pSpiritual: '',
+    abstinencePlan: '',
+    mindfulnessNotes: '',
+    insightHonesty: '',
+    nextStepsPlan: '',
+    experimentRules: ''
+  });
+
+  if (!isOpen) return null;
+
+  const modalSubjectId = form.studentId;
+  const modalSubjectName = modalSubjectId ? data.students?.find(s => s.id === modalSubjectId)?.name : 'Self';
+  
+  const getSubjectShortName = (nameOrText?: string) => {
+    if (!nameOrText || nameOrText === 'Self') return 'you';
+    const firstWord = nameOrText.trim().split(/\s+/)[0];
+    return firstWord || 'you';
+  };
+  
+  const modalShortName = getSubjectShortName(modalSubjectName);
+
+  const AuditStep = ({ letter, title, color, children }: { letter: string, title: string, color: string, children: React.ReactNode }) => (
+    <div className={`p-8 rounded-[32px] border ${color === 'indigo' ? 'bg-indigo-50/30 border-indigo-100' : color === 'rose' ? 'bg-rose-50/30 border-rose-100' : 'bg-emerald-50/30 border-emerald-100'} space-y-6 shadow-sm`}>
+      <div className={`flex items-center gap-4 border-b pb-4 ${color === 'indigo' ? 'border-indigo-100/50' : color === 'rose' ? 'border-rose-100/50' : 'border-emerald-100/50'}`}>
+        <span className={`w-10 h-10 rounded-2xl flex items-center justify-center text-white font-black text-lg ${color === 'indigo' ? 'bg-indigo-600' : color === 'rose' ? 'bg-rose-600' : 'bg-emerald-600'}`}>{letter}</span>
+        <h4 className={`text-sm font-black uppercase tracking-[0.2em] italic ${color === 'indigo' ? 'text-indigo-900' : color === 'rose' ? 'text-rose-900' : 'text-emerald-900'}`}>Step {letter}: {title}</h4>
+      </div>
+      {children}
+    </div>
+  );
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[150] bg-slate-900/60 backdrop-blur-xl flex items-center justify-center p-4 md:p-8 overflow-y-auto"
+    >
+      <motion.div 
+        initial={{ scale: 0.95, opacity: 0, y: 40 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.95, opacity: 0, y: 40 }}
+        className={`bg-white rounded-[48px] p-10 md:p-14 w-full ${form.isFullDopamineAudit ? 'max-w-5xl' : 'max-w-2xl'} border border-slate-200 relative my-8 shadow-[0_32px_128px_-16px_rgba(0,0,0,0.3)] transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] max-h-[94vh] overflow-y-auto no-scrollbar scroll-smooth`}
+      >
+        <button 
+          onClick={onClose}
+          className="absolute top-10 right-10 text-slate-300 hover:text-slate-900 p-3 hover:bg-slate-50 rounded-full transition-all group"
+        >
+          <X size={28} className="group-hover:rotate-90 transition-transform duration-300" />
+        </button>
+
+        <div className="mb-12">
+          <div className="flex items-center gap-3 mb-3">
+             <Brain className="text-indigo-600" size={32} />
+             <span className="text-[11px] font-black uppercase text-indigo-500 tracking-[0.3em]">Cognitive Realignment</span>
+          </div>
+          <h3 className="text-4xl font-black text-slate-900 uppercase italic tracking-tighter leading-none">
+            {form.isFullDopamineAudit ? 'The D.O.P.A.M.I.N.E. Workbook' : 'The Trigger Loop Audit'}
+          </h3>
+          <p className="text-base font-medium text-slate-400 mt-4 max-w-xl">
+            {form.isFullDopamineAudit 
+              ? `An exhaustive 8-step clinical framework to diagnose and purge addictive loops in ${modalShortName}.`
+              : `Map out the immediate triggers and emotional states of ${modalShortName} to build a resilient response pivot.`
+            }
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 p-2 bg-slate-100 rounded-[32px] mb-12 border border-slate-200/50 shadow-inner">
+          <button
+            type="button"
+            onClick={() => setForm({ ...form, isFullDopamineAudit: false })}
+            className={`py-5 rounded-[24px] font-black text-xs uppercase tracking-widest transition-all ${!form.isFullDopamineAudit ? 'bg-white text-slate-900 shadow-xl' : 'text-slate-400 hover:text-slate-600'}`}
+          >
+            Trigger Loop
+          </button>
+          <button
+            type="button"
+            onClick={() => setForm({ ...form, isFullDopamineAudit: true })}
+            className={`py-5 rounded-[24px] font-black text-xs uppercase tracking-widest transition-all ${form.isFullDopamineAudit ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-200' : 'text-slate-400 hover:text-slate-600'}`}
+          >
+            Full Audit
+          </button>
+        </div>
+
+        <div className="space-y-4 mb-10">
+          <label className="text-[11px] font-black uppercase text-slate-400 tracking-[0.2em] block ml-2">Target Profile</label>
+          <div className="relative group">
+            <select
+              value={form.studentId}
+              onChange={(e) => setForm({ ...form, studentId: e.target.value })}
+              className="w-full bg-slate-50 border-2 border-slate-100 rounded-[28px] py-5 px-8 text-sm font-bold text-slate-900 outline-none focus:border-indigo-500 focus:bg-white focus:ring-8 focus:ring-indigo-100/50 transition-all appearance-none cursor-pointer"
+            >
+              <option value="">General / Self (You)</option>
+              {data.students?.map((st) => (
+                <option key={st.id} value={st.id}>{st.name}</option>
+              ))}
+            </select>
+            <ChevronDown size={20} className="absolute right-8 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 group-focus-within:rotate-180 transition-transform" />
+          </div>
+        </div>
+
+        {!form.isFullDopamineAudit ? (
+          <div className="space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-3">
+                <label className="text-[11px] font-black uppercase text-slate-900 tracking-widest block ml-2">1. Automatic Thought</label>
+                <textarea value={form.thought} onChange={(e) => setForm({ ...form, thought: e.target.value })} placeholder="What crossed your mind?" className="w-full bg-slate-50 border-2 border-slate-100 rounded-[32px] py-6 px-8 text-sm font-medium h-32 resize-none focus:border-indigo-500 focus:bg-white transition-all shadow-inner" />
+              </div>
+              <div className="space-y-3">
+                <label className="text-[11px] font-black uppercase text-slate-900 tracking-widest block ml-2">2. Urge & Feeling</label>
+                <textarea value={form.feeling} onChange={(e) => setForm({ ...form, feeling: e.target.value })} placeholder="Boredom, anxiety, Scale 1-10..." className="w-full bg-slate-50 border-2 border-slate-100 rounded-[32px] py-6 px-8 text-sm font-medium h-32 resize-none focus:border-indigo-500 focus:bg-white transition-all shadow-inner" />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-3">
+                <label className="text-[11px] font-black uppercase text-slate-900 tracking-widest block ml-2">3. Surface Intention</label>
+                <textarea value={form.intention} onChange={(e) => setForm({ ...form, intention: e.target.value })} placeholder="The lie you told yourself..." className="w-full bg-slate-50 border-2 border-slate-100 rounded-[32px] py-6 px-8 text-sm font-medium h-32 resize-none focus:border-indigo-500 focus:bg-white transition-all shadow-inner" />
+              </div>
+              <div className="space-y-3">
+                <label className="text-[11px] font-black uppercase text-slate-900 tracking-widest block ml-2">4. Actual Outcome</label>
+                <textarea value={form.actualOutcome} onChange={(e) => setForm({ ...form, actualOutcome: e.target.value })} placeholder="What really happened?" className="w-full bg-slate-50 border-2 border-slate-100 rounded-[32px] py-6 px-8 text-sm font-medium h-32 resize-none focus:border-indigo-500 focus:bg-white transition-all shadow-inner" />
+              </div>
+            </div>
+            <div className="space-y-3 pt-6 border-t border-slate-100">
+              <label className="text-xs font-black uppercase text-emerald-700 tracking-[0.2em] block ml-2">5. Resilience Resilience Pivot (Target Fix)</label>
+              <textarea value={form.alternativeStrategy} onChange={(e) => setForm({ ...form, alternativeStrategy: e.target.value })} placeholder="The hard thing you will do instead next time..." className="w-full bg-white border-2 border-emerald-500 rounded-[40px] py-8 px-8 text-base font-black text-slate-900 h-40 resize-none border-l-[16px] outline-none shadow-[0_32px_64px_rgba(16,185,129,0.15)] ring-8 ring-emerald-50" />
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-10">
+            <AuditStep letter="D" title="Data (Root Behavior)" color="indigo">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <input value={form.substanceOrBehavior} onChange={(e) => setForm({ ...form, substanceOrBehavior: e.target.value })} placeholder="Behavior/Substance?" className="w-full bg-white border-2 border-slate-100 rounded-2xl py-5 px-7 text-sm font-bold shadow-sm" />
+                <input value={form.frequencyAndAmount} onChange={(e) => setForm({ ...form, frequencyAndAmount: e.target.value })} placeholder="How much/often?" className="w-full bg-white border-2 border-slate-100 rounded-2xl py-5 px-7 text-sm font-bold shadow-sm" />
+              </div>
+            </AuditStep>
+
+            <AuditStep letter="O" title="Objectives (Why you do it)" color="indigo">
+              <textarea value={form.objectives} onChange={(e) => setForm({ ...form, objectives: e.target.value })} placeholder="What problem is this solving? (Boredom, escape, pain relief?)" className="w-full h-32 bg-white border-2 border-slate-100 rounded-2xl py-5 px-7 text-sm font-medium resize-none shadow-sm" />
+            </AuditStep>
+
+            <AuditStep letter="P" title="Problems (Costs Matrix)" color="rose">
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                 <div className="space-y-2">
+                   <label className="text-[10px] font-black uppercase text-rose-500 ml-2">Neuroadaptation (Tolerance)</label>
+                   <textarea value={form.pNeuroadaptation} onChange={(e) => setForm({ ...form, pNeuroadaptation: e.target.value })} placeholder="Does it still feel good?" className="w-full h-24 border-2 rounded-2xl p-4 text-xs font-bold" />
+                 </div>
+                 <div className="space-y-2">
+                   <label className="text-[10px] font-black uppercase text-rose-500 ml-2">Life Impact (Work/Health)</label>
+                   <textarea value={form.pWork} onChange={(e) => setForm({ ...form, pWork: e.target.value })} placeholder="Sleep? Focus? Career? Health?" className="w-full h-24 border-2 rounded-2xl p-4 text-xs font-bold" />
+                 </div>
+               </div>
+            </AuditStep>
+
+            <AuditStep letter="A" title="Abstinence (The 30-Day Rule)" color="emerald">
+               <textarea value={form.abstinencePlan} onChange={(e) => setForm({ ...form, abstinencePlan: e.target.value })} placeholder="How will you survive the first 30 days of reset?" className="w-full h-32 bg-white border-2 border-emerald-100 rounded-2xl py-5 px-7 text-sm font-extrabold resize-none shadow-lg" />
+            </AuditStep>
+
+            <div className="p-10 bg-slate-900 rounded-[48px] shadow-2xl space-y-8 animate-pulse border-[6px] border-indigo-500/20">
+               <div className="text-center">
+                  <h4 className="text-white font-black uppercase text-xs tracking-[0.4em] mb-4">Steps M.I.N.E. (Deep Reflection)</h4>
+               </div>
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <textarea value={form.mindfulnessNotes} onChange={(e) => setForm({ ...form, mindfulnessNotes: e.target.value })} placeholder="Mindfulness (Sit with the pain)" className="w-full h-32 bg-slate-800 border-none rounded-3xl p-6 text-indigo-300 text-xs font-black placeholder:text-slate-600" />
+                 <textarea value={form.insightHonesty} onChange={(e) => setForm({ ...form, insightHonesty: e.target.value })} placeholder="Insight (The radical truth)" className="w-full h-32 bg-slate-800 border-none rounded-3xl p-6 text-indigo-300 text-xs font-black placeholder:text-slate-600" />
+                 <textarea value={form.nextStepsPlan} onChange={(e) => setForm({ ...form, nextStepsPlan: e.target.value })} placeholder="Next Steps (Forward action)" className="w-full h-32 bg-indigo-600 border-none rounded-3xl p-6 text-white text-xs font-black placeholder:text-indigo-400 shadow-xl" />
+                 <textarea value={form.experimentRules} onChange={(e) => setForm({ ...form, experimentRules: e.target.value })} placeholder="Experiment Rules (Long-term)" className="w-full h-32 bg-indigo-600 border-none rounded-3xl p-6 text-white text-xs font-black placeholder:text-indigo-400 shadow-xl" />
+               </div>
+            </div>
+          </div>
+        )}
+
+        <div className="flex flex-col md:flex-row gap-6 mt-16 pt-12 border-t border-slate-100">
+          <button type="button" onClick={onClose} className="flex-1 py-6 text-slate-400 font-black text-xs uppercase tracking-[0.3em] transition-colors hover:text-slate-900">Abort Audit</button>
+          <button type="button" onClick={() => onSave(form)} className="flex-[2] bg-slate-900 text-white py-6 rounded-[32px] font-black text-xs uppercase tracking-[0.4em] shadow-[0_24px_48px_rgba(15,23,42,0.3)] hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-4">
+             <Save size={18} /> Serialize to Database
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
+
 export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data, onUpdate }) => {
   const [activeMainTab, setActiveMainTab] = useState<'tracker' | 'analytics' | 'journal'>('tracker');
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -75,6 +484,19 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
   const [isCompletingFast, setIsCompletingFast] = useState(false);
   const [finalReflectionText, setFinalReflectionText] = useState('');
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [remindersEnabled, setRemindersEnabled] = useState(false);
+
+  const requestNotificationPermission = async () => {
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        setRemindersEnabled(true);
+        new Notification('Reminders Enabled', { body: 'You will receive local reminders for uncompleted targets!', icon: '/logo.png' });
+      }
+    } catch (e) {
+      console.log('Notification permission failed', e);
+    }
+  };
 
   const [editingAdvancedNoteState, setEditingAdvancedNoteState] = useState<{
     habitId: string;
@@ -98,33 +520,6 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
   // CBT Habit Writing states
   const [isAddingReframer, setIsAddingReframer] = useState(false);
   const [expandedRecordId, setExpandedRecordId] = useState<string | null>(null);
-  const [reframerForm, setReframerForm] = useState({
-    thought: '',
-    feeling: '',
-    intention: '',
-    actualOutcome: '',
-    alternativeStrategy: '',
-    studentId: '',
-    
-    // Expanded D.O.P.A.M.I.N.E. framework properties
-    isFullDopamineAudit: false,
-    substanceOrBehavior: '',
-    frequencyAndAmount: '',
-    objectives: '',
-    
-    pNeuroadaptation: '',
-    pRelationships: '',
-    pWork: '',
-    pFinancial: '',
-    pHealth: '',
-    pSpiritual: '',
-    
-    abstinencePlan: '',
-    mindfulnessNotes: '',
-    insightHonesty: '',
-    nextStepsPlan: '',
-    experimentRules: ''
-  });
 
   // Form states for custom habit
   const [habitForm, setHabitForm] = useState({
@@ -358,62 +753,71 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
     setSelectedDate(new Date());
   };
 
+  const showReminderNotification = (uncompletedCount: number) => {
+    if (Notification.permission === 'granted') {
+      new Notification('Habit Reminder', {
+        body: `You have ${uncompletedCount} effort targets to work on today!`,
+        icon: '/logo.png'
+      });
+    }
+  };
+
   const getSubjectShortName = (nameOrText?: string) => {
     if (!nameOrText || nameOrText === 'Self') return 'you';
     const firstWord = nameOrText.trim().split(/\s+/)[0];
     return firstWord || 'you';
   };
 
-  const handleAddReframer = () => {
-    if (reframerForm.isFullDopamineAudit && !reframerForm.substanceOrBehavior?.trim()) {
+  const handleAddReframer = (formData: any) => {
+    if (formData.isFullDopamineAudit && !formData.substanceOrBehavior?.trim()) {
       alert('Please fill out the Substance or Behavior (Data) field to proceed.');
       return;
     }
-    if (!reframerForm.isFullDopamineAudit && !reframerForm.thought.trim()) {
+    if (!formData.isFullDopamineAudit && !formData.thought.trim()) {
       alert('Please fill out the Automatic Thought field.');
       return;
     }
-    const selectedStudent = data.students?.find(s => s.id === reframerForm.studentId);
+    const selectedStudent = data.students?.find(s => s.id === formData.studentId);
     
     const newRecord: HabitReframerRecord = {
       id: uuidv4(),
       date: new Date().toISOString(),
-      thought: reframerForm.isFullDopamineAudit 
-        ? `Behavior: ${reframerForm.substanceOrBehavior?.trim()}` 
-        : reframerForm.thought.trim(),
-      feeling: reframerForm.isFullDopamineAudit 
-        ? `${reframerForm.frequencyAndAmount?.trim() || 'Dopamine audit'}` 
-        : reframerForm.feeling.trim(),
-      intention: reframerForm.isFullDopamineAudit 
-        ? `Reset: ${reframerForm.abstinencePlan?.trim() || 'Purification'}` 
-        : reframerForm.intention.trim(),
-      actualOutcome: reframerForm.isFullDopamineAudit 
-        ? `Action: ${reframerForm.nextStepsPlan?.trim() || 'Post-reset code'}` 
-        : reframerForm.actualOutcome.trim(),
-      alternativeStrategy: reframerForm.isFullDopamineAudit 
-        ? `Rules: ${reframerForm.experimentRules?.trim() || 'Active Experiment'}` 
-        : reframerForm.alternativeStrategy.trim(),
-      studentId: reframerForm.studentId || undefined,
+      thought: formData.isFullDopamineAudit 
+        ? `Behavior: ${formData.substanceOrBehavior?.trim()}` 
+        : formData.thought.trim(),
+      feeling: formData.isFullDopamineAudit 
+        ? `${formData.frequencyAndAmount?.trim() || 'Dopamine audit'}` 
+        : formData.feeling.trim(),
+      intention: formData.isFullDopamineAudit 
+        ? `Reset: ${formData.abstinencePlan?.trim() || 'Purification'}` 
+        : formData.intention.trim(),
+      actualOutcome: formData.isFullDopamineAudit 
+        ? `Action: ${formData.nextStepsPlan?.trim() || 'Post-reset code'}` 
+        : formData.actualOutcome.trim(),
+      alternativeStrategy: formData.isFullDopamineAudit 
+        ? `Rules: ${formData.experimentRules?.trim() || 'Active Experiment'}` 
+        : formData.alternativeStrategy.trim(),
+      studentId: formData.studentId || undefined,
       studentName: selectedStudent ? selectedStudent.name : 'Self',
       
       // Save all extended fields for full DOPAMINE framework
-      isFullDopamineAudit: reframerForm.isFullDopamineAudit,
-      substanceOrBehavior: reframerForm.substanceOrBehavior?.trim() || undefined,
-      frequencyAndAmount: reframerForm.frequencyAndAmount?.trim() || undefined,
-      objectives: reframerForm.objectives?.trim() || undefined,
+      isFullDopamineAudit: formData.isFullDopamineAudit,
+      substanceOrBehavior: formData.substanceOrBehavior?.trim() || undefined,
+      frequencyAndAmount: formData.frequencyAndAmount?.trim() || undefined,
+      objectives: formData.objectives?.trim() || undefined,
       
-      pNeuroadaptation: reframerForm.pNeuroadaptation?.trim() || undefined,
-      pRelationships: reframerForm.pRelationships?.trim() || undefined,
-      pWork: reframerForm.pWork?.trim() || undefined,
-      pFinancial: reframerForm.pFinancial?.trim() || undefined,
-      pHealth: reframerForm.pHealth?.trim() || undefined,
-      pSpiritual: reframerForm.pSpiritual?.trim() || undefined,
+      pNeuroadaptation: formData.pNeuroadaptation?.trim() || undefined,
+      pRelationships: formData.pRelationships?.trim() || undefined,
+      pWork: formData.pWork?.trim() || undefined,
+      pFinancial: formData.pFinancial?.trim() || undefined,
+      pHealth: formData.pHealth?.trim() || undefined,
+      pSpiritual: formData.pSpiritual?.trim() || undefined,
       
-      abstinencePlan: reframerForm.abstinencePlan?.trim() || undefined,
-      mindfulnessNotes: reframerForm.mindfulnessNotes?.trim() || undefined,
-      insightHonesty: reframerForm.insightHonesty?.trim() || undefined,
-      nextStepsPlan: reframerForm.nextStepsPlan?.trim() || undefined,
-      experimentRules: reframerForm.experimentRules?.trim() || undefined
+      abstinencePlan: formData.abstinencePlan?.trim() || undefined,
+      mindfulnessNotes: formData.mindfulnessNotes?.trim() || undefined,
+      insightHonesty: formData.insightHonesty?.trim() || undefined,
+      nextStepsPlan: formData.nextStepsPlan?.trim() || undefined,
+      experimentRules: formData.experimentRules?.trim() || undefined
     };
     
     onUpdate(prev => ({
@@ -421,33 +825,6 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
       habitReframers: [newRecord, ...(prev.habitReframers || [])]
     }));
     
-    // Reset form cleanly
-    setReframerForm({
-      thought: '',
-      feeling: '',
-      intention: '',
-      actualOutcome: '',
-      alternativeStrategy: '',
-      studentId: '',
-      
-      isFullDopamineAudit: false,
-      substanceOrBehavior: '',
-      frequencyAndAmount: '',
-      objectives: '',
-      
-      pNeuroadaptation: '',
-      pRelationships: '',
-      pWork: '',
-      pFinancial: '',
-      pHealth: '',
-      pSpiritual: '',
-      
-      abstinencePlan: '',
-      mindfulnessNotes: '',
-      insightHonesty: '',
-      nextStepsPlan: '',
-      experimentRules: ''
-    });
     setIsAddingReframer(false);
   };
 
@@ -1357,7 +1734,37 @@ date format must be 'yyyy-MM-dd'.`;
   };
 
   return (
-    <div id="advanced-habit-tracker-root" className="flex-1 bg-[#fcfcfc] p-4 md:p-8 overflow-y-auto font-sans text-slate-900">
+    <div id="advanced-habit-tracker-root" className="flex-1 bg-slate-50 p-4 md:p-8 overflow-y-auto font-sans text-slate-900 relative">
+      
+      {/* Premium Animated Background */}
+      <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden bg-[#fafbfc]">
+        <motion.div 
+          animate={{ 
+            scale: [1, 1.1, 1],
+            rotate: [0, 45, 0],
+            opacity: [0.15, 0.25, 0.15]
+          }}
+          transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
+          className="absolute top-[-15%] left-[-15%] w-[80%] h-[80%] bg-gradient-to-br from-indigo-200/40 via-blue-100/20 to-transparent rounded-full blur-[140px]" 
+        />
+        <motion.div 
+          animate={{ 
+            scale: [1, 1.2, 1],
+            x: [0, 50, 0],
+            opacity: [0.1, 0.2, 0.1]
+          }}
+          transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
+          className="absolute bottom-[-10%] right-[-10%] w-[70%] h-[70%] bg-gradient-to-tr from-rose-200/30 via-amber-100/20 to-transparent rounded-full blur-[160px]" 
+        />
+        <motion.div 
+          animate={{ 
+            y: [0, -100, 0],
+            opacity: [0.08, 0.18, 0.08]
+          }}
+          transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+          className="absolute top-[20%] right-[-5%] w-[60%] h-[60%] bg-gradient-to-bl from-amber-100/30 via-emerald-50/20 to-transparent rounded-full blur-[120px]" 
+        />
+      </div>
       
       {/* Header and Metaphor Explanation */}
       <div className="w-full mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -1372,6 +1779,14 @@ date format must be 'yyyy-MM-dd'.`;
         </div>
 
         <div className="flex gap-2 items-center">
+          <button 
+            onClick={requestNotificationPermission}
+            className={`px-4 py-2 border rounded-xl font-bold text-xs transition-all flex items-center gap-2 ${Notification.permission === 'granted' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+          >
+             {Notification.permission === 'granted' ? <CheckCircle2 size={14} /> : <Calendar size={14} />}
+             {Notification.permission === 'granted' ? 'Reminders On' : 'Enable Reminders'}
+          </button>
+          
           <button 
             onClick={() => setIsInfoOpen(true)}
             className="px-4 py-2 bg-slate-100 border border-slate-200 rounded-xl font-bold text-xs hover:bg-slate-200 transition-all flex items-center gap-2"
@@ -1536,338 +1951,30 @@ date format must be 'yyyy-MM-dd'.`;
           </div>
 
           {/* Metric Habits List Grid */}
-          <div className="space-y-6">
+          <div className="space-y-8">
             {habits.length === 0 ? (
-              <div className="bg-white border-2 border-dashed border-slate-200 rounded-3xl p-16 text-center text-slate-300">
-                <Sliders size={48} className="mx-auto mb-4 stroke-[1px] text-slate-400" />
-                <h3 className="font-black text-slate-700 text-lg uppercase tracking-tight">
-                  No Advanced Metrics Added
-                </h3>
-                <p className="text-xs text-slate-400 font-bold mt-1">
-                  Click "Add Metric Tracker" to calibrate custom numeric behaviors (e.g. YouTube limits, Workout targets).
-                </p>
+              <div className="bg-white/80 backdrop-blur-sm border-2 border-dashed border-slate-200 rounded-[40px] p-24 text-center text-slate-300">
+                <Sliders size={64} className="mx-auto mb-6 stroke-[1px] text-slate-300" />
+                <h3 className="font-black text-slate-500 text-xl uppercase tracking-tighter">No Metrics Active</h3>
+                <p className="text-[11px] text-slate-400 font-bold mt-2">Personalize your neurochemical growth trackers to start.</p>
               </div>
             ) : (
               habits.map((habit) => {
-                const { dailyValues, total, average } = getWeeklyHabitStats(habit);
+                const stats = getWeeklyHabitStats(habit);
                 const theme = DEFAULT_COLOR_THEMES.find(t => t.id === habit.color) || DEFAULT_COLOR_THEMES[0];
-                
-                // Calculate target status
-                const isLimit = habit.goalType === 'limit';
-                const hasGoal = habit.weeklyGoal !== undefined;
-                const limitExceeded = hasGoal && isLimit && total > (habit.weeklyGoal || 0);
-                const targetAchieved = hasGoal && !isLimit && total >= (habit.weeklyGoal || 0);
-
                 return (
-                  <motion.div 
-                    layout
+                  <AdvancedHabitCard 
                     key={habit.id}
-                    className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 relative overflow-visible"
-                  >
-                    
-                    {/* Header Row */}
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-4 border-b border-slate-50 mb-6">
-                      <div className="flex items-start gap-3">
-                        <div className={`w-8.5 h-8.5 rounded-xl flex items-center justify-center font-black ${theme.bg}`}>
-                          {habit.type === 'dopamine' ? <Zap size={16} /> : <Flame size={16} />}
-                        </div>
-                        <div>
-                          <h3 className="text-lg font-black text-slate-900 leading-tight">
-                            {habit.name}
-                          </h3>
-                          <div className="flex flex-wrap gap-2 items-center mt-1">
-                            {habit.type === 'dopamine' ? (
-                              <span className="text-[9px] font-black uppercase bg-rose-50 border border-rose-100 text-rose-700 px-2 py-0.5 rounded-lg tracking-wider">
-                                🔴 Instant Gratification (Dopamine Cap)
-                              </span>
-                            ) : (
-                              <span className="text-[9px] font-black uppercase bg-emerald-50 border border-emerald-100 text-emerald-700 px-2 py-0.5 rounded-lg tracking-wider">
-                                🟢 High Effort (Resilience Builder)
-                              </span>
-                            )}
-                            <span className="text-[9px] text-slate-400 font-bold uppercase">
-                              Unit: {habit.unit}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Goal and Controls */}
-                      <div className="flex items-center gap-4">
-                        <div className="text-right">
-                          <span className="block text-[8px] font-black uppercase tracking-wider text-slate-400">
-                            Goal
-                          </span>
-                          <span className="text-xs font-black text-slate-700">
-                            {hasGoal ? (
-                              <>
-                                {isLimit ? 'Limit' : 'Target'}: {habit.weeklyGoal} {habit.unit}
-                              </>
-                            ) : (
-                              'Free Style'
-                            )}
-                          </span>
-                        </div>
-
-                        <div className="h-4.5 w-px bg-slate-200" />
-
-                        <button 
-                          onClick={() => setIsLoggingModalOpen(habit.id)}
-                          className={`text-[9px] font-black uppercase px-2.5 py-1.5 bg-[#f3f4f6] text-slate-[#1b254b] hover:bg-slate-200 rounded-lg transition-colors flex items-center gap-1`}
-                          title="Quick Log"
-                        >
-                          <Sliders size={12} className="text-slate-500" /> Log
-                        </button>
-
-                        <button 
-                          onClick={() => handleEditHabitStart(habit)}
-                          className="p-2 text-slate-300 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors"
-                          title="Edit Metric"
-                        >
-                          <Edit3 size={14} />
-                        </button>
-
-                        <button 
-                          onClick={() => handleDeleteHabit(habit.id)}
-                          className="p-2 text-slate-300 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors"
-                          title="Delete Metric"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Numeric Days Grid */}
-                    <div id={`daily-slider-grid-${habit.id}`} className="grid grid-cols-7 gap-2 my-4">
-                      {dailyValues.map(({ day, val }) => {
-                        const isToday = checkIsToday(day);
-                        const style = getDayStyle(day, isToday);
-                        const dateStr = format(day, 'yyyy-MM-dd');
-                        const noteText = data.advancedHabitNotes?.[dateStr]?.[habit.id] || '';
-                        return (
-                          <div 
-                            key={day.toISOString()} 
-                            className={`p-2.5 rounded-2xl flex flex-col items-center justify-between min-h-[75px] border transition-all ${style.bg} relative group/daycell`}
-                          >
-                            {/* Daily note button */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openAdvancedNoteDialog(habit, dateStr);
-                              }}
-                              className={`absolute top-1 right-1 p-0.5 rounded hover:bg-black/5 transition-all ${
-                                noteText ? 'text-indigo-600 scale-110 opacity-100' : 'text-slate-400 opacity-0 group-hover/daycell:opacity-100'
-                              }`}
-                              title={noteText ? `Note: ${noteText}` : "Add date-specific note"}
-                            >
-                              <MessageSquare size={9} />
-                              {noteText && (
-                                <span className="absolute -top-0.5 -right-0.5 w-1 h-1 bg-indigo-600 rounded-full" />
-                              )}
-                            </button>
-
-                            <span className={`text-[9.5px] uppercase font-black tracking-widest ${style.labelColor}`}>
-                              {format(day, 'EEE')}
-                            </span>
-                            
-                            {/* Inline value with direct visual feedback */}
-                            <div className="my-1.5 flex items-center justify-center">
-                              <input 
-                                type="number"
-                                min="0"
-                                value={val === 0 ? '' : val}
-                                onChange={(e) => handleLogValue(habit.id, day, e.target.value)}
-                                placeholder="0"
-                                className={`w-11 text-center bg-transparent text-sm font-black outline-none select-all placeholder:text-slate-300 font-mono ${style.inputColor}`}
-                              />
-                            </div>
-                            
-                            <span className={`text-[8px] font-bold opacity-75 capitalize truncate w-full text-center ${style.numColor}`}>
-                              {format(day, 'MMM d')}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Heatmap Section */}
-                    <div className="mt-6 mb-2">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">30-Day Completion Heatmap</span>
-                          <span className="text-[9px] text-slate-400 font-bold italic">(Consistency & Detox Heat)</span>
-                        </div>
-                        {/* Heatmap Legend */}
-                        <div className="flex items-center gap-2 text-[9px] font-bold text-slate-400">
-                          <span>Zero</span>
-                          <div className="flex gap-0.5">
-                            <span className="w-2 h-2 rounded bg-slate-100 border border-slate-200" />
-                            {habit.type === 'dopamine' ? (
-                              <>
-                                <span className="w-2 h-2 rounded bg-emerald-500" title="Perfect Detox Cap Keep (0)" />
-                                <span className="w-2 h-2 rounded bg-rose-500" title="Limit Exceeded" />
-                              </>
-                            ) : (
-                              <>
-                                <span className="w-2 h-2 rounded bg-indigo-200" />
-                                <span className="w-2 h-2 rounded bg-indigo-600" />
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap gap-1 p-1.5 rounded-2xl bg-slate-50 border border-slate-100/50 justify-start">
-                        {past30Days.map(day => {
-                          const dateStr = format(day, 'yyyy-MM-dd');
-                          const val = logs[dateStr]?.[habit.id] || 0;
-                          const cellBg = getHeatmapColor(habit, val, theme.id);
-                          return (
-                            <div 
-                              key={dateStr}
-                              className={`w-4.5 h-4.5 rounded-md transition-all cursor-pointer relative group/heatmap ${cellBg}`}
-                              title={`${format(day, 'MMM d, yyyy')}: ${val} ${habit.unit}`}
-                            >
-                              {/* Custom micro-tooltip */}
-                              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 border border-slate-800 text-white rounded-lg px-2 py-1 text-[9px] font-black tracking-wide hidden group-hover/heatmap:block whitespace-nowrap shadow-xl z-50 pointer-events-none">
-                                {format(day, 'MMM d')}: <span className="font-mono text-amber-400">{val}</span> {habit.unit}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Footer Calculated totals */}
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mt-6 pt-4 border-t border-slate-50">
-                      
-                      {/* Metric calculation totals */}
-                      <div className="flex items-center gap-4">
-                        <div>
-                          <span className="block text-[8px] font-black uppercase text-slate-400">
-                            Weekly Total Accumulated
-                          </span>
-                          <span className="text-md font-black text-indigo-950">
-                            {formatMetric(total, habit.unit)}
-                          </span>
-                        </div>
-                        <div className="w-px h-8 bg-slate-100" />
-                        <div>
-                          <span className="block text-[8px] font-black uppercase text-slate-400">
-                            Daily Avg
-                          </span>
-                          <span className="text-xs font-bold text-slate-600">
-                            {Math.round(average * 10) / 10} {habit.unit}/day
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Progress Bar & Badges */}
-                      {hasGoal && (
-                        <div className="flex-1 max-w-xs space-y-1.5">
-                          <div className="flex justify-between text-[9px] font-black uppercase tracking-wide">
-                            <span>Progress</span>
-                            <span className={limitExceeded ? 'text-red-500' : targetAchieved ? 'text-emerald-500' : 'text-slate-500'}>
-                              {Math.round((total / (habit.weeklyGoal || 1)) * 100)}%
-                            </span>
-                          </div>
-                          <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                            <div 
-                              className={`h-full transition-all duration-500 ${
-                                limitExceeded 
-                                  ? 'bg-rose-500' 
-                                  : targetAchieved 
-                                    ? 'bg-emerald-500' 
-                                    : theme.activeBg
-                              }`}
-                              style={{ width: `${Math.min(100, (total / (habit.weeklyGoal || 1)) * 100)}%` }}
-                            />
-                          </div>
-
-                          {/* Quick motivational evaluation feedback */}
-                          <div className="flex justify-end pr-0.5">
-                            {isLimit ? (
-                              limitExceeded ? (
-                                <span className="text-[8.5px] font-black text-rose-600 uppercase flex items-center gap-0.5">
-                                  <ShieldAlert size={10} /> Limit exceeded! Consider fasting!
-                                </span>
-                              ) : (
-                                <span className="text-[8.5px] font-black text-emerald-600 uppercase flex items-center gap-0.5">
-                                  <CheckCircle2 size={10} /> Safe zone: below limit scale
-                                </span>
-                              )
-                            ) : (
-                              targetAchieved ? (
-                                <span className="text-[8.5px] font-black text-emerald-600 uppercase flex items-center gap-0.5">
-                                  <CheckCircle2 size={10} /> Goal Achieved! Receptors reset!
-                                </span>
-                              ) : (
-                                <span className="text-[8.5px] font-black text-slate-400 uppercase">
-                                   Unfinished: {Math.max(0, (habit.weeklyGoal || 0) - total)} {habit.unit} to go
-                                </span>
-                              )
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                    </div>
-
-                    {/* Popover Logger Dialog */}
-                    <AnimatePresence>
-                      {isLoggingModalOpen === habit.id && (
-                        <div className="absolute inset-0 z-50 bg-white/95 backdrop-blur-md rounded-3xl p-6 flex flex-col justify-between border border-indigo-100 shadow-xl">
-                          <div>
-                            <div className="flex justify-between items-center mb-4">
-                              <h4 className="font-black text-slate-900 uppercase text-xs flex items-center gap-1.5">
-                                <Sliders size={14} className="text-indigo-600" /> Log Value for {habit.name}
-                              </h4>
-                              <button onClick={() => setIsLoggingModalOpen(null)} className="p-1 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-800 transition-colors">
-                                <X size={16} />
-                              </button>
-                            </div>
-                            
-                            <p className="text-[11px] text-slate-400 font-bold mb-4">
-                              Input numeric stats directly for each day of the current week view. Values save instantly.
-                            </p>
-
-                            <div className="space-y-3 max-h-[160px] overflow-y-auto no-scrollbar pr-1">
-                              {dailyValues.map(({ day, val }) => (
-                                <div key={day.toISOString()} className="flex items-center justify-between p-2 bg-slate-50 border border-slate-100 rounded-xl">
-                                  <span className="text-xs font-black text-slate-800 flex items-center gap-2">
-                                    <span className="w-12 text-[10px] font-black uppercase text-indigo-600 bg-indigo-50 py-0.5 px-2 rounded">
-                                      {format(day, 'EEEE')}
-                                    </span>
-                                    <span>{format(day, 'MMM dd')}</span>
-                                  </span>
-                                  <div className="flex items-center gap-2">
-                                    <input 
-                                      type="number"
-                                      min="0"
-                                      placeholder="0"
-                                      value={val || ''}
-                                      onChange={(e) => handleLogValue(habit.id, day, e.target.value)}
-                                      className="w-18 px-3 py-1.5 border border-slate-200 focus:border-indigo-500 outline-none rounded-lg text-xs font-black text-right block"
-                                    />
-                                    <span className="text-[10px] font-bold text-slate-400 capitalize min-w-[50px]">{habit.unit}</span>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div className="flex justify-end pt-4 border-t border-slate-50">
-                            <button 
-                              onClick={() => setIsLoggingModalOpen(null)}
-                              className="px-4 py-2 bg-indigo-600 text-white font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-indigo-700"
-                            >
-                              Done Logging
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </AnimatePresence>
-
-                  </motion.div>
+                    habit={habit}
+                    stats={stats}
+                    theme={theme}
+                    onLogValue={handleLogValue}
+                    onOpenLogging={setIsLoggingModalOpen}
+                    onEdit={handleEditHabitStart}
+                    onDelete={handleDeleteHabit}
+                    onOpenNote={openAdvancedNoteDialog}
+                    logs={logs}
+                  />
                 );
               })
             )}
@@ -3038,394 +3145,13 @@ date format must be 'yyyy-MM-dd'.`;
         )}
       </div>
 
-      {/* COGNITIVE REFRAMING DIALOG */}
-      <AnimatePresence>
-        {isAddingReframer && (() => {
-          const modalSubjectId = reframerForm.studentId;
-          const modalSubjectName = modalSubjectId ? data.students?.find(s => s.id === modalSubjectId)?.name : 'Self';
-          const modalShortName = getSubjectShortName(modalSubjectName);
-
-          return (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[150] bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 md:p-6 overflow-y-auto"
-            >
-              <motion.div 
-                initial={{ scale: 0.95, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.95, opacity: 0 }}
-                className={`bg-white rounded-[36px] p-6 md:p-10 w-full ${reframerForm.isFullDopamineAudit ? 'max-w-4xl' : 'max-w-2xl'} border border-slate-200 relative my-6 shadow-2xl transition-all duration-300 max-h-[90vh] overflow-y-auto no-scrollbar`}
-              >
-                <button 
-                  onClick={() => setIsAddingReframer(false)}
-                  className="absolute top-6 right-6 md:top-8 md:right-8 text-slate-400 hover:text-slate-900 p-2 hover:bg-slate-50 rounded-full transition-all"
-                >
-                  <X size={20} />
-                </button>
-
-                <div className="mb-6">
-                  <span className="text-[9px] font-black uppercase text-[#1b254b]/50 tracking-widest block mb-1">BEHAVIORAL RE-ENGINEERING SYSTEM</span>
-                  <h3 className="text-xl md:text-2xl font-black text-slate-900 uppercase italic tracking-tighter">
-                    {reframerForm.isFullDopamineAudit ? '📊 D.O.P.A.M.I.N.E. Complete Reset Audit' : '🧠 Cognitive Trigger & Core Loop Audit'}
-                  </h3>
-                  <p className="text-[11px] md:text-xs font-bold text-slate-550 leading-normal mt-1">
-                    {reframerForm.isFullDopamineAudit 
-                      ? `Follow Dr. Anna Lembke's complete 8-step framework to review, reset, and rebalance the pleasure-pain scales of ${modalShortName}.`
-                      : `Recognize immediate triggers, emotion states, and map proactive pivot actions to redirect behaviors.`
-                    }
-                  </p>
-                </div>
-
-                {/* Mode Switcher */}
-                <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-2xl mb-6">
-                  <button
-                    type="button"
-                    onClick={() => setReframerForm({ ...reframerForm, isFullDopamineAudit: false })}
-                    className={`py-3.5 rounded-xl font-black text-[10px] uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${!reframerForm.isFullDopamineAudit ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:text-slate-700'}`}
-                  >
-                    <span>🧠 Core Trigger Loop</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setReframerForm({ ...reframerForm, isFullDopamineAudit: true })}
-                    className={`py-3.5 rounded-xl font-black text-[10px] uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${reframerForm.isFullDopamineAudit ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-700'}`}
-                  >
-                    <span>📊 All-Type Problems (DOPAMINE Checklist)</span>
-                  </button>
-                </div>
-
-                {/* Target Subject Selector */}
-                <div className="space-y-1.5 mb-6">
-                  <label className="text-[10px] font-black uppercase text-[#1b254b]/50 tracking-wider block ml-3">
-                    Target Subject (Individual for this behavior)
-                  </label>
-                  <select
-                    value={reframerForm.studentId}
-                    onChange={(e) => setReframerForm({ ...reframerForm, studentId: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-5 text-xs font-bold text-slate-900 outline-none focus:border-indigo-500 focus:bg-white transition-all cursor-pointer font-sans"
-                  >
-                    <option value="">General / Self (You)</option>
-                    {data.students?.map((st) => (
-                      <option key={st.id} value={st.id}>{st.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* THE MODE-SPECIFIC FIELDS */}
-                {!reframerForm.isFullDopamineAudit ? (
-                  /* SIMPLE CORE LOOP FORM */
-                  <div className="space-y-4">
-                    {/* Thought */}
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase text-[#1b254b]/55 tracking-wider block ml-3">
-                        1. Automatic Thought / Trigger Situation (What crossed {modalShortName}'s mind?)
-                      </label>
-                      <textarea 
-                        value={reframerForm.thought}
-                        onChange={(e) => setReframerForm({ ...reframerForm, thought: e.target.value })}
-                        placeholder={`e.g. "${modalShortName === 'you' ? "I'm too exhausted to work. I need an instant coffee or a video scrolling break." : modalShortName + " felt heavy and wanted a quick escape"}"`}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-5 text-xs font-bold text-slate-900 outline-none focus:border-indigo-500 focus:bg-white transition-all h-20 resize-none font-sans"
-                      />
-                    </div>
-
-                    {/* Feeling Status */}
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase text-[#1b254b]/55 tracking-wider block ml-3">
-                        2. Emotional Core & Urge Intensity of {modalShortName} (Boredom, Fatigue, Anxiety)
-                      </label>
-                      <input 
-                        type="text"
-                        value={reframerForm.feeling}
-                        onChange={(e) => setReframerForm({ ...reframerForm, feeling: e.target.value })}
-                        placeholder="e.g. Mild Boredom, Sluggish Fatigue, 8/10 Cravings"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-5 text-xs font-bold text-slate-900 outline-none focus:border-indigo-500 focus:bg-white transition-all"
-                      />
-                    </div>
-
-                    {/* Intention and Outcome side-by-side */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase text-[#1b254b]/55 tracking-wider block ml-3">
-                          3. Healthy Intention (What constructive need did {modalShortName} have?)
-                        </label>
-                        <textarea 
-                          value={reframerForm.intention}
-                          onChange={(e) => setReframerForm({ ...reframerForm, intention: e.target.value })}
-                          placeholder="e.g. To relieve exhaustion without deep rabbit holes."
-                          className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-5 text-xs font-bold text-slate-900 outline-none focus:border-indigo-500 focus:bg-white transition-all h-20 resize-none font-sans"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase text-[#1b254b]/55 tracking-wider block ml-3">
-                          4. Actual Outcome (What actually happened?)
-                        </label>
-                        <textarea 
-                          value={reframerForm.actualOutcome}
-                          onChange={(e) => setReframerForm({ ...reframerForm, actualOutcome: e.target.value })}
-                          placeholder="e.g. Ended up browsing short-clip reels for 55 minutes, felt highly regretful."
-                          className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-5 text-xs font-bold text-slate-900 outline-none focus:border-indigo-500 focus:bg-white transition-all h-20 resize-none font-sans"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Alternative Strategy */}
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase text-emerald-800 tracking-wider block ml-3 font-extrabold animate-pulse">
-                        5. What can {modalShortName} do instead when the problem arises? (Alternative Pivot)
-                      </label>
-                      <textarea 
-                        value={reframerForm.alternativeStrategy}
-                        onChange={(e) => setReframerForm({ ...reframerForm, alternativeStrategy: e.target.value })}
-                        placeholder="e.g. Set a strict 5-min timer, stand up and drink a cold simple glass of water, or write down 2 paper index notes of reflection."
-                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-5 text-xs font-bold text-slate-900 outline-none focus:border-indigo-500 focus:bg-white transition-all h-21 resize-none border-l-4 border-emerald-500 font-sans"
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  /* COMPREHENSIVE D.O.P.A.M.I.N.E. WORKBOOK FORM */
-                  <div className="space-y-6">
-                    {/* D - DATA SECTION */}
-                    <div className="p-5 bg-indigo-50/20 border border-indigo-100 rounded-3xl space-y-4">
-                      <div className="flex items-center gap-2 border-b border-indigo-100/50 pb-2">
-                        <span className="w-6 h-6 rounded-lg bg-indigo-600 text-white font-black text-xs flex items-center justify-center">D</span>
-                        <h4 className="text-xs font-black text-[#1b254b] uppercase tracking-wider">Step 1: Data (Substance/Behavior Assessment)</h4>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <label className="text-[9.5px] font-black uppercase text-slate-500 ml-1">What is the shortcut behavior or substance?</label>
-                          <input 
-                            type="text"
-                            value={reframerForm.substanceOrBehavior}
-                            onChange={(e) => setReframerForm({ ...reframerForm, substanceOrBehavior: e.target.value })}
-                            placeholder="e.g. Video bingeing, online slot rolling, high-caffeine sugar coffee, etc."
-                            className="w-full bg-white border border-slate-200 rounded-xl py-3 px-4 text-xs font-bold text-slate-900 outline-none focus:border-indigo-500"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-[9.5px] font-black uppercase text-slate-500 ml-1">Frequency & Intensity (How much / how often?)</label>
-                          <input 
-                            type="text"
-                            value={reframerForm.frequencyAndAmount}
-                            onChange={(e) => setReframerForm({ ...reframerForm, frequencyAndAmount: e.target.value })}
-                            placeholder="e.g. 3-4 hours daily, every evening around 9 PM"
-                            className="w-full bg-white border border-slate-200 rounded-xl py-3 px-4 text-xs font-bold text-slate-900 outline-none focus:border-indigo-500"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* O - OBJECTIVES SECTION */}
-                    <div className="p-5 bg-sky-50/25 border border-sky-100 rounded-3xl space-y-3">
-                      <div className="flex items-center gap-2 border-b border-sky-100/50 pb-2">
-                        <span className="w-6 h-6 rounded-lg bg-sky-600 text-white font-black text-xs flex items-center justify-center">O</span>
-                        <h4 className="text-xs font-black text-[#1b254b] uppercase tracking-wider">Step 2: Objectives (Why does {modalShortName} appeal to it?)</h4>
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[9.5px] font-black uppercase text-slate-500 ml-1">
-                          Briefly list the thoughts, feelings, or escape motives behind the act. What discomfort are you running from?
-                        </label>
-                        <textarea 
-                          value={reframerForm.objectives}
-                          onChange={(e) => setReframerForm({ ...reframerForm, objectives: e.target.value })}
-                          placeholder="e.g. To escape severe mental blockages or fatigue or avoid thinking about difficult family tasks."
-                          className="w-full bg-white border border-slate-200 rounded-xl p-3 text-xs font-bold text-slate-900 outline-none focus:border-indigo-500 h-16 resize-none font-sans"
-                        />
-                      </div>
-                    </div>
-
-                    {/* P - PROBLEMS COLUMN MATRIX (7-COLUMN CORROBORATION) */}
-                    <div className="p-5 bg-rose-50/15 border border-rose-100 rounded-3xl space-y-4">
-                      <div className="flex items-center gap-2 border-b border-rose-200/55 pb-2">
-                        <span className="w-6 h-6 rounded-lg bg-rose-600 text-white font-black text-xs flex items-center justify-center">P</span>
-                        <h4 className="text-xs font-black text-[#1b254b] uppercase tracking-wider">Step 3: Problems (Exploring All Types of Problems due to Use)</h4>
-                      </div>
-                      <p className="text-[10.5px] text-slate-500 font-medium leading-relaxed italic ml-1">
-                        Analyze how this habit or substance causes friction or triggers problems for {modalShortName} in these 6 core dimensions:
-                      </p>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* 1. Neuroadaptation */}
-                        <div className="space-y-1.5 p-3 bg-white border border-slate-150 rounded-2xl">
-                          <label className="text-[9.5px] font-black uppercase text-rose-700 tracking-tight block">🌀 A. Neuroadaptation Problems (Tolerance, Withdrawal & Craving)</label>
-                          <textarea 
-                            value={reframerForm.pNeuroadaptation}
-                            onChange={(e) => setReframerForm({ ...reframerForm, pNeuroadaptation: e.target.value })}
-                            placeholder="e.g. Cravings get harder in the evening. Feeling moody and up & down without it."
-                            className="w-full text-xs font-semibold text-slate-900 placeholder:text-slate-400 p-2 border border-slate-100 bg-slate-50 rounded-xl focus:bg-white outline-none focus:border-rose-400 h-16 resize-none"
-                          />
-                        </div>
-
-                        {/* 2. Relationships */}
-                        <div className="space-y-1.5 p-3 bg-white border border-slate-150 rounded-2xl">
-                          <label className="text-[9.5px] font-black uppercase text-amber-700 tracking-tight block">👥 B. Relationship Problems & Boundary Breaches</label>
-                          <textarea 
-                            value={reframerForm.pRelationships}
-                            onChange={(e) => setReframerForm({ ...reframerForm, pRelationships: e.target.value })}
-                            placeholder="e.g. Snapping, hiding actual usage times from family, or withdrawing in conversations."
-                            className="w-full text-xs font-semibold text-slate-900 placeholder:text-slate-400 p-2 border border-slate-100 bg-slate-50 rounded-xl focus:bg-white outline-none focus:border-rose-400 h-16 resize-none"
-                          />
-                        </div>
-
-                        {/* 3. Work/School */}
-                        <div className="space-y-1.5 p-3 bg-white border border-slate-150 rounded-2xl">
-                          <label className="text-[9.5px] font-black uppercase text-indigo-700 tracking-tight block">💼 C. Work/School Problems & Efficiency Loss</label>
-                          <textarea 
-                            value={reframerForm.pWork}
-                            onChange={(e) => setReframerForm({ ...reframerForm, pWork: e.target.value })}
-                            placeholder="e.g. Extreme procrastination on main priorities, missing lessons/deadlines, low focus."
-                            className="w-full text-xs font-semibold text-slate-900 placeholder:text-slate-400 p-2 border border-slate-100 bg-slate-50 rounded-xl focus:bg-white outline-none focus:border-rose-400 h-16 resize-none"
-                          />
-                        </div>
-
-                        {/* 4. Financial */}
-                        <div className="space-y-1.5 p-3 bg-white border border-slate-150 rounded-2xl">
-                          <label className="text-[9.5px] font-black uppercase text-[#1a5f7a] tracking-tight block">💳 D. Financial Cost / Resource Waste</label>
-                          <textarea 
-                            value={reframerForm.pFinancial}
-                            onChange={(e) => setReframerForm({ ...reframerForm, pFinancial: e.target.value })}
-                            placeholder="e.g. Wasted real Cambodian KHR or dollars on instant coffee, subscriptions, or losing billable focus hours."
-                            className="w-full text-xs font-semibold text-slate-900 placeholder:text-slate-400 p-2 border border-slate-100 bg-slate-50 rounded-xl focus:bg-white outline-none focus:border-rose-400 h-16 resize-none"
-                          />
-                        </div>
-
-                        {/* 5. Health */}
-                        <div className="space-y-1.5 p-3 bg-white border border-slate-150 rounded-2xl">
-                          <label className="text-[9.5px] font-black uppercase text-red-700 tracking-tight block">❤️ E. Health & Physical Sufferings (Sleep, Sluggishness, Posture)</label>
-                          <textarea 
-                            value={reframerForm.pHealth}
-                            onChange={(e) => setReframerForm({ ...reframerForm, pHealth: e.target.value })}
-                            placeholder="e.g. Slouching posture, sleep-deprived bedtime at 1:30 AM, eye-burns, brain fog."
-                            className="w-full text-xs font-semibold text-slate-900 placeholder:text-slate-400 p-2 border border-slate-100 bg-slate-50 rounded-xl focus:bg-white outline-none focus:border-rose-400 h-16 resize-none"
-                          />
-                        </div>
-
-                        {/* 6. Spiritual */}
-                        <div className="space-y-1.5 p-3 bg-white border border-slate-150 rounded-2xl">
-                          <label className="text-[9.5px] font-black uppercase text-[#4d4d4d] tracking-tight block">✨ F. Spiritual & Deep Integrity / Inner Friction</label>
-                          <textarea 
-                            value={reframerForm.pSpiritual}
-                            onChange={(e) => setReframerForm({ ...reframerForm, pSpiritual: e.target.value })}
-                            placeholder="e.g. Going against core values of slow focus. Pretending I can handle all alone instead of accepting support."
-                            className="w-full text-xs font-semibold text-slate-900 placeholder:text-slate-400 p-2 border border-slate-100 bg-slate-50 rounded-xl focus:bg-white outline-none focus:border-rose-400 h-16 resize-none"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* A - ABSTINENCE SECTION */}
-                    <div className="p-5 bg-amber-50/15 border border-amber-100 rounded-3xl space-y-3">
-                      <div className="flex items-center gap-2 border-b border-amber-200/50 pb-2">
-                        <span className="w-6 h-6 rounded-lg bg-amber-500 text-white font-black text-xs flex items-center justify-center">A</span>
-                        <h4 className="text-xs font-black text-[#1b254b] uppercase tracking-wider">Step 4: Abstinence & Asceticism (Reset Period Plan)</h4>
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[9.5px] font-black uppercase text-slate-500 ml-1">Setup the barrier constraints. What reset length is targeted, and which strict blockades are active?</label>
-                        <textarea 
-                          value={reframerForm.abstinencePlan}
-                          onChange={(e) => setReframerForm({ ...reframerForm, abstinencePlan: e.target.value })}
-                          placeholder="e.g. 30 days complete reset. Self-binding rule: Leave phone in lockers outside bedroom at 9:30 PM."
-                          className="w-full bg-white border border-slate-200 rounded-xl p-3 text-xs font-bold text-slate-900 outline-none focus:border-indigo-500 h-16 resize-none font-sans"
-                        />
-                      </div>
-                    </div>
-
-                    {/* M - MINDFULNESS SECTION */}
-                    <div className="p-5 bg-purple-50/20 border border-purple-100 rounded-3xl space-y-3">
-                      <div className="flex items-center gap-2 border-b border-purple-200/50 pb-2">
-                        <span className="w-6 h-6 rounded-lg bg-purple-600 text-white font-black text-xs flex items-center justify-center">M</span>
-                        <h4 className="text-xs font-black text-[#1b254b] uppercase tracking-wider">Step 5: Mindfulness (How to Observe Urges without Reacting)</h4>
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[9.5px] font-black uppercase text-slate-500 ml-1">Describe how {modalShortName} can sit quietly with high urge waves. What body experiences arise?</label>
-                        <textarea 
-                          value={reframerForm.mindfulnessNotes}
-                          onChange={(e) => setReframerForm({ ...reframerForm, mindfulnessNotes: e.target.value })}
-                          placeholder="e.g. Notice rapid heart rates, feel standard discomfort in chest, breathe slowly and count 1 to 10."
-                          className="w-full bg-white border border-slate-200 rounded-xl p-3 text-xs font-bold text-slate-900 outline-none focus:border-indigo-500 h-16 resize-none font-sans"
-                        />
-                      </div>
-                    </div>
-
-                    {/* I - INSIGHT SECTION */}
-                    <div className="p-5 bg-teal-50/20 border border-teal-100 rounded-3xl space-y-3">
-                      <div className="flex items-center gap-2 border-b border-teal-200/50 pb-2">
-                        <span className="w-6 h-6 rounded-lg bg-teal-600 text-white font-black text-xs flex items-center justify-center">I</span>
-                        <h4 className="text-xs font-black text-[#1b254b] uppercase tracking-wider">Step 6: Insight (Radical Honesty & Excuses Admitted)</h4>
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[9.5px] font-black uppercase text-slate-500 ml-1">Write down the truth. What is the subtle lie or self-deception {modalShortName} typically tells?</label>
-                        <textarea 
-                          value={reframerForm.insightHonesty}
-                          onChange={(e) => setReframerForm({ ...reframerForm, insightHonesty: e.target.value })}
-                          placeholder="e.g. My mind tells me 'Just check this one tutorial for 1 minute' which triggers a chain of mindless scrolls."
-                          className="w-full bg-white border border-slate-200 rounded-xl p-3 text-xs font-bold text-slate-900 outline-none focus:border-indigo-500 h-16 resize-none font-sans"
-                        />
-                      </div>
-                    </div>
-
-                    {/* N - NEXT STEPS SECTION */}
-                    <div className="p-5 bg-slate-50 border border-slate-200 rounded-3xl space-y-3">
-                      <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
-                        <span className="w-6 h-6 rounded-lg bg-slate-700 text-white font-black text-xs flex items-center justify-center">N</span>
-                        <h4 className="text-xs font-black text-[#1b254b] uppercase tracking-wider">Step 7: Next Steps (Post-Reset Balance Blueprint)</h4>
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[9.5px] font-black uppercase text-slate-500 ml-1">Will {modalShortName} moderate post-reset, or pursue complete termination? Define exact boundary rules.</label>
-                        <textarea 
-                          value={reframerForm.nextStepsPlan}
-                          onChange={(e) => setReframerForm({ ...reframerForm, nextStepsPlan: e.target.value })}
-                          placeholder="e.g. Limit usage to maximum 30 minutes on Saturday evening, only on an external television screen."
-                          className="w-full bg-white border border-slate-200 rounded-xl p-3 text-xs font-bold text-slate-900 outline-none focus:border-[#1b254b] h-16 resize-none font-sans"
-                        />
-                      </div>
-                    </div>
-
-                    {/* E - EXPERIMENT SECTION */}
-                    <div className="p-5 bg-emerald-50/20 border border-emerald-150 rounded-3xl space-y-3 border-l-4 border-l-emerald-500">
-                      <div className="flex items-center gap-2 border-b border-emerald-150 pb-2">
-                        <span className="w-6 h-6 rounded-lg bg-emerald-600 text-white font-black text-xs flex items-center justify-center">E</span>
-                        <h4 className="text-xs font-black text-emerald-950 uppercase tracking-wider">Step 8: Experiment (Hormetic Pain-First Active Testing)</h4>
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[9.5px] font-black uppercase text-emerald-800 ml-1 font-black">
-                          Define the pain-first/active discipline trial to trigger lasts-longer neurochemistry.
-                        </label>
-                        <textarea 
-                          value={reframerForm.experimentRules}
-                          onChange={(e) => setReframerForm({ ...reframerForm, experimentRules: e.target.value })}
-                          placeholder="e.g. Push-ups or 1L cold waters on strike urge, do 30 mins active writing first before screens."
-                          className="w-full bg-white border border-slate-200 rounded-xl p-3 text-xs font-bold text-slate-900 outline-none focus:border-emerald-500 h-16 resize-none font-sans"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* ACTION BUTTONS */}
-                <div className="flex gap-4 mt-8 pt-4 border-t border-slate-100">
-                  <button 
-                    type="button"
-                    onClick={() => setIsAddingReframer(false)} 
-                    className="flex-1 py-4 text-slate-400 hover:text-slate-800 font-black text-[10px] uppercase tracking-wider text-center"
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    type="button"
-                    onClick={handleAddReframer}
-                    className="flex-1 bg-slate-900 hover:bg-slate-800 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-wider transition-all shadow-xl shadow-slate-900/10"
-                  >
-                    Save Loop Audit
-                  </button>
-                </div>
-
-              </motion.div>
-            </motion.div>
-          );
-        })()}
-      </AnimatePresence>
+      {/* COGNITIVE REFRAMING DIALOG (EXTRACTED) */}
+      <CognitiveReframerModal 
+        isOpen={isAddingReframer} 
+        onClose={() => setIsAddingReframer(false)} 
+        onSave={handleAddReframer} 
+        data={data} 
+      />
         </motion.div>
         )}
       </AnimatePresence>

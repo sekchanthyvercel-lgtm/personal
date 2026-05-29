@@ -127,6 +127,7 @@ export interface Habit {
   isNumeric?: boolean;
   targetValue?: number;
   unit?: string;
+  category?: string;
 }
 
 export interface HabitCompletion {

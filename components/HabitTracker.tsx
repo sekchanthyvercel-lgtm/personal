@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { RichTextDiv } from './FloatingToolbar';
 import { AppData, Habit, HabitCompletion } from '../types';
 import { CheckSquare, ChevronLeft, ChevronRight, Plus, Trash2, CheckCircle2, Zap, Maximize2, Minimize2, Calendar as CalendarIcon, Edit3, Target, Wand2, RefreshCw, X, Download, MessageSquare } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isToday, isSameDay, subDays, startOfWeek, endOfWeek, addMonths, subMonths, isSameMonth } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 import { motion, AnimatePresence } from 'motion/react';
+import { VariableSizeList as List } from 'react-window';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import html2pdf from 'html2pdf.js';
 import { callNeuralEngine } from '../services/neuralEngine';
 import { ConfettiOverlay } from './ConfettiOverlay';
 
@@ -19,6 +22,8 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedPlanningDate, setSelectedPlanningDate] = useState(new Date());
   const [streakMilestoneEvent, setStreakMilestoneEvent] = useState<{streak: number, habitName: string} | null>(null);
+  const [newHabitCategory, setNewHabitCategory] = useState<string>('');
+  const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
   const [isAddingHabit, setIsAddingHabit] = useState(false);
   const [newHabitName, setNewHabitName] = useState('');
   const [isNumericHabit, setIsNumericHabit] = useState(false);
@@ -188,12 +193,14 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
         color: habitColor,
         isNumeric: isNumericHabit,
         targetValue: isNumericHabit ? habitTargetValue : undefined,
-        unit: isNumericHabit ? habitUnit.trim() : undefined
+        unit: isNumericHabit ? habitUnit.trim() : undefined,
+        category: newHabitCategory.trim() || 'General'
       };
       return { ...prev, habits: [...currentHabits, newHabit] };
     });
 
     setNewHabitName('');
+    setNewHabitCategory('');
     setIsNumericHabit(false);
     setHabitTargetValue(2);
     setHabitUnit('liters');
@@ -297,6 +304,191 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
       return typeof comp === 'number' ? comp >= target : !!comp;
     }
     return !!comp;
+  };
+
+  const handleExportPDF = () => {
+    const element = document.getElementById('habit-tracker-full-report-target');
+    if (!element) return;
+    
+    // Temporarily show the report for capture
+    element.style.display = 'block';
+    
+    const opt = {
+      margin: [10, 10, 10, 10],
+      filename: `Performance_Mastery_Hub_Report_${format(new Date(), 'yyyy-MM-dd')}.pdf`,
+      image: { type: 'jpeg', quality: 1.0 },
+      html2canvas: { scale: 3, useCORS: true, logging: false, letterRendering: true },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape', compress: true }
+    };
+    
+    // @ts-ignore
+    html2pdf().from(element).set(opt).save().then(() => {
+      element.style.display = 'none';
+      setIsAddingHabit(false); // Close any open modal just in case
+    });
+  };
+
+  const streakData = useMemo(() => {
+    const last90Days = Array.from({ length: 90 }, (_, i) => subDays(new Date(), 89 - i));
+    return last90Days.map(day => {
+      const dateKey = format(day, 'yyyy-MM-dd');
+      const dayCompletions = (data.habits || []).reduce((acc, h) => {
+        const comp = (data.habitCompletions || {})[dateKey]?.[h.id];
+        if (comp === undefined || comp === null) return acc;
+        if (h.isNumeric) {
+          return acc + (typeof comp === 'number' && comp >= (h.targetValue || 0) ? 1 : 0);
+        }
+        return acc + (comp ? 1 : 0);
+      }, 0);
+      return {
+        date: format(day, 'MMM d'),
+        fullDate: dateKey,
+        completions: dayCompletions,
+      };
+    });
+  }, [data.habits, data.habitCompletions]);
+
+  const groupedHabits = useMemo(() => {
+    const groups: Record<string, Habit[]> = {};
+    (data.habits || []).forEach(h => {
+      const cat = h.category || 'General';
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(h);
+    });
+    return groups;
+  }, [data.habits]);
+
+  const toggleCategory = (cat: string) => {
+    setCollapsedCategories(prev => ({ ...prev, [cat]: !prev[cat] }));
+  };
+
+  const flattenedItems = useMemo(() => {
+    const list: any[] = [];
+    Object.keys(groupedHabits).sort().forEach(cat => {
+      list.push({ type: 'header', name: cat });
+      if (!collapsedCategories[cat]) {
+        groupedHabits[cat].forEach(habit => {
+          list.push({ type: 'habit', habit });
+        });
+      }
+    });
+    return list;
+  }, [groupedHabits, collapsedCategories]);
+
+  const getItemSize = (index: number) => {
+    return flattenedItems[index].type === 'header' ? 44 : 92;
+  };
+
+  const Row = ({ index, style }: { index: number, style: any }) => {
+    const item = flattenedItems[index];
+
+    if (item.type === 'header') {
+      const isCollapsed = collapsedCategories[item.name];
+      return (
+        <div 
+          style={style} 
+          className="bg-zinc-100/80 backdrop-blur-md border-y border-zinc-200/50 px-8 py-2 flex items-center justify-between sticky left-0 z-20 cursor-pointer hover:bg-zinc-200 transition-colors"
+          onClick={() => toggleCategory(item.name)}
+        >
+           <div className="flex items-center gap-3">
+              <span className="text-[9px] font-black uppercase tracking-[4px] text-orange-600/40">Grouping</span>
+              <h4 className="text-sm font-black text-slate-800 uppercase italic tracking-tight">{item.name}</h4>
+           </div>
+           <div className="flex items-center gap-4">
+              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{groupedHabits[item.name].length} Mastery Disciplines</span>
+              <motion.div animate={{ rotate: isCollapsed ? -90 : 0 }}>
+                 <ChevronRight size={16} />
+              </motion.div>
+           </div>
+        </div>
+      );
+    }
+
+    const { habit } = item;
+    const streak = getStreak(habit.id);
+
+    return (
+      <div style={style} className="group hover:bg-black/5 transition-colors border-b border-zinc-100 flex items-center overflow-visible">
+         <div className="sticky left-0 z-10 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl p-3 md:p-6 border-r border-black/10 w-[240px] shrink-0 shadow-[2px_0_10px_rgba(0,0,0,0.05)] h-full flex flex-col justify-center">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex flex-col gap-0.5 min-w-0 overflow-hidden">
+                <span className="text-sm font-black uppercase tracking-tight truncate" style={{ color: habit.color || 'black' }}>{habit.name}</span>
+                {streak > 0 && (
+                  <div className="flex items-center gap-1.5" style={{ color: habit.color }}>
+                    <Zap size={14} className="animate-pulse" />
+                    <span className="text-[10px] font-bold tracking-tight">{streak} Day Streak</span>
+                  </div>
+                )}
+              </div>
+              <button 
+                onClick={() => handleDeleteHabit(habit.id)}
+                className="opacity-0 group-hover:opacity-100 p-2 text-black/30 hover:text-red-600 transition-all rounded-lg shrink-0"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+         </div>
+         <div className="flex-1 flex overflow-visible">
+            {daysInMonth.map(day => {
+              const dateKey = format(day, 'yyyy-MM-dd');
+              const noteText = data.habitNotes?.[dateKey]?.[habit.id] || '';
+              
+              if (habit.isNumeric) {
+                const progressVal = typeof completions[dateKey]?.[habit.id] === 'number' 
+                  ? (completions[dateKey]?.[habit.id] as number) 
+                  : (completions[dateKey]?.[habit.id] ? (habit.targetValue || 1) : 0);
+                const isFullDone = progressVal >= (habit.targetValue || 0);
+
+                return (
+                  <div key={day.toString()} className="min-w-[72px] flex items-center justify-center border-r border-black/5 last:border-r-0">
+                    <div className="flex flex-col items-center justify-center gap-1 select-none w-16 mx-auto">
+                      <span className="text-[7.5px] font-black text-zinc-400 tracking-tighter leading-none mb-0.5" style={{ color: isFullDone ? (habit.color || '#10b981') : '' }}>
+                        {isFullDone ? 'DONE' : 'GOAL'}
+                      </span>
+                      <div className="flex items-center gap-1 bg-white/40 border border-zinc-200/50 p-1 rounded-full shadow-sm">
+                        <button 
+                          onClick={() => adjustNumericValue(habit.id, day, -0.5)}
+                          className="w-4 h-4 rounded-full bg-zinc-100 hover:bg-zinc-200 text-[10px] font-black flex items-center justify-center cursor-pointer border border-zinc-200/60"
+                        >-</button>
+                        <div 
+                          onClick={() => adjustNumericValue(habit.id, day, isFullDone ? -progressVal : (habit.targetValue || 2) - progressVal)}
+                          className={`px-1.5 py-0.5 rounded-full text-[8.5px] font-black cursor-pointer transition-all ${isFullDone ? 'text-white' : 'text-zinc-700 hover:bg-zinc-100'}`}
+                          style={{ backgroundColor: isFullDone ? (habit.color || '#ea580c') : '' }}
+                        >{progressVal}</div>
+                        <button 
+                          onClick={() => adjustNumericValue(habit.id, day, 0.5)}
+                          className="w-4 h-4 rounded-full bg-zinc-100 hover:bg-zinc-200 text-[10px] font-black flex items-center justify-center cursor-pointer border border-zinc-200/60"
+                        >+</button>
+                      </div>
+                      <div className="flex items-center justify-center gap-1.5 mt-0.5">
+                        <span className="text-[7px] font-black text-zinc-400 uppercase tracking-widest leading-none truncate max-w-[40px]">
+                          {habit.targetValue} {habit.unit}
+                        </span>
+                        <button onClick={() => openNoteDialog(habit, dateKey)} className={`p-0.5 rounded hover:bg-black/5 transition-all relative ${noteText ? 'text-orange-500 scale-110' : 'text-slate-400'}`}>
+                          <MessageSquare size={8} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              const isCompleted = !!completions[dateKey]?.[habit.id];
+              return (
+                <div key={day.toString()} className="min-w-[72px] flex items-center justify-center border-r border-black/5 last:border-r-0">
+                  <button 
+                    onClick={() => handleToggleHabit(habit.id, day)}
+                    className={`w-7 h-7 rounded-full transition-all flex items-center justify-center ${isCompleted ? 'scale-110 shadow-lg' : 'bg-black/5 text-transparent hover:bg-black/10'}`}
+                    style={{ backgroundColor: isCompleted ? (habit.color || '#10b981') : '', color: 'white' }}
+                  >
+                    <CheckCircle2 size={16} />
+                  </button>
+                </div>
+              );
+            })}
+         </div>
+      </div>
+    );
   };
 
   const adjustNumericValue = (habitId: string, day: Date, amount: number) => {
@@ -530,7 +722,7 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
   }
 
   return (
-    <div className="flex-1 flex flex-col min-h-screen p-4 md:p-8 overflow-y-auto bg-transparent font-sans">
+    <div id="habit-tracker-master-container" className="flex-1 flex flex-col min-h-screen p-4 md:p-8 overflow-y-auto bg-transparent font-sans">
 
 
       {/* Main View Header */}
@@ -576,6 +768,13 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
           >
             {isSuggesting ? <RefreshCw size={16} className="animate-spin" /> : <Wand2 size={16} />}
             AI Lessons
+          </button>
+          <button 
+            onClick={handleExportPDF}
+            className="flex items-center gap-2 bg-rose-600 text-white px-5 md:px-7 py-3 md:py-4 rounded-2xl font-black text-[10px] md:text-xs tracking-widest hover:bg-rose-700 hover:-translate-y-1 transition-all shadow-xl uppercase"
+            title="Export full mastery dashboard as high-fidelity PDF report"
+          >
+            <Download size={16} strokeWidth={3} /> Export PDF
           </button>
           <button 
             onClick={handleExportCSV}
@@ -708,197 +907,134 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
 
       <div className={`w-full bg-white/5 backdrop-blur-3xl border border-white/10 rounded-[32px] shadow-2xl overflow-hidden mt-6 flex flex-col ${isFullScreen ? 'hidden' : ''}`}>
         <div ref={tableContainerRef} className="overflow-x-auto overflow-y-hidden relative scroll-smooth custom-scrollbar-orange">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="bg-zinc-900/5 text-zinc-900 backdrop-blur-md">
-                <th className="sticky left-0 z-30 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl p-3 md:p-8 text-left border-b border-zinc-200/50 w-[100px] md:w-72 min-w-[100px] md:min-w-[240px] shadow-[2px_0_10px_rgba(0,0,0,0.08)]">
-                  <span className="text-[7px] md:text-[10px] font-black uppercase tracking-[1px] md:tracking-[4px] text-orange-600">Disciplines</span>
-                </th>
+          <div className="w-full min-w-max">
+            {/* Master Header */}
+            <div className="flex bg-zinc-900/5 text-zinc-900 backdrop-blur-md sticky top-0 z-40 border-b border-zinc-200/50">
+              <div className="sticky left-0 z-50 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl p-3 md:p-8 text-left w-[240px] shrink-0 shadow-[2px_0_10px_rgba(0,0,0,0.08)]">
+                <span className="text-[7px] md:text-[10px] font-black uppercase tracking-[1px] md:tracking-[4px] text-orange-600">Disciplines</span>
+              </div>
+              <div className="flex overflow-visible h-full">
                 {daysInMonth.map(day => (
-                  <th key={day.toString()} className={`p-2 md:p-6 border-b border-zinc-200/50 min-w-[44px] md:min-w-[72px] text-center ${isToday(day) ? 'bg-orange-500 text-white font-black shadow-lg shadow-orange-500/30 rounded-b-2xl today-cell' : 'hover:bg-zinc-100/50 transition-colors'}`}>
+                  <div key={day.toString()} className={`p-2 md:p-6 min-w-[72px] text-center flex flex-col justify-center border-r border-zinc-100 last:border-r-0 ${isToday(day) ? 'bg-orange-500 text-white font-black shadow-lg shadow-orange-500/30 rounded-b-2xl today-cell' : 'hover:bg-zinc-100/50 transition-colors'}`}>
                     <span className="text-[9px] font-black uppercase block mb-0.5 opacity-60 tracking-wider ">{format(day, 'EEE')}</span>
                     <span className="text-xs font-black tracking-tight">{format(day, 'd')}</span>
-                  </th>
+                  </div>
                 ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100">
-              {habits.map((habit, idx) => {
-                const streak = getStreak(habit.id);
-                return (
-                 <tr key={habit.id} className="group hover:bg-black/5 transition-colors">
-                    <td className="sticky left-0 z-10 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl p-3 md:p-6 border-b border-black/10 w-[100px] md:w-72 min-w-[100px] md:min-w-[240px] shadow-[2px_0_10px_rgba(0,0,0,0.05)]">
-                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-1 md:gap-4">
-                       <div className="flex flex-col gap-0.5 min-w-0 overflow-hidden">
-                         <RichTextDiv 
-                           tagName="span"
-                           className="text-sm font-black text-black uppercase tracking-tight" 
-                           style={{ color: habit.color || 'black' }}
-                           value={habit.name}
-                           onChange={(val) => {
-                             onUpdate((prev: AppData) => ({
-                               ...prev,
-                               habits: (prev.habits || []).map(h => h.id === habit.id ? { ...h, name: val } : h)
-                             }));
-                           }}
-                         />
-                         {streak > 0 && (
-                           <div className="flex items-center gap-2">
-                             <div className="flex items-center gap-1.5" style={{ color: habit.color }}>
-                               <Zap size={14} className="animate-pulse" />
-                               <span className="text-xs font-bold">{streak} Day Streak</span>
-                             </div>
-                             {streak >= 100 ? (
-                               <div className="px-2 py-0.5 rounded-full bg-yellow-400/20 text-yellow-700 text-[10px] font-black uppercase shadow-sm border border-yellow-400/30 flex items-center gap-1 shadow-yellow-400/10" title="100+ Day Streak">
-                                  <span className="text-[10px]">👑</span> Centurion
-                               </div>
-                             ) : streak >= 30 ? (
-                               <div className="px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600 text-[10px] font-black uppercase shadow-sm border border-purple-500/20 flex items-center gap-1" title="30+ Day Streak">
-                                  <span className="text-[10px]">🏆</span> Champion
-                               </div>
-                             ) : streak >= 7 ? (
-                               <div className="px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-600 text-[10px] font-black uppercase shadow-sm border border-orange-500/20 flex items-center gap-1" title="7+ Day Streak">
-                                  <span className="text-[10px]">🔥</span> On Fire
-                               </div>
-                             ) : null}
-                           </div>
-                         )}
-                       </div>
-                       <button 
-                         onClick={() => handleDeleteHabit(habit.id)}
-                         className="md:opacity-0 group-hover:opacity-100 p-2 text-black/30 hover:text-red-600 transition-all rounded-lg shrink-0 touch-none"
-                       >
-                         <Trash2 size={14} />
-                       </button>
-                     </div>
-                   </td>
-                  {daysInMonth.map(day => {
-                    const dateKey = format(day, 'yyyy-MM-dd');
-                    const noteText = data.habitNotes?.[dateKey]?.[habit.id] || '';
-                    
-                    if (habit.isNumeric) {
-                      const progressVal = typeof completions[dateKey]?.[habit.id] === 'number' 
-                        ? (completions[dateKey]?.[habit.id] as number) 
-                        : (completions[dateKey]?.[habit.id] ? (habit.targetValue || 1) : 0);
-                      const isFullDone = progressVal >= (habit.targetValue || 0);
+              </div>
+            </div>
 
-                      return (
-                        <td key={day.toString()} className="p-2 border-b border-black/10 text-center">
-                          <div className="flex flex-col items-center justify-center gap-1 select-none w-16 mx-auto">
-                            <span className="text-[8px] font-black text-zinc-400 tracking-tighter leading-none mb-0.5" style={{ color: isFullDone ? (habit.color || '#10b981') : '' }}>
-                              {isFullDone ? '✅ DONE' : '🏃 GOAL'}
-                            </span>
-                            <div className="flex items-center gap-1 bg-white/40 border border-zinc-200/50 p-1 rounded-full shadow-sm">
-                              <button 
-                                onClick={() => adjustNumericValue(habit.id, day, -0.5)}
-                                onDoubleClick={(e) => { e.stopPropagation(); adjustNumericValue(habit.id, day, -1); }}
-                                className="w-5 h-5 rounded-full bg-zinc-100 hover:bg-zinc-250 text-[10px] font-black flex items-center justify-center cursor-pointer border border-zinc-200/60"
-                                title="Subtract 0.5 (Double-click: -1)"
-                              >
-                                -
-                              </button>
-                              
-                              <div 
-                                onClick={() => adjustNumericValue(habit.id, day, isFullDone ? -progressVal : (habit.targetValue || 2) - progressVal)}
-                                className={`px-1.5 py-0.5 rounded-full text-[9px] font-black cursor-pointer transition-all ${
-                                  isFullDone
-                                    ? 'text-white font-extrabold shadow-sm'
-                                    : 'text-zinc-700 hover:bg-zinc-100'
-                                }`}
-                                style={{
-                                  backgroundColor: isFullDone ? (habit.color || '#ea580c') : '',
-                                  border: `1px solid ${habit.color || '#ea580c'}40`
-                                }}
-                                title="Click to auto-adjust to goal magnitude"
-                              >
-                                {progressVal}
-                              </div>
-
-                              <button 
-                                onClick={() => adjustNumericValue(habit.id, day, 0.5)}
-                                onDoubleClick={(e) => { e.stopPropagation(); adjustNumericValue(habit.id, day, 1); }}
-                                className="w-5 h-5 rounded-full bg-zinc-100 hover:bg-zinc-250 text-[10px] font-black flex items-center justify-center cursor-pointer border border-zinc-200/60"
-                                title="Add 0.5 (Double-click: +1)"
-                              >
-                                +
-                              </button>
-                            </div>
-                            <div className="flex items-center justify-center gap-1.5 mt-0.5">
-                              <span className="text-[7.5px] font-black text-zinc-400 uppercase tracking-widest leading-none truncate max-w-[45px]">
-                                {habit.targetValue} {habit.unit || 'units'}
-                              </span>
-                              <button
-                                onClick={() => openNoteDialog(habit, dateKey)}
-                                className={`p-0.5 rounded hover:bg-black/5 transition-all relative ${
-                                  noteText ? 'text-orange-500 font-bold scale-110' : 'text-slate-400'
-                                }`}
-                                title={noteText ? `Note: ${noteText}` : "Add date-specific note"}
-                              >
-                                <MessageSquare size={10} />
-                                {noteText && (
-                                  <span className="absolute -top-0.5 -right-0.5 w-1 h-1 bg-orange-600 rounded-full" />
-                                )}
-                              </button>
-                            </div>
-                          </div>
-                        </td>
-                      );
-                    }
-
-                    const isCompleted = !!completions[dateKey]?.[habit.id];
-                    return (
-                      <td key={day.toString()} className="p-4 border-b border-black/10 text-center">
-                        <div className="flex flex-col items-center justify-center gap-1.5 mx-auto">
-                          <button 
-                            onClick={() => handleToggleHabit(habit.id, day)}
-                            data-habit-id={habit.id}
-                            data-date={dateKey}
-                            className={`w-8 h-8 rounded-full transition-all flex items-center justify-center ${
-                              isCompleted 
-                                ? 'scale-110 shadow-lg' 
-                                : 'bg-black/5 text-transparent hover:bg-black/10'
-                            }`}
-                            style={{ 
-                              backgroundColor: isCompleted ? (habit.color || '#10b981') : '',
-                              color: 'white',
-                              boxShadow: isCompleted ? `0 0 15px ${(habit.color || '#10b981')}44` : ''
-                            }}
-                          >
-                            <CheckCircle2 size={18} />
-                          </button>
-                          
-                          <button
-                            onClick={() => openNoteDialog(habit, dateKey)}
-                            className={`p-1 rounded-md hover:bg-black/5 transition-all relative ${
-                              noteText ? 'text-orange-500 scale-110 font-bold' : 'text-slate-450'
-                            }`}
-                            title={noteText ? `Note: ${noteText}` : "Add date-specific note"}
-                          >
-                            <MessageSquare size={11} />
-                            {noteText && (
-                              <span className="absolute top-0 right-0 w-1.5 h-1.5 bg-orange-600 rounded-full animate-pulse" />
-                            )}
-                          </button>
-                        </div>
-                      </td>
-                    );
-                  })}
-                </tr>
-                );
-              })}
-              {habits.length === 0 && (
-                <tr>
-                  <td colSpan={daysInMonth.length + 1} className="py-32 text-center">
-                    <div className="flex flex-col items-center gap-4 text-white/10">
-                      <Zap size={64} strokeWidth={1} />
-                      <p className="font-black text-[10px] uppercase tracking-[0.2em] italic opacity-40">No habits tracking yet. Click "Add Mastery" to start.</p>
-                    </div>
-                  </td>
-                </tr>
+            {/* Virtualized Matrix */}
+            <div className="relative">
+              {flattenedItems.length > 0 ? (
+                <List
+                  height={Math.min(600, flattenedItems.reduce((acc, _, i) => acc + getItemSize(i), 0))}
+                  itemCount={flattenedItems.length}
+                  itemSize={getItemSize}
+                  width="100%"
+                  outerElementType="div"
+                  className="custom-scrollbar-orange overflow-x-hidden"
+                >
+                  {Row}
+                </List>
+              ) : (
+                <div className="py-32 text-center border-b border-zinc-100">
+                  <div className="flex flex-col items-center gap-4 text-white/20">
+                    <Zap size={64} strokeWidth={1} />
+                    <p className="font-black text-[10px] uppercase tracking-[0.2em] italic opacity-40">No habits tracking yet. Click "Mastery Access" to start.</p>
+                  </div>
+                </div>
               )}
-            </tbody>
-          </table>
+            </div>
+          </div>
         </div>
+      </div>
+
+      {/* Streak Mastery Trends - Last 90 Days */}
+      <div className="mt-12 bg-white/40 backdrop-blur-3xl border border-white/20 rounded-[40px] p-10 shadow-2xl overflow-hidden relative group">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 blur-[120px] -mr-32 -mt-32"></div>
+          
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 relative z-10">
+            <div className="flex items-center gap-4">
+               <div className="w-14 h-14 rounded-2xl bg-orange-600 shadow-xl shadow-orange-600/20 flex items-center justify-center text-white font-black text-2xl italic">
+                  <Zap size={28} strokeWidth={3} className="animate-pulse" />
+               </div>
+               <div>
+                  <h3 className="text-2xl md:text-3xl font-black text-slate-900 uppercase italic tracking-tighter leading-none">Streak Mastery <br/>Intelligence</h3>
+                  <p className="text-[10px] font-black text-orange-600 uppercase tracking-[0.3em] mt-2 font-sans">90-Day Aggregate Performance Review</p>
+               </div>
+            </div>
+            
+            <div className="flex items-center gap-6">
+               <div className="text-right">
+                  <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Weekly Avg</span>
+                  <span className="text-2xl font-black text-slate-800 tracking-tighter">
+                    {Math.round(streakData.slice(-7).reduce((acc, curr) => acc + curr.completions, 0) / 7 * 10) / 10}
+                  </span>
+               </div>
+               <div className="h-10 w-px bg-slate-200"></div>
+               <div className="text-right">
+                  <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Peak Load</span>
+                  <span className="text-2xl font-black text-emerald-600 tracking-tighter">
+                    {Math.max(...streakData.map(d => d.completions))}
+                  </span>
+               </div>
+            </div>
+          </div>
+
+          <div className="h-[300px] w-full relative z-10 px-2 overflow-hidden">
+             <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={streakData}>
+                   <defs>
+                      <linearGradient id="colorStreak" x1="0" y1="0" x2="0" y2="1">
+                         <stop offset="5%" stopColor="#ea580c" stopOpacity={0.3}/>
+                         <stop offset="95%" stopColor="#ea580c" stopOpacity={0}/>
+                      </linearGradient>
+                   </defs>
+                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.5} />
+                   <XAxis 
+                      dataKey="date" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fontSize: 9, fontWeight: 900, fill: '#64748b' }} 
+                      interval={7}
+                      padding={{ left: 20, right: 20 }}
+                   />
+                   <YAxis 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fontSize: 10, fontWeight: 900, fill: '#64748b' }}
+                      width={30}
+                   />
+                   <Tooltip 
+                      content={({ active, payload, label }) => {
+                        if (active && payload && payload.length) {
+                          return (
+                            <div className="bg-slate-900 border border-white/10 rounded-2xl p-4 shadow-2xl backdrop-blur-xl">
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{label}</p>
+                              <div className="flex items-center gap-3">
+                                 <div className="w-2 h-2 rounded-full bg-orange-500"></div>
+                                 <p className="text-lg font-black text-white leading-none">
+                                    {payload[0].value} <span className="text-[10px] text-orange-500 uppercase">Disciplines</span>
+                                 </p>
+                              </div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                   />
+                   <Area 
+                      type="monotone" 
+                      dataKey="completions" 
+                      stroke="#ea580c" 
+                      strokeWidth={4}
+                      fillOpacity={1} 
+                      fill="url(#colorStreak)" 
+                      animationDuration={2000}
+                   />
+                </AreaChart>
+             </ResponsiveContainer>
+          </div>
       </div>
 
       {/* Styled scrollbar and planning checklist css */}
@@ -971,6 +1107,18 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
                       onChange={e => setNewHabitName(e.target.value)}
                       placeholder="e.g., Deep Work Session"
                       className="w-full bg-zinc-50 border-2 border-transparent rounded-[28px] py-6 px-8 text-lg font-black outline-none focus:border-orange-500 focus:bg-white transition-all placeholder:text-zinc-300 shadow-sm"
+                      onKeyDown={e => e.key === 'Enter' && handleAddHabit()}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest block ml-4 font-sans">Category</label>
+                    <input 
+                      type="text"
+                      value={newHabitCategory}
+                      onChange={e => setNewHabitCategory(e.target.value)}
+                      placeholder="e.g., Morning, Health, Work"
+                      className="w-full bg-zinc-50 border-2 border-transparent rounded-[28px] py-5 px-8 text-base font-bold outline-none focus:border-orange-500 focus:bg-white transition-all placeholder:text-zinc-300 shadow-sm"
                       onKeyDown={e => e.key === 'Enter' && handleAddHabit()}
                     />
                   </div>
@@ -1173,6 +1321,64 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Hidden Report for PDF Export - Rendered only for capture */}
+      <div id="habit-tracker-full-report-target" style={{ display: 'none', padding: '60px', backgroundColor: 'white', color: 'black', fontFamily: 'Inter, sans-serif' }}>
+        <div style={{ borderBottom: '6px solid #ea580c', paddingBottom: '30px', marginBottom: '40px' }}>
+          <h1 style={{ fontSize: '42px', fontWeight: '900', textTransform: 'uppercase', color: '#000', margin: '0', letterSpacing: '-2px' }}>Identity Mastery Intelligence</h1>
+          <p style={{ color: '#ea580c', fontWeight: '900', letterSpacing: '4px', fontSize: '12px', marginTop: '10px' }}>PERFORMANCE ARCHITECTURE REPORT • {format(new Date(), 'MMMM yyyy')}</p>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '60px', marginBottom: '60px' }}>
+           <div style={{ backgroundColor: '#f1f5f9', padding: '40px', borderRadius: '32px' }}>
+              <h2 style={{ fontSize: '14px', fontWeight: '900', color: '#64748b', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '24px', borderBottom: '2px solid #cbd5e1', paddingBottom: '12px' }}>Current Disciplines Mastery</h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {habits.sort((a,b) => getStreak(b.id) - getStreak(a.id)).map(h => {
+                  const streak = getStreak(h.id);
+                  return (
+                    <div key={h.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                          <div style={{ width: '12px', height: '12px', borderRadius: '4px', backgroundColor: h.color || '#ea580c' }} />
+                          <span style={{ fontWeight: '900', fontSize: '18px', color: '#0f172a', textTransform: 'uppercase' }}>{h.name}</span>
+                        </div>
+                        <span style={{ fontWeight: '900', color: streak > 0 ? '#ea580c' : '#94a3b8', fontSize: '18px', fontStyle: 'italic' }}>
+                          {streak} DAY FLOW
+                        </span>
+                    </div>
+                  );
+                })}
+              </div>
+           </div>
+           
+           <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
+              <div style={{ backgroundColor: '#0f172a', padding: '40px', borderRadius: '32px', color: 'white' }}>
+                  <h2 style={{ fontSize: '14px', fontWeight: '900', color: '#ea580c', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '24px' }}>Peak Utility Summary</h2>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
+                     <div>
+                        <span style={{ fontSize: '10px', fontWeight: '900', color: '#475569', textTransform: 'uppercase', display: 'block' }}>Total Habits</span>
+                        <span style={{ fontSize: '32px', fontWeight: '900' }}>{habits.length}</span>
+                     </div>
+                     <div>
+                        <span style={{ fontSize: '10px', fontWeight: '900', color: '#475569', textTransform: 'uppercase', display: 'block' }}>Active Streaks</span>
+                        <span style={{ fontSize: '32px', fontWeight: '900', color: '#10b981' }}>{habits.filter(h => getStreak(h.id) > 0).length}</span>
+                     </div>
+                  </div>
+              </div>
+
+              <div style={{ padding: '20px' }}>
+                  <h2 style={{ fontSize: '14px', fontWeight: '900', color: '#0f172a', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '16px' }}>Strategic Insight</h2>
+                  <p style={{ fontSize: '15px', lineHeight: '1.8', color: '#475569', fontStyle: 'italic', fontWeight: '500' }}>
+                    "Dedication is the architecture of resolve. This report confirms a systematic evolution of identity through consistent mastery. 
+                    Synchronize your future objectives based on these proven resolve nodes."
+                  </p>
+              </div>
+           </div>
+        </div>
+
+        <div style={{ borderTop: '2px solid #e2e8f0', paddingTop: '30px', textAlign: 'center', marginTop: 'auto' }}>
+           <p style={{ fontSize: '10px', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '8px' }}>IDENTITY ARCHITECTURE SYSTEM • GENERATED BY PERFORMANCE HUB</p>
+        </div>
+      </div>
     </div>
   );
 };

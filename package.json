@@ -13,6 +13,7 @@
   "dependencies": {
     "@google/genai": "^1.33.0",
     "@types/express": "^5.0.6",
+    "@types/react-window": "^1.8.8",
     "date-fns": "^4.1.0",
     "express": "^5.2.1",
     "firebase": "^12.6.0",
@@ -22,6 +23,7 @@
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-markdown": "^10.1.0",
+    "react-window": "^1.8.10",
     "recharts": "^3.8.1",
     "rehype-raw": "^7.0.0",
     "remark-gfm": "^4.0.1",

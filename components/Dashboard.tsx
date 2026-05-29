@@ -5,7 +5,7 @@ import {
   LineChart, Line, PieChart, Pie, Cell, AreaChart, Area,
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar
 } from 'recharts';
-import { format, subDays, eachDayOfInterval, isSameDay, parseISO, isValid, startOfWeek, isWithinInterval, startOfDay, endOfDay, startOfMonth, endOfMonth, startOfYear } from 'date-fns';
+import { format, subDays, addDays, eachDayOfInterval, isSameDay, parseISO, isValid, startOfWeek, isWithinInterval, startOfDay, endOfDay, startOfMonth, endOfMonth, startOfYear } from 'date-fns';
 import { TrendingUp, TrendingDown, Activity, Wallet, Target, Sparkles, Brain, ArrowUpRight, Download, Calendar } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 
