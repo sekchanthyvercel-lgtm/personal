@@ -25,6 +25,8 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
   const [newHabitCategory, setNewHabitCategory] = useState<string>('');
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
   const [isAddingHabit, setIsAddingHabit] = useState(false);
+  const [isResettingWeek, setIsResettingWeek] = useState(false);
+  const [resetTargetCategory, setResetTargetCategory] = useState('General');
   const [newHabitName, setNewHabitName] = useState('');
   const [isNumericHabit, setIsNumericHabit] = useState(false);
   const [habitTargetValue, setHabitTargetValue] = useState<number>(2);
@@ -360,6 +362,44 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
 
   const toggleCategory = (cat: string) => {
     setCollapsedCategories(prev => ({ ...prev, [cat]: !prev[cat] }));
+  };
+
+  const handleResetCategoryWeek = () => {
+    const start = startOfWeek(currentDate, { weekStartsOn: 1 });
+    const end = endOfWeek(currentDate, { weekStartsOn: 1 });
+    const days = eachDayOfInterval({ start, end });
+    
+    onUpdate((prev: AppData) => {
+      const newCompletions = { ...prev.habitCompletions };
+      const habitsInCat = (prev.habits || []).filter(h => (h.category || 'General') === resetTargetCategory);
+      
+      if (habitsInCat.length === 0) return prev;
+
+      days.forEach(day => {
+        const dateKey = format(day, 'yyyy-MM-dd');
+        if (newCompletions[dateKey]) {
+          const dayComps = { ...newCompletions[dateKey] };
+          let changed = false;
+          habitsInCat.forEach(h => {
+            if (dayComps[h.id] !== undefined) {
+              delete dayComps[h.id];
+              changed = true;
+            }
+          });
+          
+          if (changed) {
+            if (Object.keys(dayComps).length === 0) {
+              delete newCompletions[dateKey];
+            } else {
+              newCompletions[dateKey] = dayComps;
+            }
+          }
+        }
+      });
+      
+      return { ...prev, habitCompletions: newCompletions };
+    });
+    setIsResettingWeek(false);
   };
 
   const flattenedItems = useMemo(() => {
@@ -782,6 +822,13 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
             title="Export Last 30 Days completion log, streaks & achievements to CSV"
           >
             <Download size={16} strokeWidth={3} /> Export CSV
+          </button>
+          <button 
+            onClick={() => setIsResettingWeek(true)}
+            className="flex items-center gap-2 bg-slate-100 text-slate-900 px-5 md:px-7 py-3 md:py-4 rounded-2xl font-black text-[10px] md:text-xs tracking-widest hover:bg-slate-200 transition-all shadow-xl uppercase border border-slate-200"
+            title="Reset weekly progress for a chosen discipline category"
+          >
+            <RefreshCw size={16} strokeWidth={3} className={isResettingWeek ? "animate-spin" : ""} /> Reset Architecture
           </button>
           <button 
             onClick={() => setIsFullScreen(true)}
@@ -1322,61 +1369,160 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
         )}
       </AnimatePresence>
 
+      {/* Reset Week Final Confirmation Modal */}
+      <AnimatePresence>
+        {isResettingWeek && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[250] bg-zinc-950/80 backdrop-blur-xl flex items-center justify-center p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              className="bg-white w-full max-w-sm rounded-[40px] p-10 shadow-2xl relative border border-zinc-100"
+            >
+              <div className="space-y-6 mb-8 text-center">
+                <div className="flex justify-center mb-4">
+                  <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center text-red-500">
+                    <RefreshCw size={32} />
+                  </div>
+                </div>
+                <h3 className="text-xl font-black text-zinc-900 uppercase italic tracking-tight leading-none text-center">Reset Week <br/>Architecture</h3>
+                
+                <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Select Control Category</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {Object.keys(groupedHabits).sort().map(cat => (
+                    <button 
+                      key={cat}
+                      type="button"
+                      onClick={() => setResetTargetCategory(cat)}
+                      className={`px-3 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border-2 ${resetTargetCategory === cat ? 'bg-orange-600 border-orange-600 text-white shadow-lg scale-105' : 'bg-zinc-50 border-zinc-100 text-zinc-400 hover:bg-zinc-100'}`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+                
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-[3px] block mb-2">Active Week Context</span>
+                  <div className="font-mono text-[10px] text-slate-900 font-bold bg-white p-2 rounded-lg border border-slate-100">
+                    {format(startOfWeek(currentDate, { weekStartsOn: 1 }), 'MMM d')} — {format(endOfWeek(currentDate, { weekStartsOn: 1 }), 'MMM d, yyyy')}
+                  </div>
+                </div>
+
+                <p className="text-[10px] text-zinc-400 font-bold leading-relaxed px-4">
+                  Caution: This irreversible protocol will erase all log history for <span className="text-orange-600">"{resetTargetCategory}"</span> within this temporal window.
+                </p>
+              </div>
+
+              <div className="flex gap-4">
+                <button 
+                  onClick={() => setIsResettingWeek(false)}
+                  className="flex-1 py-4 bg-zinc-50 text-zinc-400 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-zinc-100 transition-all"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleResetCategoryWeek}
+                  className="flex-1 py-4 bg-red-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-red-700 transition-all shadow-xl shadow-red-600/20"
+                >
+                  Execute Reset
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Hidden Report for PDF Export - Rendered only for capture */}
       <div id="habit-tracker-full-report-target" style={{ display: 'none', padding: '60px', backgroundColor: 'white', color: 'black', fontFamily: 'Inter, sans-serif' }}>
-        <div style={{ borderBottom: '6px solid #ea580c', paddingBottom: '30px', marginBottom: '40px' }}>
-          <h1 style={{ fontSize: '42px', fontWeight: '900', textTransform: 'uppercase', color: '#000', margin: '0', letterSpacing: '-2px' }}>Identity Mastery Intelligence</h1>
-          <p style={{ color: '#ea580c', fontWeight: '900', letterSpacing: '4px', fontSize: '12px', marginTop: '10px' }}>PERFORMANCE ARCHITECTURE REPORT • {format(new Date(), 'MMMM yyyy')}</p>
-        </div>
+        <style>
+          {`
+            @media print {
+              #habit-tracker-full-report-target {
+                display: block !important;
+                padding: 10mm !important;
+                width: 297mm;
+                height: 210mm;
+                overflow: hidden;
+              }
+              .report-page {
+                height: 190mm;
+                display: flex;
+                flex-direction: column;
+                page-break-after: always;
+              }
+              h1, h2, h3, p, span {
+                font-family: 'Inter', sans-serif !important;
+              }
+              * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+            }
+            .disciplines-list {
+              display: grid;
+              grid-template-columns: repeat(2, 1fr);
+              gap: 15px;
+            }
+            .habit-item {
+              break-inside: avoid;
+            }
+          `}
+        </style>
+        <div className="report-page">
+          <div style={{ borderBottom: '8px solid #ea580c', paddingBottom: '30px', marginBottom: '40px' }}>
+            <h1 style={{ fontSize: '48px', fontWeight: '900', textTransform: 'uppercase', color: '#000', margin: '0', letterSpacing: '-3px' }}>Identity Mastery Intelligence</h1>
+            <p style={{ color: '#ea580c', fontWeight: '900', letterSpacing: '6px', fontSize: '13px', marginTop: '10px' }}>SYSTEM ARCHITECTURE PERFORMANCE LOG • {format(new Date(), 'MMMM yyyy')}</p>
+          </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '60px', marginBottom: '60px' }}>
-           <div style={{ backgroundColor: '#f1f5f9', padding: '40px', borderRadius: '32px' }}>
-              <h2 style={{ fontSize: '14px', fontWeight: '900', color: '#64748b', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '24px', borderBottom: '2px solid #cbd5e1', paddingBottom: '12px' }}>Current Disciplines Mastery</h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                {habits.sort((a,b) => getStreak(b.id) - getStreak(a.id)).map(h => {
-                  const streak = getStreak(h.id);
-                  return (
-                    <div key={h.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                          <div style={{ width: '12px', height: '12px', borderRadius: '4px', backgroundColor: h.color || '#ea580c' }} />
-                          <span style={{ fontWeight: '900', fontSize: '18px', color: '#0f172a', textTransform: 'uppercase' }}>{h.name}</span>
-                        </div>
-                        <span style={{ fontWeight: '900', color: streak > 0 ? '#ea580c' : '#94a3b8', fontSize: '18px', fontStyle: 'italic' }}>
-                          {streak} DAY FLOW
-                        </span>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 0.6fr', gap: '60px', flex: 1 }}>
+             <div>
+                <h2 style={{ fontSize: '16px', fontWeight: '900', color: '#000', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '30px', borderBottom: '3px solid #000', paddingBottom: '12px' }}>Operational Disciplines</h2>
+                <div className="disciplines-list">
+                  {habits.sort((a,b) => getStreak(b.id) - getStreak(a.id)).map((h) => {
+                    const streak = getStreak(h.id);
+                    return (
+                      <div key={h.id} className="habit-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f8fafc', padding: '15px 20px', borderRadius: '16px', borderLeft: `6px solid ${h.color || '#ea580c'}` }}>
+                          <span style={{ fontWeight: '900', fontSize: '15px', color: '#0f172a', textTransform: 'uppercase' }}>{h.name}</span>
+                          <span style={{ fontWeight: '900', color: streak > 0 ? '#ea580c' : '#94a3b8', fontSize: '15px', fontStyle: 'italic' }}>
+                            STREAK: {streak}
+                          </span>
+                      </div>
+                    );
+                  })}
+                </div>
+             </div>
+             
+             <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
+                <div style={{ backgroundColor: '#0f172a', padding: '40px', borderRadius: '40px', color: 'white', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <h2 style={{ fontSize: '14px', fontWeight: '900', color: '#ea580c', textTransform: 'uppercase', letterSpacing: '3px', marginBottom: '30px' }}>Global Velocity</h2>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '40px' }}>
+                       <div>
+                          <span style={{ fontSize: '11px', fontWeight: '900', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>Active Nodes</span>
+                          <span style={{ fontSize: '48px', fontWeight: '900' }}>{habits.length}</span>
+                       </div>
+                       <div>
+                          <span style={{ fontSize: '11px', fontWeight: '900', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>Mastery Flow</span>
+                          <span style={{ fontSize: '48px', fontWeight: '900', color: '#10b981' }}>{habits.filter(h => getStreak(h.id) > 0).length}</span>
+                       </div>
                     </div>
-                  );
-                })}
-              </div>
-           </div>
-           
-           <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
-              <div style={{ backgroundColor: '#0f172a', padding: '40px', borderRadius: '32px', color: 'white' }}>
-                  <h2 style={{ fontSize: '14px', fontWeight: '900', color: '#ea580c', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '24px' }}>Peak Utility Summary</h2>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
-                     <div>
-                        <span style={{ fontSize: '10px', fontWeight: '900', color: '#475569', textTransform: 'uppercase', display: 'block' }}>Total Habits</span>
-                        <span style={{ fontSize: '32px', fontWeight: '900' }}>{habits.length}</span>
-                     </div>
-                     <div>
-                        <span style={{ fontSize: '10px', fontWeight: '900', color: '#475569', textTransform: 'uppercase', display: 'block' }}>Active Streaks</span>
-                        <span style={{ fontSize: '32px', fontWeight: '900', color: '#10b981' }}>{habits.filter(h => getStreak(h.id) > 0).length}</span>
-                     </div>
-                  </div>
-              </div>
+                </div>
 
-              <div style={{ padding: '20px' }}>
-                  <h2 style={{ fontSize: '14px', fontWeight: '900', color: '#0f172a', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '16px' }}>Strategic Insight</h2>
-                  <p style={{ fontSize: '15px', lineHeight: '1.8', color: '#475569', fontStyle: 'italic', fontWeight: '500' }}>
-                    "Dedication is the architecture of resolve. This report confirms a systematic evolution of identity through consistent mastery. 
-                    Synchronize your future objectives based on these proven resolve nodes."
-                  </p>
-              </div>
-           </div>
-        </div>
+                <div style={{ padding: '30px', backgroundColor: '#f1f5f9', borderRadius: '40px' }}>
+                    <h2 style={{ fontSize: '14px', fontWeight: '900', color: '#0f172a', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '20px' }}>Temporal Insight</h2>
+                    <p style={{ fontSize: '16px', lineHeight: '1.7', color: '#334155', fontStyle: 'italic', fontWeight: '600' }}>
+                      "The quality of your hierarchy determines the quality of your output. This summary reflects a commitment to the architecture of character."
+                    </p>
+                </div>
+             </div>
+          </div>
 
-        <div style={{ borderTop: '2px solid #e2e8f0', paddingTop: '30px', textAlign: 'center', marginTop: 'auto' }}>
-           <p style={{ fontSize: '10px', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '8px' }}>IDENTITY ARCHITECTURE SYSTEM • GENERATED BY PERFORMANCE HUB</p>
+          <div style={{ borderTop: '4px solid #000', paddingTop: '30px', textAlign: 'center', marginTop: 'auto' }}>
+             <p style={{ fontSize: '11px', fontWeight: '900', color: '#64748b', textTransform: 'uppercase', letterSpacing: '10px' }}>IDENTITY ARCHITECTURE SYSTEM • PERFORMANCE HUB VER: ALPHA</p>
+          </div>
         </div>
       </div>
     </div>
