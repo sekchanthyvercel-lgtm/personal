@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { RichTextDiv } from './FloatingToolbar';
 import { AppData, Habit, HabitCompletion } from '../types';
-import { CheckSquare, ChevronLeft, ChevronRight, Plus, Trash2, CheckCircle2, Zap, Maximize2, Minimize2, Calendar as CalendarIcon, Edit3, Target, Wand2, RefreshCw, X, Download, MessageSquare } from 'lucide-react';
+import { CheckSquare, ChevronLeft, ChevronRight, Plus, Trash2, CheckCircle2, Zap, Maximize2, Minimize2, Calendar as CalendarIcon, Edit3, Target, Wand2, RefreshCw, X, Download, MessageSquare, Eye, EyeOff } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isToday, isSameDay, subDays, startOfWeek, endOfWeek, addMonths, subMonths, isSameMonth } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 import { motion, AnimatePresence } from 'motion/react';
@@ -23,6 +23,7 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
   const [selectedPlanningDate, setSelectedPlanningDate] = useState(new Date());
   const [streakMilestoneEvent, setStreakMilestoneEvent] = useState<{streak: number, habitName: string} | null>(null);
   const [newHabitCategory, setNewHabitCategory] = useState<string>('');
+  const [categoryFilter, setCategoryFilter] = useState<string>('All');
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
   const [isAddingHabit, setIsAddingHabit] = useState(false);
   const [isResettingWeek, setIsResettingWeek] = useState(false);
@@ -33,6 +34,7 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
   const [habitUnit, setHabitUnit] = useState<string>('liters');
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [isSuggesting, setIsSuggesting] = useState(false);
+  const [showControls, setShowControls] = useState(false);
   const [suggestedHabits, setSuggestedHabits] = useState<string[]>([]);
   const [milestoneCelebration, setMilestoneCelebration] = useState<{ habitName: string; color: string; streak: number } | null>(null);
 
@@ -309,24 +311,323 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
   };
 
   const handleExportPDF = () => {
-    const element = document.getElementById('habit-tracker-full-report-target');
-    if (!element) return;
-    
-    // Temporarily show the report for capture
-    element.style.display = 'block';
-    
+    // Create a pristine structured document layout dynamically instead of a direct DOM clone
+    const exportContainer = document.createElement('div');
+    exportContainer.id = 'habit-tracker-pdf-export-container';
+    exportContainer.style.position = 'fixed';
+    exportContainer.style.top = '0';
+    exportContainer.style.left = '0';
+    exportContainer.style.zIndex = '-999999';
+    exportContainer.style.pointerEvents = 'none';
+    exportContainer.style.width = '900px'; // Consistent capture width mapping to A4 printable area
+    exportContainer.style.boxSizing = 'border-box';
+    exportContainer.style.backgroundColor = '#ffffff';
+    exportContainer.style.color = '#000000';
+    exportContainer.style.fontFamily = "'Inter', system-ui, -apple-system, sans-serif";
+    exportContainer.style.textAlign = 'left';
+
+    // Build operational disciplines list
+    const sortedHabits = [...(data.habits || [])].sort((a, b) => getStreak(b.id) - getStreak(a.id));
+    const disciplinesHtml = sortedHabits.map(h => {
+      const streak = getStreak(h.id);
+      return `
+        <div style="display: flex; justify-content: space-between; align-items: center; background-color: #f8fafc; padding: 12px 18px; border-radius: 12px; border-left: 5px solid ${h.color || '#ea580c'}; word-break: break-word;">
+          <span style="font-weight: 800; font-size: 13px; color: #0f172a; text-transform: uppercase;">${h.name}</span>
+          <span style="font-weight: 900; color: ${streak > 0 ? '#ea580c' : '#94a3b8'}; font-size: 13px; font-style: italic;">
+            STREAK: ${streak}
+          </span>
+        </div>
+      `;
+    }).join('');
+
+    exportContainer.innerHTML = `
+      <div style="padding: 10px; box-sizing: border-box; background: white;">
+        <!-- Header Section -->
+        <div style="border-bottom: 6px solid #ea580c; padding-bottom: 25px; margin-bottom: 35px; display: flex; justify-content: space-between; align-items: flex-end;">
+          <div>
+            <h1 style="font-size: 32px; font-weight: 900; text-transform: uppercase; color: #000; margin: 0; letter-spacing: -1.5px; line-height: 1.1;">Identity Mastery Intelligence</h1>
+            <p style="color: #ea580c; font-weight: 900; letter-spacing: 4px; font-size: 11px; margin: 8px 0 0 0; text-transform: uppercase;">SYSTEM ARCHITECTURE PERFORMANCE LOG • ${format(new Date(), 'MMMM yyyy')}</p>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-size: 9px; font-weight: 900; color: #64748b; text-transform: uppercase; letter-spacing: 2px;">Identity Architecture System</div>
+          </div>
+        </div>
+
+        <!-- Divided Contents -->
+        <div style="display: grid; grid-template-columns: 1.3fr 0.7fr; gap: 40px; margin-bottom: 40px; align-items: start;">
+          <!-- Left: Operational Disciplines -->
+          <div>
+            <h2 style="font-size: 15px; font-weight: 900; color: #000000; text-transform: uppercase; letter-spacing: 2px; margin: 0 0 20px 0; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;">Operational Disciplines</h2>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+              ${disciplinesHtml || '<div style="color: #64748b; font-size: 13px; font-style: italic;">No active disciplines loaded.</div>'}
+            </div>
+          </div>
+
+          <!-- Right: Statistics & Insights -->
+          <div style="display: flex; flex-direction: column; gap: 25px;">
+            <!-- Global Velocity Stats -->
+            <div style="background-color: #0f172a; padding: 25px; border-radius: 24px; color: white; border: 1px solid rgba(255,255,255,0.1);">
+              <h3 style="font-size: 11px; font-weight: 900; color: #ea580c; text-transform: uppercase; letter-spacing: 3px; margin: 0 0 20px 0;">Global Velocity</h3>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                  <span style="font-size: 9px; font-weight: 900; color: #64748b; text-transform: uppercase; display: block; margin-bottom: 4px;">Active Nodes</span>
+                  <span style="font-size: 36px; font-weight: 900; color: #ffffff;">${habits.length}</span>
+                </div>
+                <div>
+                  <span style="font-size: 9px; font-weight: 900; color: #64748b; text-transform: uppercase; display: block; margin-bottom: 4px;">Mastery Flow</span>
+                  <span style="font-size: 36px; font-weight: 900; color: #10b981;">${habits.filter(h => getStreak(h.id) > 0).length}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Insight Box -->
+            <div style="padding: 25px; background-color: #f1f5f9; border-radius: 24px;">
+              <h3 style="font-size: 11px; font-weight: 900; color: #0f172a; text-transform: uppercase; letter-spacing: 2px; margin: 0 0 12px 0;">Temporal Insight</h3>
+              <p style="font-size: 12px; line-height: 1.7; color: #334155; font-style: italic; font-weight: 600; margin: 0;">
+                "The quality of your hierarchy determines the quality of your output. This summary reflects a commitment to the architecture of character."
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer Section -->
+        <div style="border-top: 3px solid #000000; padding-top: 25px; text-align: center; margin-top: 20px;">
+          <p style="font-size: 9px; font-weight: 900; color: #64748b; text-transform: uppercase; letter-spacing: 8px; margin: 0;">IDENTITY ARCHITECTURE SYSTEM • PERFORMANCE HUB VER: ALPHA</p>
+        </div>
+      </div>
+    `;
+
+    // Print stylesheet
+    const style = document.createElement('style');
+    style.innerHTML = `
+      @page {
+        size: A4 landscape;
+        margin: 10mm;
+      }
+      body {
+        background-color: #ffffff;
+        color: #000000;
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      h1, h2, h3, p, span {
+        font-family: 'Inter', sans-serif !important;
+      }
+      * {
+        box-sizing: border-box !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+    `;
+    exportContainer.appendChild(style);
+
+    document.body.appendChild(exportContainer);
+
     const opt = {
-      margin: [10, 10, 10, 10],
-      filename: `Performance_Mastery_Hub_Report_${format(new Date(), 'yyyy-MM-dd')}.pdf`,
-      image: { type: 'jpeg', quality: 1.0 },
-      html2canvas: { scale: 3, useCORS: true, logging: false, letterRendering: true },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape', compress: true }
+      margin:       [10, 10, 10, 10] as [number, number, number, number], // exactly 10mm padding on all sides for safe margins without cut-off
+      filename:     `Identity_Mastery_Intelligence_${format(new Date(), 'yyyy-MM-dd')}.pdf`,
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { 
+        scale: 2, 
+        useCORS: true, 
+        logging: false, 
+        width: 900,
+        windowWidth: 900,
+        scrollX: 0,
+        scrollY: 0,
+        backgroundColor: '#ffffff'
+      },
+      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape', compress: true }
     };
-    
+
     // @ts-ignore
-    html2pdf().from(element).set(opt).save().then(() => {
-      element.style.display = 'none';
-      setIsAddingHabit(false); // Close any open modal just in case
+    html2pdf().from(exportContainer).set(opt).save().then(() => {
+      document.body.removeChild(exportContainer);
+    });
+  };
+
+  const handleExportMonthJSON = () => {
+    const monthKey = format(currentDate, 'yyyy-MM');
+    const monthDays = eachDayOfInterval({ start: startOfMonth(currentDate), end: endOfMonth(currentDate) });
+    
+    const archiveData = {
+      archive_type: "Habit Completion History",
+      target_month: format(currentDate, 'MMMM yyyy'),
+      exported_at: new Date().toISOString(),
+      summary: {
+        total_habits: habits.length,
+        completions_by_habit: habits.map(h => {
+          let count = 0;
+          monthDays.forEach(day => {
+            const dateStr = format(day, 'yyyy-MM-dd');
+            if (completions[dateStr]?.[h.id]) count++;
+          });
+          return {
+            habit_id: h.id,
+            habit_name: h.name,
+            category: h.category || 'General',
+            completions_count: count,
+            completion_rate: ((count / monthDays.length) * 100).toFixed(1) + "%"
+          };
+        })
+      },
+      habits_registry: habits.map(h => ({
+        id: h.id,
+        name: h.name,
+        category: h.category || 'General',
+        is_numeric: h.isNumeric || false,
+        target_value: h.targetValue,
+        unit: h.unit
+      })),
+      completions_log: monthDays.map(day => {
+        const dateStr = format(day, 'yyyy-MM-dd');
+        const dayComps = completions[dateStr] || {};
+        const logs: Record<string, any> = {};
+        habits.forEach(h => {
+          if (dayComps[h.id] !== undefined) {
+            logs[h.name] = dayComps[h.id];
+          }
+        });
+        return {
+          date: dateStr,
+          completions: logs
+        };
+      }).filter(log => Object.keys(log.completions).length > 0)
+    };
+
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(archiveData, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `Habit_Mastery_Archive_${monthKey}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
+
+  const handleExportMonthPDF = () => {
+    const monthKey = format(currentDate, 'yyyy-MM');
+    const monthDays = eachDayOfInterval({ start: startOfMonth(currentDate), end: endOfMonth(currentDate) });
+    
+    const exportContainer = document.createElement('div');
+    exportContainer.id = 'habit-tracker-monthly-pdf-container';
+    exportContainer.style.position = 'fixed';
+    exportContainer.style.top = '0';
+    exportContainer.style.left = '0';
+    exportContainer.style.zIndex = '-999999';
+    exportContainer.style.pointerEvents = 'none';
+    exportContainer.style.width = '900px';
+    exportContainer.style.boxSizing = 'border-box';
+    exportContainer.style.backgroundColor = '#ffffff';
+    exportContainer.style.color = '#000000';
+    exportContainer.style.fontFamily = "'Inter', system-ui, -apple-system, sans-serif";
+    exportContainer.style.textAlign = 'left';
+
+    const listHtml = habits.map(h => {
+      let count = 0;
+      monthDays.forEach(day => {
+        const dateStr = format(day, 'yyyy-MM-dd');
+        if (completions[dateStr]?.[h.id]) count++;
+      });
+      const completionRate = ((count / monthDays.length) * 100).toFixed(1);
+      return `
+        <tr style="border-bottom: 1px solid #e1e8ed;">
+          <td style="padding: 12px 16px; font-weight: 800; color: #0f172a; text-transform: uppercase; font-size: 11px;">${h.name}</td>
+          <td style="padding: 12px 16px; color: #64748b; font-weight: 700; font-size: 11px; text-transform: uppercase;">${h.category || 'General'}</td>
+          <td style="padding: 12px 16px; text-align: center; font-weight: 900; color: #0f172a; font-size: 11px;">${count} / ${monthDays.length}</td>
+          <td style="padding: 12px 16px; text-align: right; font-weight: 950; color: #ea580c; font-size: 11px;">${completionRate}%</td>
+        </tr>
+      `;
+    }).join('');
+
+    exportContainer.innerHTML = `
+      <div style="padding: 30px; box-sizing: border-box; background: white;">
+        <!-- Header Section -->
+        <div style="border-bottom: 6px solid #ea580c; padding-bottom: 25px; margin-bottom: 35px; display: flex; justify-content: space-between; align-items: flex-end;">
+          <div>
+            <h1 style="font-size: 28px; font-weight: 900; text-transform: uppercase; color: #000; margin: 0; letter-spacing: -1.5px; line-height: 1.1;">Monthly Archive Performance</h1>
+            <p style="color: #ea580c; font-weight: 900; letter-spacing: 4px; font-size: 10px; margin: 8px 0 0 0; text-transform: uppercase;">Habit Completion Summary • ${format(currentDate, 'MMMM yyyy')}</p>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-size: 8px; font-weight: 900; color: #64748b; text-transform: uppercase; letter-spacing: 2px;">Identity Architecture System</div>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 35px;">
+          <table style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead>
+              <tr style="background-color: #f8fafc; border-bottom: 2px solid #e2e8f0;">
+                <th style="padding: 12px 16px; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; color: #64748b;">Discipline</th>
+                <th style="padding: 12px 16px; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; color: #64748b;">Category</th>
+                <th style="padding: 12px 16px; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; color: #64748b; text-align: center;">Completed Days</th>
+                <th style="padding: 12px 16px; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; color: #64748b; text-align: right;">Completion Margin</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${listHtml || '<tr><td colspan="4" style="padding: 24px; text-align: center; color: #64748b; font-style: italic;">No current performance data recorded in this epoch.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+
+        <div style="background-color: #f1f5f9; padding: 25px; border-radius: 20px; margin-bottom: 35px;">
+          <h3 style="font-size: 10px; font-weight: 900; color: #0f172a; text-transform: uppercase; letter-spacing: 2px; margin: 0 0 10px 0;">Archival Intelligence</h3>
+          <p style="font-size: 11px; line-height: 1.6; color: #334155; margin: 0;">
+            This registry constitutes an official archive log of character vector progressions over the target epoch. Maintain continuous alignment to maximize downstream output density.
+          </p>
+        </div>
+
+        <!-- Footer Section -->
+        <div style="border-top: 3px solid #000000; padding-top: 25px; text-align: center;">
+          <p style="font-size: 8px; font-weight: 900; color: #64748b; text-transform: uppercase; letter-spacing: 6px; margin: 0;">IDENTITY ARCHITECTURE ARCHIVE • SECURED RECORD VERSION 1.1</p>
+        </div>
+      </div>
+    `;
+
+    // Print stylesheet
+    const style = document.createElement('style');
+    style.innerHTML = `
+      @page {
+        size: A4 portrait;
+        margin: 10mm;
+      }
+      body {
+        background-color: #ffffff;
+        color: #000000;
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      h1, h2, h3, p, span, th, td {
+        font-family: 'Inter', sans-serif !important;
+      }
+      * {
+        box-sizing: border-box !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+    `;
+    exportContainer.appendChild(style);
+
+    document.body.appendChild(exportContainer);
+
+    const opt = {
+      margin:       [10, 10, 10, 10] as [number, number, number, number],
+      filename:     `Habit_Completion_Archive_${monthKey}.pdf`,
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { 
+        scale: 2, 
+        useCORS: true, 
+        logging: false, 
+        width: 900,
+        windowWidth: 900,
+        scrollX: 0,
+        scrollY: 0,
+        backgroundColor: '#ffffff'
+      },
+      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true }
+    };
+
+    // @ts-ignore
+    html2pdf().from(exportContainer).set(opt).save().then(() => {
+      document.body.removeChild(exportContainer);
     });
   };
 
@@ -359,6 +660,57 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
     });
     return groups;
   }, [data.habits]);
+
+  const availableCategories = useMemo(() => {
+    const cats = new Set<string>();
+    (data.habits || []).forEach(h => {
+      const cat = (h.category || 'General').trim();
+      if (cat) cats.add(cat);
+    });
+    // Ensure standard categories exist as presets
+    ['Health', 'Professional', 'Personal', 'General'].forEach(c => cats.add(c));
+    return Array.from(cats).sort();
+  }, [data.habits]);
+
+  const getWeeklyProgress = (habit: Habit) => {
+    const start = startOfWeek(currentDate, { weekStartsOn: 1 });
+    const end = endOfWeek(currentDate, { weekStartsOn: 1 });
+    const days = eachDayOfInterval({ start, end });
+    
+    let completedCount = 0;
+    const totalTarget = habit.isNumeric ? (habit.targetValue || 1) * 5 : 5; // target completion 5 times/week by default
+    let accumulatedValue = 0;
+
+    days.forEach(day => {
+      const dateKey = format(day, 'yyyy-MM-dd');
+      const val = completions[dateKey]?.[habit.id];
+      if (val !== undefined && val !== null) {
+        if (habit.isNumeric) {
+          accumulatedValue += typeof val === 'number' ? val : (habit.targetValue || 1);
+        } else {
+          if (val) completedCount++;
+        }
+      }
+    });
+
+    if (habit.isNumeric) {
+      const progress = Math.min(100, Math.round((accumulatedValue / totalTarget) * 100));
+      return { 
+        percentage: progress, 
+        text: `${accumulatedValue} / ${totalTarget} ${habit.unit || ''}`,
+        value: accumulatedValue,
+        target: totalTarget
+      };
+    } else {
+      const progress = Math.min(100, Math.round((completedCount / 5) * 100));
+      return { 
+        percentage: progress, 
+        text: `${completedCount} / 5 days`,
+        value: completedCount,
+        target: 5
+      };
+    }
+  };
 
   const toggleCategory = (cat: string) => {
     setCollapsedCategories(prev => ({ ...prev, [cat]: !prev[cat] }));
@@ -405,6 +757,7 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
   const flattenedItems = useMemo(() => {
     const list: any[] = [];
     Object.keys(groupedHabits).sort().forEach(cat => {
+      if (categoryFilter !== 'All' && cat !== categoryFilter) return;
       list.push({ type: 'header', name: cat });
       if (!collapsedCategories[cat]) {
         groupedHabits[cat].forEach(habit => {
@@ -413,7 +766,7 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
       }
     });
     return list;
-  }, [groupedHabits, collapsedCategories]);
+  }, [groupedHabits, collapsedCategories, categoryFilter]);
 
   const getItemSize = (index: number) => {
     return flattenedItems[index].type === 'header' ? 44 : 92;
@@ -451,7 +804,7 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
       <div style={style} className="group hover:bg-black/5 transition-colors border-b border-zinc-100 flex items-center overflow-visible">
          <div className="sticky left-0 z-10 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl p-3 md:p-6 border-r border-black/10 w-[240px] shrink-0 shadow-[2px_0_10px_rgba(0,0,0,0.05)] h-full flex flex-col justify-center">
             <div className="flex items-center justify-between gap-4">
-              <div className="flex flex-col gap-0.5 min-w-0 overflow-hidden">
+              <div className="flex flex-col gap-0.5 min-w-0 overflow-hidden w-full">
                 <span className="text-sm font-black uppercase tracking-tight truncate" style={{ color: habit.color || 'black' }}>{habit.name}</span>
                 {streak > 0 && (
                   <div className="flex items-center gap-1.5" style={{ color: habit.color }}>
@@ -459,6 +812,28 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
                     <span className="text-[10px] font-bold tracking-tight">{streak} Day Streak</span>
                   </div>
                 )}
+                
+                {/* Weekly progress bar underneath habit details */}
+                {(() => {
+                  const progress = getWeeklyProgress(habit);
+                  return (
+                    <div className="mt-1 w-full">
+                      <div className="flex items-center justify-between text-[8px] font-extrabold text-zinc-500 uppercase tracking-wider">
+                        <span>WK PROGRESS</span>
+                        <span style={{ color: habit.color || '#ea580c' }}>{progress.text}</span>
+                      </div>
+                      <div className="w-full bg-zinc-200/60 dark:bg-zinc-800 rounded-full h-1 mt-0.5 overflow-hidden">
+                        <div 
+                          className="h-full rounded-full transition-all duration-500 ease-out"
+                          style={{ 
+                            width: `${progress.percentage}%`, 
+                            backgroundColor: habit.color || '#ea580c' 
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
               <button 
                 onClick={() => handleDeleteHabit(habit.id)}
@@ -767,7 +1142,7 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
 
       {/* Main View Header */}
       <div className="flex flex-col md:flex-row items-center justify-between mb-6 gap-6 shrink-0">
-        <div className="relative group flex items-center gap-6">
+        <div className="relative group flex items-center gap-6 flex-wrap">
           <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tighter uppercase italic drop-shadow-sm flex items-center gap-3">
             <Target className="text-orange-600" size={28} />
             Performance Mastery Hub
@@ -798,51 +1173,84 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
               <ChevronRight size={18} />
             </button>
           </div>
+
+          <button
+            onClick={() => setShowControls(prev => !prev)}
+            className="flex items-center gap-1.5 bg-white/10 backdrop-blur-3xl hover:bg-white/20 text-slate-900 px-4 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/20 transition-all shadow-sm active:scale-95"
+            title={showControls ? "Hide controls panel to save space" : "Show controls panel"}
+          >
+            {showControls ? <EyeOff size={14} className="text-orange-600" /> : <Eye size={14} className="text-orange-600" />}
+            <span className="font-extrabold">{showControls ? 'Hide Panel' : 'Show Panel'}</span>
+          </button>
         </div>
 
-        <div className="flex items-center gap-2 md:gap-4 flex-wrap justify-center">
-          <button 
-            onClick={getAISuggestions}
-            disabled={isSuggesting}
-            className="flex items-center gap-2 bg-gradient-to-br from-emerald-600 to-emerald-400 text-white px-5 md:px-7 py-3 md:py-4 rounded-2xl font-black text-[10px] md:text-xs tracking-widest hover:shadow-emerald-500/40 hover:-translate-y-1 transition-all shadow-xl disabled:opacity-50 uppercase"
-          >
-            {isSuggesting ? <RefreshCw size={16} className="animate-spin" /> : <Wand2 size={16} />}
-            AI Lessons
-          </button>
-          <button 
-            onClick={handleExportPDF}
-            className="flex items-center gap-2 bg-rose-600 text-white px-5 md:px-7 py-3 md:py-4 rounded-2xl font-black text-[10px] md:text-xs tracking-widest hover:bg-rose-700 hover:-translate-y-1 transition-all shadow-xl uppercase"
-            title="Export full mastery dashboard as high-fidelity PDF report"
-          >
-            <Download size={16} strokeWidth={3} /> Export PDF
-          </button>
-          <button 
-            onClick={handleExportCSV}
-            className="flex items-center gap-2 bg-slate-800 text-white px-5 md:px-7 py-3 md:py-4 rounded-2xl font-black text-[10px] md:text-xs tracking-widest hover:bg-slate-700 hover:-translate-y-1 transition-all shadow-xl uppercase"
-            title="Export Last 30 Days completion log, streaks & achievements to CSV"
-          >
-            <Download size={16} strokeWidth={3} /> Export CSV
-          </button>
-          <button 
-            onClick={() => setIsResettingWeek(true)}
-            className="flex items-center gap-2 bg-slate-100 text-slate-900 px-5 md:px-7 py-3 md:py-4 rounded-2xl font-black text-[10px] md:text-xs tracking-widest hover:bg-slate-200 transition-all shadow-xl uppercase border border-slate-200"
-            title="Reset weekly progress for a chosen discipline category"
-          >
-            <RefreshCw size={16} strokeWidth={3} className={isResettingWeek ? "animate-spin" : ""} /> Reset Architecture
-          </button>
-          <button 
-            onClick={() => setIsFullScreen(true)}
-            className="flex items-center gap-2 bg-emerald-600 text-white px-5 md:px-7 py-3 md:py-4 rounded-2xl font-black text-[10px] md:text-xs tracking-widest hover:bg-emerald-700 transition-all shadow-xl uppercase"
-          >
-            <Maximize2 size={16} strokeWidth={3} /> Monthly Planner
-          </button>
-          <button 
-            onClick={() => setIsAddingHabit(true)}
-            className="flex items-center gap-2 bg-gradient-to-br from-orange-600 to-orange-400 text-white px-5 md:px-7 py-3 md:py-4 rounded-2xl font-black text-[10px] md:text-xs tracking-widest hover:shadow-orange-500/40 hover:-translate-y-1 transition-all shadow-xl shadow-orange-600/20 uppercase"
-          >
-            <Plus size={18} strokeWidth={3} /> Mastery Access
-          </button>
-        </div>
+        <AnimatePresence initial={false}>
+          {showControls && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.25, ease: 'easeInOut' }}
+              className="flex items-center gap-2 md:gap-4 flex-wrap justify-center overflow-hidden"
+            >
+              <button 
+                onClick={getAISuggestions}
+                disabled={isSuggesting}
+                className="flex items-center gap-2 bg-gradient-to-br from-emerald-600 to-emerald-400 text-white px-5 md:px-7 py-3 md:py-4 rounded-2xl font-black text-[10px] md:text-xs tracking-widest hover:shadow-emerald-500/40 hover:-translate-y-1 transition-all shadow-xl disabled:opacity-50 uppercase"
+              >
+                {isSuggesting ? <RefreshCw size={16} className="animate-spin" /> : <Wand2 size={16} />}
+                AI Lessons
+              </button>
+              <button 
+                onClick={handleExportPDF}
+                className="flex items-center gap-2 bg-rose-600 text-white px-5 md:px-7 py-3 md:py-4 rounded-2xl font-black text-[10px] md:text-xs tracking-widest hover:bg-rose-700 hover:-translate-y-1 transition-all shadow-xl uppercase"
+                title="Export full mastery dashboard as high-fidelity PDF report"
+              >
+                <Download size={16} strokeWidth={3} /> Export PDF
+              </button>
+              <button 
+                onClick={handleExportCSV}
+                className="flex items-center gap-2 bg-slate-800 text-white px-5 md:px-7 py-3 md:py-4 rounded-2xl font-black text-[10px] md:text-xs tracking-widest hover:bg-slate-700 hover:-translate-y-1 transition-all shadow-xl uppercase"
+                title="Export Last 30 Days completion log, streaks & achievements to CSV"
+              >
+                <Download size={16} strokeWidth={3} /> Export CSV
+              </button>
+              <button 
+                onClick={handleExportMonthJSON}
+                className="flex items-center gap-2 bg-indigo-600 text-white px-5 md:px-7 py-3 md:py-4 rounded-2xl font-black text-[10px] md:text-xs tracking-widest hover:bg-indigo-700 hover:-translate-y-1 transition-all shadow-xl uppercase font-sans whitespace-nowrap"
+                title="Export full habit completion history for the current month as JSON archive"
+              >
+                <Download size={16} strokeWidth={3} /> Archive Month (JSON)
+              </button>
+              <button 
+                onClick={handleExportMonthPDF}
+                className="flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-5 md:px-7 py-3 md:py-4 rounded-2xl font-black text-[10px] md:text-xs tracking-widest hover:-translate-y-1 transition-all shadow-xl uppercase font-sans whitespace-nowrap"
+                title="Export beautiful formatted monthly completion report PDF"
+              >
+                <Download size={16} strokeWidth={3} /> Archive Month (PDF)
+              </button>
+              <button 
+                onClick={() => setIsResettingWeek(true)}
+                className="flex items-center gap-2 bg-slate-100 text-slate-900 px-5 md:px-7 py-3 md:py-4 rounded-2xl font-black text-[10px] md:text-xs tracking-widest hover:bg-slate-200 transition-all shadow-xl uppercase border border-slate-200"
+                title="Reset weekly progress for a chosen discipline category"
+              >
+                <RefreshCw size={16} strokeWidth={3} className={isResettingWeek ? "animate-spin" : ""} /> Reset Architecture
+              </button>
+              <button 
+                onClick={() => setIsFullScreen(true)}
+                className="flex items-center gap-2 bg-emerald-600 text-white px-5 md:px-7 py-3 md:py-4 rounded-2xl font-black text-[10px] md:text-xs tracking-widest hover:bg-emerald-700 transition-all shadow-xl uppercase"
+              >
+                <Maximize2 size={16} strokeWidth={3} /> Monthly Planner
+              </button>
+              <button 
+                onClick={() => setIsAddingHabit(true)}
+                className="flex items-center gap-2 bg-gradient-to-br from-orange-600 to-orange-400 text-white px-5 md:px-7 py-3 md:py-4 rounded-2xl font-black text-[10px] md:text-xs tracking-widest hover:shadow-orange-500/40 hover:-translate-y-1 transition-all shadow-xl shadow-orange-600/20 uppercase"
+              >
+                <Plus size={18} strokeWidth={3} /> Mastery Access
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* AI Suggestions Dropdown/Panel */}
@@ -948,6 +1356,56 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
                   dangerouslySetInnerHTML={{ __html: data.reflections?.weeklyReview?.content || "Synchronize your objectives for peak efficiency." }}
                 />
               </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Category Filter Controls */}
+      <div className={`mt-2 ${isFullScreen ? 'hidden' : ''}`}>
+        <div className="bg-white/10 backdrop-blur-2xl border border-white/20 rounded-[24px] p-6 shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-black uppercase tracking-wider text-slate-800">Domain Filter</span>
+            <div className="relative">
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="appearance-none bg-white border border-zinc-200 rounded-xl px-4 py-2.5 pr-10 text-[10px] sm:text-xs font-black uppercase tracking-widest text-slate-800 outline-none focus:border-orange-500 shadow-sm cursor-pointer"
+              >
+                <option value="All">All Domains / Categories</option>
+                {availableCategories.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-zinc-500">
+                <ChevronRight size={14} className="rotate-90" />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            <button
+              onClick={() => setCategoryFilter('All')}
+              className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${
+                categoryFilter === 'All'
+                  ? 'bg-orange-600 text-white border-orange-600 shadow-lg'
+                  : 'bg-white/50 border-zinc-200 text-slate-600 hover:bg-white'
+              }`}
+            >
+              All
+            </button>
+            {availableCategories.map(cat => (
+              <button
+                key={cat}
+                onClick={() => setCategoryFilter(cat)}
+                className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${
+                  categoryFilter === cat
+                    ? 'bg-orange-600 text-white border-orange-600 shadow-lg'
+                    : 'bg-white/50 border-zinc-200 text-slate-600 hover:bg-white'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
           </div>
         </div>
       </div>
@@ -1118,6 +1576,42 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
         }
         .mini-planner-note .task-checkbox {
           font-size: 8px !important;
+        }
+
+        @media print {
+          @page {
+            size: A4 landscape;
+            margin: 1in !important;
+          }
+          body {
+            background-color: #ffffff !important;
+            color: #000000 !important;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+          /* Automatically shrink the wide habit tables to fit custom landscape page widths without clipping */
+          .custom-scrollbar-orange {
+            transform: scale(0.62) !important;
+            transform-origin: top left !important;
+            width: 161% !important;
+            max-width: none !important;
+            height: auto !important;
+            overflow: visible !important;
+            display: block !important;
+          }
+          /* Match the container print width to fit within A4 landscape */
+          #root {
+            width: 100% !important;
+            padding: 1in !important;
+            box-sizing: border-box !important;
+            background: white !important;
+          }
+          /* Ensure proper breaks */
+          .grid, .flex, .habit-item {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
         }
       `}</style>
 
@@ -1436,95 +1930,6 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
         )}
       </AnimatePresence>
 
-      {/* Hidden Report for PDF Export - Rendered only for capture */}
-      <div id="habit-tracker-full-report-target" style={{ display: 'none', padding: '60px', backgroundColor: 'white', color: 'black', fontFamily: 'Inter, sans-serif' }}>
-        <style>
-          {`
-            @media print {
-              #habit-tracker-full-report-target {
-                display: block !important;
-                padding: 10mm !important;
-                width: 297mm;
-                height: 210mm;
-                overflow: hidden;
-              }
-              .report-page {
-                height: 190mm;
-                display: flex;
-                flex-direction: column;
-                page-break-after: always;
-              }
-              h1, h2, h3, p, span {
-                font-family: 'Inter', sans-serif !important;
-              }
-              * {
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-              }
-            }
-            .disciplines-list {
-              display: grid;
-              grid-template-columns: repeat(2, 1fr);
-              gap: 15px;
-            }
-            .habit-item {
-              break-inside: avoid;
-            }
-          `}
-        </style>
-        <div className="report-page">
-          <div style={{ borderBottom: '8px solid #ea580c', paddingBottom: '30px', marginBottom: '40px' }}>
-            <h1 style={{ fontSize: '48px', fontWeight: '900', textTransform: 'uppercase', color: '#000', margin: '0', letterSpacing: '-3px' }}>Identity Mastery Intelligence</h1>
-            <p style={{ color: '#ea580c', fontWeight: '900', letterSpacing: '6px', fontSize: '13px', marginTop: '10px' }}>SYSTEM ARCHITECTURE PERFORMANCE LOG • {format(new Date(), 'MMMM yyyy')}</p>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 0.6fr', gap: '60px', flex: 1 }}>
-             <div>
-                <h2 style={{ fontSize: '16px', fontWeight: '900', color: '#000', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '30px', borderBottom: '3px solid #000', paddingBottom: '12px' }}>Operational Disciplines</h2>
-                <div className="disciplines-list">
-                  {habits.sort((a,b) => getStreak(b.id) - getStreak(a.id)).map((h) => {
-                    const streak = getStreak(h.id);
-                    return (
-                      <div key={h.id} className="habit-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f8fafc', padding: '15px 20px', borderRadius: '16px', borderLeft: `6px solid ${h.color || '#ea580c'}` }}>
-                          <span style={{ fontWeight: '900', fontSize: '15px', color: '#0f172a', textTransform: 'uppercase' }}>{h.name}</span>
-                          <span style={{ fontWeight: '900', color: streak > 0 ? '#ea580c' : '#94a3b8', fontSize: '15px', fontStyle: 'italic' }}>
-                            STREAK: {streak}
-                          </span>
-                      </div>
-                    );
-                  })}
-                </div>
-             </div>
-             
-             <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
-                <div style={{ backgroundColor: '#0f172a', padding: '40px', borderRadius: '40px', color: 'white', border: '1px solid rgba(255,255,255,0.1)' }}>
-                    <h2 style={{ fontSize: '14px', fontWeight: '900', color: '#ea580c', textTransform: 'uppercase', letterSpacing: '3px', marginBottom: '30px' }}>Global Velocity</h2>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '40px' }}>
-                       <div>
-                          <span style={{ fontSize: '11px', fontWeight: '900', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>Active Nodes</span>
-                          <span style={{ fontSize: '48px', fontWeight: '900' }}>{habits.length}</span>
-                       </div>
-                       <div>
-                          <span style={{ fontSize: '11px', fontWeight: '900', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>Mastery Flow</span>
-                          <span style={{ fontSize: '48px', fontWeight: '900', color: '#10b981' }}>{habits.filter(h => getStreak(h.id) > 0).length}</span>
-                       </div>
-                    </div>
-                </div>
-
-                <div style={{ padding: '30px', backgroundColor: '#f1f5f9', borderRadius: '40px' }}>
-                    <h2 style={{ fontSize: '14px', fontWeight: '900', color: '#0f172a', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '20px' }}>Temporal Insight</h2>
-                    <p style={{ fontSize: '16px', lineHeight: '1.7', color: '#334155', fontStyle: 'italic', fontWeight: '600' }}>
-                      "The quality of your hierarchy determines the quality of your output. This summary reflects a commitment to the architecture of character."
-                    </p>
-                </div>
-             </div>
-          </div>
-
-          <div style={{ borderTop: '4px solid #000', paddingTop: '30px', textAlign: 'center', marginTop: 'auto' }}>
-             <p style={{ fontSize: '11px', fontWeight: '900', color: '#64748b', textTransform: 'uppercase', letterSpacing: '10px' }}>IDENTITY ARCHITECTURE SYSTEM • PERFORMANCE HUB VER: ALPHA</p>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };
