@@ -17,6 +17,7 @@ interface SelfLearningTableProps {
 
 export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUpdate, onUpdateTopic, onOpenSidebar }) => {
   const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
+  const [forceLightBg, setForceLightBg] = useState<boolean>(true);
   const [showMoreTools, setShowMoreTools] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -631,6 +632,12 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
            title.includes('study plan') || 
            title.includes('action plan');
   }, [selectedTopic]);
+
+  useEffect(() => {
+    if (isSelectedTopicPlan) {
+      setForceLightBg(true);
+    }
+  }, [selectedTopicId, isSelectedTopicPlan]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -1412,6 +1419,20 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                       className="flex-1 text-2xl md:text-4xl font-black text-slate-100 bg-transparent outline-none p-2 border-b-2 border-emerald-500/20 focus:border-emerald-500 transition-all font-sans min-w-0"
                       placeholder="Topic Title..."
                   />
+                  {isSelectedTopicPlan && (
+                    <button
+                      onClick={() => setForceLightBg(!forceLightBg)}
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-black uppercase transition-all shadow-sm shrink-0 border cursor-pointer ${
+                        forceLightBg 
+                          ? 'bg-emerald-500 border-emerald-600 text-white hover:bg-emerald-600 shadow-md shadow-emerald-500/20' 
+                          : 'bg-white/10 border-white/20 text-slate-300 hover:bg-white/20'
+                      }`}
+                      title={forceLightBg ? "Switch back to default/glass background design" : "Switch to high-contrast plain light background (perfect for reading plans)"}
+                    >
+                      <GraduationCap size={14} />
+                      <span>{forceLightBg ? "Plain Light: ON" : "Plain Light: OFF"}</span>
+                    </button>
+                  )}
                   <button
                     onClick={() => setIsToolbarHidden(!isToolbarHidden)}
                     className={`p-2 shrink-0 ${isToolbarHidden ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200' : 'bg-white/50 text-slate-500 hover:bg-white'} rounded-xl transition-all shadow-sm`}
@@ -1988,6 +2009,61 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                         padding-left: 20px !important;
                         margin-bottom: 10px !important;
                       }
+
+                      /* Custom overrides when Plain Light Paper Mode is forced by the user */
+                      ${forceLightBg ? `
+                        .editor-content [class*="bg-slate-"],
+                        .editor-content [class*="bg-zinc-"],
+                        .editor-content [class*="bg-gray-"],
+                        .editor-content [class*="bg-neutral-"],
+                        .editor-content [class*="bg-stone-"],
+                        .editor-content [class*="bg-black"],
+                        .editor-content [class*="bg-blue-"],
+                        .editor-content [class*="bg-indigo-"],
+                        .editor-content [class*="bg-sky-"],
+                        .editor-content [class*="bg-[#0f"],
+                        .editor-content [class*="bg-[#1e"],
+                        .editor-content [class*="bg-[#11"],
+                        .editor-content [class*="bg-[rgba"],
+                        .editor-content div.bg-white\\/10,
+                        .editor-content div.bg-slate-900,
+                        .editor-content div.bg-slate-950,
+                        .editor-content div.border-white\\/10 {
+                          background-color: rgba(248, 250, 252, 0.95) !important;
+                          color: #1e293b !important;
+                          border: 1.5px solid #cbd5e1 !important;
+                          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+                        }
+
+                        .editor-content p, 
+                        .editor-content li, 
+                        .editor-content span, 
+                        .editor-content div, 
+                        .editor-content font,
+                        .editor-content td, 
+                        .editor-content th, 
+                        .editor-content blockquote {
+                          color: #1e293b !important;
+                        }
+
+                        .editor-content h1, 
+                        .editor-content h2, 
+                        .editor-content h3, 
+                        .editor-content h4, 
+                        .editor-content h5, 
+                        .editor-content h6 {
+                          color: #0f172a !important;
+                        }
+
+                        .editor-content [class*="text-slate-1"],
+                        .editor-content [class*="text-slate-2"],
+                        .editor-content [class*="text-slate-3"],
+                        .editor-content [class*="text-indigo-1"],
+                        .editor-content [class*="text-indigo-2"],
+                        .editor-content [class*="text-white"] {
+                          color: #1e293b !important;
+                        }
+                      ` : ''}
                     ` }} />
                   );
                 })()}
@@ -2007,7 +2083,11 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                       fontSize: `${textFontSize}px`,
                       fontFamily: textFontFamily
                     }}
-                    className={`editor-content w-full flex-1 outline-none p-8 rounded-3xl text-slate-800 leading-relaxed font-medium transition-all focus:ring-4 focus:ring-emerald-500/10 overflow-y-auto shadow-md ${selectedPaper.className}`}
+                    className={`editor-content w-full flex-1 outline-none p-8 rounded-3xl leading-relaxed font-medium transition-all focus:ring-4 focus:ring-emerald-500/10 overflow-y-auto shadow-md ${
+                      (isSelectedTopicPlan && forceLightBg)
+                        ? 'bg-[#fcfdfd] border-2 border-slate-200 text-slate-800 shadow-2xl'
+                        : selectedPaper.className
+                    }`}
                 ></div>
 
                 {isTableModalOpen && (
