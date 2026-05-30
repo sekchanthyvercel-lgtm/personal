@@ -781,9 +781,9 @@ const App: React.FC = () => {
         </div>
       </main>
 
-        <div className="fixed bottom-6 right-6 flex flex-col gap-3 no-print z-50">
-          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="w-14 h-14 bg-white text-slate-400 rounded-full shadow-2xl flex items-center justify-center hover:text-primary-500 hover:scale-110 active:scale-95 transition-all border-2 border-slate-100">
-            <Menu size={24} />
+        <div className="fixed bottom-3 right-3 md:bottom-4 md:right-4 flex flex-col gap-3 no-print z-50">
+          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="w-11 h-11 bg-white text-slate-500 hover:text-emerald-600 rounded-full shadow-lg flex items-center justify-center hover:scale-105 active:scale-95 transition-all border border-slate-200">
+            <Menu size={18} />
           </button>
         </div>
       </div>
