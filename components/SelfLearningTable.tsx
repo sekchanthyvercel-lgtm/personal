@@ -111,14 +111,10 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
     
     exportContainer.innerHTML = `
       <div style="padding: 10px; box-sizing: border-box;">
-        <div style="margin-bottom: 25px; border-bottom: 3px solid ${accentColor}; padding-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end;">
-          <div>
-            <h1 style="font-size: 24pt; font-weight: 900; color: #0f172a; margin: 0; line-height: 1.1; letter-spacing: -0.02em;">${selectedTopic.title}</h1>
-            <p style="font-size: 9pt; color: #64748b; text-transform: uppercase; letter-spacing: 2px; margin-top: 8px; font-weight: 700;">Performance Documentation • ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
-          </div>
-          <div style="text-align: right;">
-            <div style="font-size: 8pt; font-weight: 900; color: #0f172a; opacity: 0.5; text-transform: uppercase; letter-spacing: 1px;">Identity Mastery System</div>
-          </div>
+        <div style="margin-bottom: 35px; border-bottom: 3px solid ${accentColor}; padding-bottom: 25px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+          <div style="font-size: 8pt; font-weight: 950; color: ${accentColor}; text-transform: uppercase; letter-spacing: 3px; margin-bottom: 12px; font-family: 'Inter', sans-serif;">Identity Mastery System</div>
+          <h1 style="font-size: 28pt; font-weight: 900; color: #0f172a; margin: 0; padding: 0; line-height: 1.15; letter-spacing: -0.025em; text-align: center; font-family: 'Inter', sans-serif;">${selectedTopic.title}</h1>
+          <p style="font-size: 9pt; color: #64748b; text-transform: uppercase; letter-spacing: 2px; margin-top: 12px; font-weight: 700; margin-bottom: 0; font-family: 'Inter', sans-serif;">Performance Documentation • ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
         </div>
         <div class="export-content" style="line-height: 1.5; font-size: 11.5pt; max-width: 100% !important; color: ${textColor} !important;">
           ${editorRef.current.innerHTML}
@@ -205,36 +201,53 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
       }
       
       /* Grid and layout preservation for landscape PDF */
-      .grid {
+      .grid, [class*="grid-cols-"], [class*="md:grid-cols-"], [class*="lg:grid-cols-"] {
         display: flex !important;
         flex-direction: row !important;
-        flex-wrap: wrap !important;
-        gap: 1.5rem !important;
+        flex-wrap: nowrap !important;
+        gap: 15px !important;
         width: 100% !important;
         max-width: 100% !important;
+        box-sizing: border-box !important;
       }
-      .grid-cols-2 {
+      
+      /* Target 3 columns (e.g. Phase 1, Phase 2, Phase 3) */
+      .grid-cols-3, [class*="grid-cols-3"], [class*="md:grid-cols-3"], [class*="lg:grid-cols-3"] {
         display: flex !important;
         flex-direction: row !important;
-        flex-wrap: wrap !important;
-        gap: 1.5rem !important;
+        flex-wrap: nowrap !important;
+        gap: 15px !important;
         width: 100% !important;
       }
-      .grid-cols-2 > div, .grid-cols-2 > section {
-        flex: 1 1 47% !important;
-        box-sizing: border-box !important;
+      .grid-cols-3 > div, .grid-cols-3 > section,
+      [class*="grid-cols-3"] > div, [class*="grid-cols-3"] > section,
+      [class*="md:grid-cols-3"] > div, [class*="md:grid-cols-3"] > section,
+      [class*="lg:grid-cols-3"] > div, [class*="lg:grid-cols-3"] > section {
+        flex: 0 0 31.5% !important;
+        width: 31.5% !important;
+        max-width: 31.5% !important;
+        min-width: 31.5% !important;
+        box-spacing: border-box !important;
         margin-bottom: 0 !important;
       }
-      .grid-cols-3 {
+      
+      /* Target 2 columns */
+      .grid-cols-2, [class*="grid-cols-2"], [class*="md:grid-cols-2"], [class*="lg:grid-cols-2"] {
         display: flex !important;
         flex-direction: row !important;
-        flex-wrap: wrap !important;
-        gap: 1.5rem !important;
+        flex-wrap: nowrap !important;
+        gap: 20px !important;
         width: 100% !important;
       }
-      .grid-cols-3 > div, .grid-cols-3 > section {
-        flex: 1 1 31% !important;
-        box-sizing: border-box !important;
+      .grid-cols-2 > div, .grid-cols-2 > section,
+      [class*="grid-cols-2"] > div, [class*="grid-cols-2"] > section,
+      [class*="md:grid-cols-2"] > div, [class*="md:grid-cols-2"] > section,
+      [class*="lg:grid-cols-2"] > div, [class*="lg:grid-cols-2"] > section {
+        flex: 0 0 48% !important;
+        width: 48% !important;
+        max-width: 48% !important;
+        min-width: 48% !important;
+        box-spacing: border-box !important;
         margin-bottom: 0 !important;
       }
     `;
@@ -319,6 +332,127 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
     const isDark = false;
     const bgColor = '#ffffff';
     const textColor = '#1e293b';
+
+    // Parse the editor inner HTML to convert grids to clean HTML tables and inject Word backgrounds inline
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(editorRef.current.innerHTML, 'text/html');
+
+    // 1. Convert any grids / columns to Word-compatible tables
+    const grids = doc.querySelectorAll('.grid, [class*="grid-cols-"], [class*="md:grid-cols-"], [class*="lg:grid-cols-"]');
+    grids.forEach((gridEl) => {
+      const children = Array.from(gridEl.children).filter(el => el.nodeType === Node.ELEMENT_NODE);
+      if (children.length === 0) return;
+
+      const classStr = gridEl.className || '';
+      let colsCount = 1;
+      if (classStr.includes('grid-cols-3') || classStr.includes('md:grid-cols-3') || classStr.includes('lg:grid-cols-3')) {
+        colsCount = 3;
+      } else if (classStr.includes('grid-cols-2') || classStr.includes('md:grid-cols-2') || classStr.includes('lg:grid-cols-2')) {
+        colsCount = 2;
+      } else if (classStr.includes('grid-cols-4') || classStr.includes('md:grid-cols-4') || classStr.includes('lg:grid-cols-4')) {
+        colsCount = 4;
+      }
+
+      if (colsCount > 1) {
+        const table = doc.createElement('table');
+        table.setAttribute('style', 'width: 100%; border-collapse: separate; border-spacing: 15px; margin-top: 15pt; margin-bottom: 25pt; table-layout: fixed;');
+        const tr = doc.createElement('tr');
+        table.appendChild(tr);
+
+        const colWidth = Math.floor(100 / colsCount) + '%';
+        children.forEach((child) => {
+          const td = doc.createElement('td');
+          td.setAttribute('style', `width: ${colWidth}; vertical-align: top; border-radius: 12px; padding: 15px; border: 1.5px solid #cbd5e1; background-color: #f8fafc;`);
+          
+          const childClass = child.className || '';
+          let bg = '#f8fafc';
+          let border = '1.5px solid #cbd5e1';
+          let textColorCode = '#1e293b';
+
+          if (childClass.includes('bg-emerald-50')) {
+            bg = '#ecfdf5';
+            textColorCode = '#065f46';
+            border = '1.5px solid #10b981';
+          } else if (childClass.includes('bg-emerald-100')) {
+            bg = '#d1fae5';
+            textColorCode = '#065f46';
+            border = '1.5px solid #10b981';
+          } else if (childClass.includes('bg-emerald-500')) {
+            bg = '#10b981';
+            textColorCode = '#ffffff';
+            border = '1px solid #059669';
+          } else if (childClass.includes('bg-amber-50')) {
+            bg = '#fef3c7';
+            textColorCode = '#92400e';
+            border = '1.5px solid #f59e0b';
+          } else if (childClass.includes('bg-amber-100')) {
+            bg = '#fde68a';
+            textColorCode = '#92400e';
+            border = '1.5px solid #f59e0b';
+          } else if (childClass.includes('bg-orange-50')) {
+            bg = '#fff7ed';
+            textColorCode = '#c2410c';
+            border = '1.5px solid #f97316';
+          } else if (childClass.includes('bg-rose-50')) {
+            bg = '#fff1f2';
+            textColorCode = '#9f1239';
+            border = '1.5px solid #f43f5e';
+          } else if (childClass.includes('bg-violet-50')) {
+            bg = '#f5f3ff';
+            textColorCode = '#5b21b6';
+            border = '1.5px solid #8b5cf6';
+          } else if (childClass.includes('bg-blue-50')) {
+            bg = '#eff6ff';
+            textColorCode = '#1e40af';
+            border = '1.5px solid #3b82f6';
+          } else if (childClass.includes('bg-indigo-50')) {
+            bg = '#e0e7ff';
+            textColorCode = '#3730a3';
+            border = '1.5px solid #6366f1';
+          }
+
+          td.style.backgroundColor = bg;
+          td.style.color = textColorCode;
+          td.style.border = border;
+          td.innerHTML = child.innerHTML;
+          tr.appendChild(td);
+        });
+        gridEl.parentNode?.replaceChild(table, gridEl);
+      }
+    });
+
+    // 2. Map background classes to inline style properties directly so Word renders card backgrounds correctly
+    const allElements = doc.querySelectorAll('*');
+    allElements.forEach((el) => {
+      const classes = el.className || '';
+      let addedStyle = '';
+
+      if (classes.includes('bg-emerald-50')) { addedStyle += 'background-color: #ecfdf5 !important; background: #ecfdf5 !important; color: #065f46 !important; border: 1.5px solid #10b981 !important; border-radius: 12px; padding: 15px; margin-bottom: 12pt; display: block;'; }
+      else if (classes.includes('bg-emerald-100')) { addedStyle += 'background-color: #d1fae5 !important; background: #d1fae5 !important; color: #065f46 !important; border: 1.5px solid #10b981 !important; border-radius: 12px; padding: 15px; margin-bottom: 12pt; display: block;'; }
+      else if (classes.includes('bg-emerald-500')) { addedStyle += 'background-color: #10b981 !important; background: #10b981 !important; color: #ffffff !important; border: 1px solid #059669 !important; border-radius: 12px; padding: 15px; margin-bottom: 12pt; display: block;'; }
+      else if (classes.includes('bg-amber-50')) { addedStyle += 'background-color: #fef3c7 !important; background: #fef3c7 !important; color: #92400e !important; border: 1.5px solid #f59e0b !important; border-radius: 12px; padding: 15px; margin-bottom: 12pt; display: block;'; }
+      else if (classes.includes('bg-amber-100')) { addedStyle += 'background-color: #fde68a !important; background: #fde68a !important; color: #92400e !important; border: 1.5px solid #f59e0b !important; border-radius: 12px; padding: 15px; margin-bottom: 12pt; display: block;'; }
+      else if (classes.includes('bg-orange-50')) { addedStyle += 'background-color: #fff7ed !important; background: #fff7ed !important; color: #c2410c !important; border: 1.5px solid #f97316 !important; border-radius: 12px; padding: 15px; margin-bottom: 12pt; display: block;'; }
+      else if (classes.includes('bg-rose-50')) { addedStyle += 'background-color: #fff1f2 !important; background: #fff1f2 !important; color: #9f1239 !important; border: 1.5px solid #f43f5e !important; border-radius: 12px; padding: 15px; margin-bottom: 12pt; display: block;'; }
+      else if (classes.includes('bg-violet-50')) { addedStyle += 'background-color: #f5f3ff !important; background: #f5f3ff !important; color: #5b21b6 !important; border: 1.5px solid #8b5cf6 !important; border-radius: 12px; padding: 15px; margin-bottom: 12pt; display: block;'; }
+      else if (classes.includes('bg-blue-50')) { addedStyle += 'background-color: #eff6ff !important; background: #eff6ff !important; color: #1e40af !important; border: 1.5px solid #3b82f6 !important; border-radius: 12px; padding: 15px; margin-bottom: 12pt; display: block;'; }
+      else if (classes.includes('bg-indigo-50')) { addedStyle += 'background-color: #e0e7ff !important; background: #e0e7ff !important; color: #3730a3 !important; border: 1.5px solid #6366f1 !important; border-radius: 12px; padding: 15px; margin-bottom: 12pt; display: block;'; }
+      else if (classes.includes('bg-slate-50')) { addedStyle += 'background-color: #f8fafc !important; background: #f8fafc !important; border: 1.5px solid #cbd5e1 !important; border-radius: 12px; padding: 15px; margin-bottom: 12pt; display: block;'; }
+      else if (classes.includes('bg-slate-100')) { addedStyle += 'background-color: #f1f5f9 !important; background: #f1f5f9 !important; border: 1.5px solid #cbd5e1 !important; border-radius: 12px; padding: 15px; margin-bottom: 12pt; display: block;'; }
+
+      if (classes.includes('text-emerald-800') || classes.includes('text-emerald-700')) { addedStyle += 'color: #065f46 !important; font-weight: bold;'; }
+      else if (classes.includes('text-amber-800') || classes.includes('text-amber-700')) { addedStyle += 'color: #92400e !important; font-weight: bold;'; }
+      else if (classes.includes('text-blue-800') || classes.includes('text-blue-700')) { addedStyle += 'color: #1e40af !important; font-weight: bold;'; }
+      else if (classes.includes('text-rose-800') || classes.includes('text-rose-700')) { addedStyle += 'color: #9f1239 !important; font-weight: bold;'; }
+      else if (classes.includes('text-violet-800') || classes.includes('text-violet-700')) { addedStyle += 'color: #5b21b6 !important; font-weight: bold;'; }
+
+      if (addedStyle) {
+        const existing = el.getAttribute('style') || '';
+        el.setAttribute('style', (existing + ';' + addedStyle).replace(/;;/g, ';'));
+      }
+    });
+
+    const docContent = doc.body.innerHTML;
 
     // Better Word styling header
     const header = `
@@ -451,7 +585,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
       <body style="background-color: ${bgColor}; color: ${textColor}; margin: 0; padding: 20pt;">
         <h1>${selectedTopic.title}</h1>
         <div class="content" style="color: ${textColor} !important;">
-          ${editorRef.current.innerHTML}
+          ${docContent}
         </div>
       </body>
       </html>
@@ -1425,7 +1559,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
   };
 
   return (
-    <div className="flex flex-col md:flex-row h-full md:h-[90vh] w-full p-2 gap-0 overflow-hidden relative">
+    <div className="flex flex-col md:flex-row h-full md:h-[calc(100vh-16px)] w-full p-2 gap-0 overflow-hidden relative">
       {/* Sidebar Panel - Mobile Slide-in Overlay */}
       <div 
         style={{ width: isSidebarOpen ? `${sidebarWidth}px` : '0px' }}
