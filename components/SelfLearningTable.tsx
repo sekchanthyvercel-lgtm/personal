@@ -43,6 +43,13 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
   useEffect(() => {
     localStorage.setItem('self_learning_sidebar_open', String(isSidebarOpen));
   }, [isSidebarOpen]);
+
+  useEffect(() => {
+    if (topics.length > 0 && !selectedTopicId) {
+      setSelectedTopicId(topics[0].id);
+    }
+  }, [topics, selectedTopicId]);
+
   const isResizing = useRef(false);
   const editorRef = useRef<HTMLDivElement>(null);
 
