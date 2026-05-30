@@ -17,7 +17,9 @@ interface SelfLearningTableProps {
 
 export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUpdate, onUpdateTopic, onOpenSidebar }) => {
   const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
-  const [forceLightBg, setForceLightBg] = useState<boolean>(true);
+  const [forceLightBg, setForceLightBg] = useState<boolean>(() => {
+    return localStorage.getItem('self_learning_plain_light') !== 'false';
+  });
   const [showMoreTools, setShowMoreTools] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -61,6 +63,10 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
   useEffect(() => {
     localStorage.setItem('self_learning_sidebar_open', String(isSidebarOpen));
   }, [isSidebarOpen]);
+
+  useEffect(() => {
+    localStorage.setItem('self_learning_plain_light', String(forceLightBg));
+  }, [forceLightBg]);
 
   useEffect(() => {
     if (topics.length > 0) {
@@ -1419,20 +1425,18 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                       className="flex-1 text-2xl md:text-4xl font-black text-slate-100 bg-transparent outline-none p-2 border-b-2 border-emerald-500/20 focus:border-emerald-500 transition-all font-sans min-w-0"
                       placeholder="Topic Title..."
                   />
-                  {isSelectedTopicPlan && (
-                    <button
-                      onClick={() => setForceLightBg(!forceLightBg)}
-                      className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-black uppercase transition-all shadow-sm shrink-0 border cursor-pointer ${
-                        forceLightBg 
-                          ? 'bg-emerald-500 border-emerald-600 text-white hover:bg-emerald-600 shadow-md shadow-emerald-500/20' 
-                          : 'bg-white/10 border-white/20 text-slate-300 hover:bg-white/20'
-                      }`}
-                      title={forceLightBg ? "Switch back to default/glass background design" : "Switch to high-contrast plain light background (perfect for reading plans)"}
-                    >
-                      <GraduationCap size={14} />
-                      <span>{forceLightBg ? "Plain Light: ON" : "Plain Light: OFF"}</span>
-                    </button>
-                  )}
+                  <button
+                    onClick={() => setForceLightBg(!forceLightBg)}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-black uppercase transition-all shadow-sm shrink-0 border cursor-pointer ${
+                      forceLightBg 
+                        ? 'bg-emerald-500 border-emerald-600 text-white hover:bg-emerald-600 shadow-md shadow-emerald-500/20' 
+                        : 'bg-white/10 border-white/20 text-slate-300 hover:bg-white/20'
+                    }`}
+                    title={forceLightBg ? "Switch back to default/glass background design" : "Switch to high-contrast plain light background (perfect for reading plans)"}
+                  >
+                    <GraduationCap size={14} />
+                    <span>{forceLightBg ? "Plain Light: ON" : "Plain Light: OFF"}</span>
+                  </button>
                   <button
                     onClick={() => setIsToolbarHidden(!isToolbarHidden)}
                     className={`p-2 shrink-0 ${isToolbarHidden ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200' : 'bg-white/50 text-slate-500 hover:bg-white'} rounded-xl transition-all shadow-sm`}
@@ -2012,6 +2016,13 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
 
                       /* Custom overrides when Plain Light Paper Mode is forced by the user */
                       ${forceLightBg ? `
+                        .editor-content {
+                          background-color: #fcfdfd !important;
+                          background-image: none !important;
+                          color: #1e293b !important;
+                        }
+
+                        /* Target all child structures of .editor-content and replace dark background styles with clean light styles */
                         .editor-content [class*="bg-slate-"],
                         .editor-content [class*="bg-zinc-"],
                         .editor-content [class*="bg-gray-"],
@@ -2021,18 +2032,40 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                         .editor-content [class*="bg-blue-"],
                         .editor-content [class*="bg-indigo-"],
                         .editor-content [class*="bg-sky-"],
+                        .editor-content [class*="bg-emerald-9"],
+                        .editor-content [class*="bg-emerald-8"],
                         .editor-content [class*="bg-[#0f"],
                         .editor-content [class*="bg-[#1e"],
                         .editor-content [class*="bg-[#11"],
+                        .editor-content [class*="bg-[#0c"],
+                        .editor-content [class*="bg-[#1a"],
                         .editor-content [class*="bg-[rgba"],
+                        .editor-content div[class*="bg-"],
+                        .editor-content section[class*="bg-"],
+                        .editor-content article[class*="bg-"],
                         .editor-content div.bg-white\\/10,
                         .editor-content div.bg-slate-900,
                         .editor-content div.bg-slate-950,
+                        .editor-content div.bg-[#0f172a],
+                        .editor-content div.bg-[#0c111d],
                         .editor-content div.border-white\\/10 {
                           background-color: rgba(248, 250, 252, 0.95) !important;
+                          background: rgba(248, 250, 252, 0.95) !important;
                           color: #1e293b !important;
                           border: 1.5px solid #cbd5e1 !important;
                           box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+                        }
+
+                        /* Also, match if any element inside has inline color style or dark backgrounds */
+                        .editor-content [style*="background-color: rgb(15"], 
+                        .editor-content [style*="background-color: rgb(12"], 
+                        .editor-content [style*="background-color: rgb(16"], 
+                        .editor-content [style*="background-color: #0"], 
+                        .editor-content [style*="background-color: #1"] {
+                          background-color: rgba(248, 250, 252, 0.95) !important;
+                          background: rgba(248, 250, 252, 0.95) !important;
+                          color: #1e293b !important;
+                          border: 1.5px solid #cbd5e1 !important;
                         }
 
                         .editor-content p, 
@@ -2042,6 +2075,10 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                         .editor-content font,
                         .editor-content td, 
                         .editor-content th, 
+                        .editor-content b,
+                        .editor-content strong,
+                        .editor-content i,
+                        .editor-content em,
                         .editor-content blockquote {
                           color: #1e293b !important;
                         }
@@ -2060,6 +2097,8 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                         .editor-content [class*="text-slate-3"],
                         .editor-content [class*="text-indigo-1"],
                         .editor-content [class*="text-indigo-2"],
+                        .editor-content [class*="text-blue-1"],
+                        .editor-content [class*="text-blue-2"],
                         .editor-content [class*="text-white"] {
                           color: #1e293b !important;
                         }
@@ -2084,8 +2123,8 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                       fontFamily: textFontFamily
                     }}
                     className={`editor-content w-full flex-1 outline-none p-8 rounded-3xl leading-relaxed font-medium transition-all focus:ring-4 focus:ring-emerald-500/10 overflow-y-auto shadow-md ${
-                      (isSelectedTopicPlan && forceLightBg)
-                        ? 'bg-[#fcfdfd] border-2 border-slate-200 text-slate-800 shadow-2xl'
+                      forceLightBg
+                        ? 'bg-[#fcfdfd] border border-slate-200 text-slate-800 shadow-2xl'
                         : selectedPaper.className
                     }`}
                 ></div>
