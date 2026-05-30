@@ -204,9 +204,39 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
         border: 1px solid #cbd5e1 !important;
       }
       
-      /* Force single column if grid exists for better readability in PDF */
-      .grid-cols-2 { display: block !important; }
-      .grid-cols-2 > div { margin-bottom: 10px; }
+      /* Grid and layout preservation for landscape PDF */
+      .grid {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        gap: 1.5rem !important;
+        width: 100% !important;
+        max-width: 100% !important;
+      }
+      .grid-cols-2 {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        gap: 1.5rem !important;
+        width: 100% !important;
+      }
+      .grid-cols-2 > div, .grid-cols-2 > section {
+        flex: 1 1 47% !important;
+        box-sizing: border-box !important;
+        margin-bottom: 0 !important;
+      }
+      .grid-cols-3 {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        gap: 1.5rem !important;
+        width: 100% !important;
+      }
+      .grid-cols-3 > div, .grid-cols-3 > section {
+        flex: 1 1 31% !important;
+        box-sizing: border-box !important;
+        margin-bottom: 0 !important;
+      }
     `;
     exportContainer.appendChild(style);
 
@@ -302,13 +332,14 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
             <w:View>Print</w:View>
             <w:Zoom>100</w:Zoom>
             <w:DoNotOptimizeForBrowser/>
+            <w:DisplayBackgrounds/>
           </w:WordDocument>
         </xml>
         <![endif]-->
         <style>
           @page {
             size: A4;
-            margin: 1in;
+            margin: 0.8in;
           }
           body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -327,12 +358,50 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
             page-break-inside: avoid !important;
             break-inside: avoid !important;
           }
-          h1 { color: #0f172a; font-size: 24pt; border-bottom: 2px solid #cbd5e1; padding-bottom: 10px; margin-bottom: 15pt; }
+          h1 { color: #0f172a; font-size: 24pt; border-bottom: 2px solid #cbd5e1; padding-bottom: 10px; margin-bottom: 15pt; text-align: center; }
           h2 { color: #1e293b; font-size: 18pt; margin-top: 20pt; margin-bottom: 10pt; }
           p { margin-bottom: 10pt; color: ${textColor}; }
           table { width: 100% !important; border-collapse: collapse; margin-top: 15pt; margin-bottom: 15pt; }
           th, td { border: 1px solid #cbd5e1; padding: 8pt; text-align: left; color: ${textColor}; }
           th { background-color: #f8fafc; font-weight: bold; color: #0f172a; }
+          
+          /* Dual columns mapping for MS Word via Floats */
+          .grid, .grid-cols-2, .grid-cols-3 {
+            display: block !important;
+            width: 100% !important;
+            margin-top: 15pt !important;
+            margin-bottom: 15pt !important;
+            clear: both !important;
+          }
+          .grid-cols-2 > div, .grid-cols-2 > section {
+            float: left !important;
+            width: 46% !important;
+            margin-right: 3% !important;
+            margin-bottom: 20pt !important;
+            background-color: #f8fafc !important;
+            border: 1.5px solid #cbd5e1 !important;
+            padding: 15pt !important;
+            border-radius: 12px !important;
+            box-sizing: border-box !important;
+          }
+          .grid-cols-3 > div, .grid-cols-3 > section {
+            float: left !important;
+            width: 29% !important;
+            margin-right: 3% !important;
+            margin-bottom: 20pt !important;
+            background-color: #f8fafc !important;
+            border: 1.5px solid #cbd5e1 !important;
+            padding: 12pt !important;
+            border-radius: 12px !important;
+            box-sizing: border-box !important;
+          }
+          /* Clear floated columns */
+          .grid::after, .grid-cols-2::after, .grid-cols-3::after {
+            content: "" !important;
+            display: table !important;
+            clear: both !important;
+          }
+
           .synthesis-card-wrapper, .qa-board-wrapper { 
             border: 2px solid #cbd5e1 !important; 
             background-color: #f8fafc !important; 
@@ -352,6 +421,25 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
             border: 1px solid #cbd5e1 !important;
             padding: 15px !important;
           }
+          
+          /* Explicit Background styles mapping for Microsoft Word */
+          .bg-emerald-50, [class*="bg-emerald-50"] { background-color: #ecfdf5 !important; background: #ecfdf5 !important; color: #065f46 !important; }
+          .bg-emerald-100, [class*="bg-emerald-100"] { background-color: #d1fae5 !important; background: #d1fae5 !important; color: #065f46 !important; }
+          .bg-emerald-500, [class*="bg-emerald-500"] { background-color: #10b981 !important; background: #10b981 !important; color: #ffffff !important; }
+          
+          .bg-amber-50, [class*="bg-amber-50"] { background-color: #fef3c7 !important; background: #fef3c7 !important; color: #92400e !important; }
+          .bg-amber-100, [class*="bg-amber-100"] { background-color: #fde68a !important; background: #fde68a !important; color: #92400e !important; }
+          
+          .bg-orange-50, [class*="bg-orange-50"] { background-color: #fff7ed !important; background: #fff7ed !important; color: #c2410c !important; }
+          .bg-rose-50, [class*="bg-rose-50"] { background-color: #fff1f2 !important; background: #fff1f2 !important; color: #9f1239 !important; }
+          .bg-violet-50, [class*="bg-violet-50"] { background-color: #f5f3ff !important; background: #f5f3ff !important; color: #5b21b6 !important; }
+          .bg-blue-50, [class*="bg-blue-50"] { background-color: #eff6ff !important; background: #eff6ff !important; color: #1e40af !important; }
+          .bg-indigo-50, [class*="bg-indigo-50"] { background-color: #e0e7ff !important; background: #e0e7ff !important; color: #3730a3 !important; }
+          
+          .bg-slate-50, [class*="bg-slate-50"] { background-color: #f8fafc !important; background: #f8fafc !important; }
+          .bg-slate-100, [class*="bg-slate-100"] { background-color: #f1f5f9 !important; background: #f1f5f9 !important; }
+          .bg-[#fcfdfd], [class*="bg-[#fcfdfd]"] { background-color: #fcfdfd !important; background: #fcfdfd !important; }
+
           .bg-white\/10, .bg-white\\/10 {
             background-color: #ffffff !important;
             border: 1px solid #cbd5e1 !important;
@@ -1168,13 +1256,14 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
     let prompt = '';
     let newTopicTitle = '';
     
-    if (selectedTopic) {
-      prompt = `Generate a dedicated, highly structured Study Plan focusing exclusively on learning the topic: "${selectedTopic.title}". 
-      Break it down into progressive learning modules, key concepts to master, practical exercises, and reflection questions. 
-      Use professional HTML formatting with beautifully styled Tailwind classes.
-      STYLING AND CONTRAST MANDATES:
-      - Use an elegant, professional light-colored theme.
-      - NEVER use dark or black backgrounds for any panels, structural blocks, or cards.
+      if (selectedTopic) {
+        prompt = `Generate a dedicated, highly structured Study Plan focusing exclusively on learning the topic: "${selectedTopic.title}". 
+        Break it down into progressive learning modules, key concepts to master, practical exercises, and reflection questions. 
+        Use professional HTML formatting with beautifully styled Tailwind classes.
+        STYLING AND CONTRAST MANDATES:
+        - ALWAYS wrap the top main heading (title) and description subtitle in a beautifully styled, centered block (e.g., div with text-center or items-center justify-center) to ensure it centers elegantly in the layout, exactly as in the professional template screenshots.
+        - Use an elegant, professional light-colored theme.
+        - NEVER use dark or black backgrounds for any panels, structural blocks, or cards.
       - DO NOT default to or always use blue (or sky-blue or cyan) colors. You can use ANY premium colors (e.g., emerald green, warm amber, violet, terracotta/rust, plum, rose-brown), but keep it varied and professional.
       - Contrast is critical: Make sure all text, numbers, list items, description paragraphs, and table/grid contents use highly readable deep charcoal/slate styles (e.g., text-slate-800, text-stone-900, or matching deep colors). NEVER use white, light-gray, or washed-out light text inside white/light cards or panels.
       - Use clean, light borders (e.g., border-slate-200, border-stone-200) instead of thick dark backgrounds.
@@ -1191,6 +1280,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
       }
       prompt = `Analyze my current self-learning topics: [${topicTitles}]. Generate a 4-week structured study plan with clear milestones and suggested daily tasks to help me master these topics. Use professional HTML formatting, beautifully styled with Tailwind CSS.
       STYLING AND CONTRAST MANDATES:
+      - ALWAYS wrap the top main heading (title) and description subtitle in a beautifully styled, centered block (e.g., div with text-center or items-center justify-center) to ensure it centers elegantly in the layout.
       - Use an elegant, professional light-colored theme.
       - NEVER use dark or black backgrounds for any panels, structural blocks, or cards.
       - DO NOT default to or always use blue (or sky-blue or cyan) colors. You can use ANY premium colors (e.g., emerald green, warm amber, violet, terracotta/rust, plum, rose-brown), but keep it varied and professional.
@@ -1276,6 +1366,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
       Include daily routines, specific micro-habits, friction-reduction techniques, obstacles handling, and measurable criteria for success. 
       Use professional HTML formatting, beautifully styled with Tailwind CSS.
       STYLING AND CONTRAST MANDATES:
+      - ALWAYS wrap the top main heading (title) and description subtitle in a beautifully styled, centered block (e.g., div with text-center or items-center justify-center) to ensure it centers elegantly in the layout, exactly as in the professional template screenshots.
       - Use an elegant, professional light-colored theme.
       - NEVER use dark or black backgrounds for any panels, structural blocks, or cards.
       - DO NOT default to or always use blue (or sky-blue or cyan) colors. You can use ANY premium colors (e.g., emerald green, warm amber, violet, terracotta/rust, plum, rose-brown), but keep it varied and professional.
@@ -1422,7 +1513,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                   <input 
                       value={selectedTopic.title} 
                       onChange={(e) => updateTopic(selectedTopic.id, { title: e.target.value })}
-                      className="flex-1 text-2xl md:text-4xl font-black text-slate-100 bg-transparent outline-none p-2 border-b-2 border-emerald-500/20 focus:border-emerald-500 transition-all font-sans min-w-0"
+                      className={`flex-1 text-2xl md:text-4xl font-black ${forceLightBg ? 'text-slate-900 border-slate-300' : 'text-slate-100 border-emerald-500/20'} bg-transparent outline-none p-2 border-b-2 focus:border-emerald-500 transition-all font-sans min-w-0 text-center`}
                       placeholder="Topic Title..."
                   />
                   <button
