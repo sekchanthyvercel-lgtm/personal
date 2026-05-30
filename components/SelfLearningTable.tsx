@@ -82,9 +82,10 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
     const paperStyle = settings.paperStyle || 'none';
     const selectedPaper = PAPER_STYLES.find(s => s.id === paperStyle) || PAPER_STYLES[0];
 
-    const isDark = selectedPaper.id === 'stars' || selectedPaper.id === 'none-dark' || selectedPaper.id === 'none';
-    const bgColor = isDark ? '#0f172a' : '#ffffff';
-    const textColor = isDark ? '#f8fafc' : '#1e293b';
+    // Always keep Self-learning background light for optimal readability as requested by the user
+    const isDark = false;
+    const bgColor = '#ffffff';
+    const textColor = '#1e293b';
     const accentColor = '#10b981';
 
     // Create a temporary container for pristine export
@@ -105,11 +106,11 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
       <div style="padding: 10px; box-sizing: border-box;">
         <div style="margin-bottom: 25px; border-bottom: 3px solid ${accentColor}; padding-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end;">
           <div>
-            <h1 style="font-size: 24pt; font-weight: 900; color: ${isDark ? '#38bdf8' : '#0f172a'}; margin: 0; line-height: 1.1; letter-spacing: -0.02em;">${selectedTopic.title}</h1>
-            <p style="font-size: 9pt; color: ${isDark ? '#94a3b8' : '#64748b'}; text-transform: uppercase; letter-spacing: 2px; margin-top: 8px; font-weight: 700;">Performance Documentation • ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+            <h1 style="font-size: 24pt; font-weight: 900; color: #0f172a; margin: 0; line-height: 1.1; letter-spacing: -0.02em;">${selectedTopic.title}</h1>
+            <p style="font-size: 9pt; color: #64748b; text-transform: uppercase; letter-spacing: 2px; margin-top: 8px; font-weight: 700;">Performance Documentation • ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
           </div>
           <div style="text-align: right;">
-            <div style="font-size: 8pt; font-weight: 900; color: ${isDark ? '#38bdf8' : '#0f172a'}; opacity: 0.5; text-transform: uppercase; letter-spacing: 1px;">Identity Mastery System</div>
+            <div style="font-size: 8pt; font-weight: 900; color: #0f172a; opacity: 0.5; text-transform: uppercase; letter-spacing: 1px;">Identity Mastery System</div>
           </div>
         </div>
         <div class="export-content" style="line-height: 1.5; font-size: 11.5pt; max-width: 100% !important; color: ${textColor} !important;">
@@ -138,7 +139,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
       h1, h2, h3, h4, h5, h6 {
         page-break-after: avoid;
         break-after: avoid;
-        color: ${isDark ? '#38bdf8' : '#0f172a'} !important;
+        color: #0f172a !important;
       }
       
       /* Force colors because editor html might contain hardcoded dark tailwind text colors */
@@ -161,13 +162,13 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
 
       .export-content { line-height: 1.5; font-size: 11pt; color: ${textColor} !important; }
       .export-content p { margin-bottom: 0.8em; }
-      .export-content h1, .export-content h2, .export-content h3 { font-weight: 800; color: ${isDark ? '#38bdf8' : '#0f172a'} !important; margin-top: 1.2em; margin-bottom: 0.4em; }
+      .export-content h1, .export-content h2, .export-content h3 { font-weight: 800; color: #0f172a !important; margin-top: 1.2em; margin-bottom: 0.4em; }
       .export-content table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-      .export-content th, .export-content td { border: 1px solid ${isDark ? '#334155' : '#e2e8f0'}; padding: 10px; color: ${textColor} !important; }
+      .export-content th, .export-content td { border: 1px solid #e2e8f0; padding: 10px; color: ${textColor} !important; }
       
       .synthesis-card-wrapper, .qa-board-wrapper { 
-        border: 2.5px solid ${isDark ? '#334155' : '#cbd5e1'} !important; 
-        background-color: ${isDark ? '#1e293b' : '#f8fafc'} !important; 
+        border: 2.5px solid #cbd5e1 !important; 
+        background-color: #f8fafc !important; 
         border-radius: 16px !important; 
         padding: 18px !important; 
         margin: 15px 0 !important; 
@@ -176,10 +177,24 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
       }
       .paper-dots, .paper-grid, .paper-ruled, .paper-engineering { 
         background-image: none !important; 
-        background-color: ${isDark ? '#1e293b' : '#f8fafc'} !important; 
-        border: 1px solid ${isDark ? '#334155' : '#e2e8f0'} !important; 
+        background-color: #f8fafc !important; 
+        border: 1px solid #e2e8f0 !important; 
         border-radius: 12px !important; 
         padding: 15px !important; 
+      }
+      .paper-stardust { 
+        background-color: #f8fafc !important; 
+        background-image: 
+          radial-gradient(rgba(15,23,42,0.1) 1px, transparent 1px) !important,
+          radial-gradient(rgba(15,23,42,0.06) 1.5px, transparent 1.5px) !important;
+        background-size: 2rem 2rem, 3rem 3rem !important;
+        border: 1px solid #cbd5e1 !important; 
+        border-radius: 12px !important; 
+        padding: 15px !important; 
+      }
+      .bg-white\/10, .bg-white\\/10 {
+        background-color: #ffffff !important;
+        border: 1px solid #cbd5e1 !important;
       }
       
       /* Force single column if grid exists for better readability in PDF */
@@ -263,9 +278,10 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
     const paperStyle = settings.paperStyle || 'none';
     const selectedPaper = PAPER_STYLES.find(s => s.id === paperStyle) || PAPER_STYLES[0];
 
-    const isDark = selectedPaper.id === 'stars' || selectedPaper.id === 'none-dark' || selectedPaper.id === 'none';
-    const bgColor = isDark ? '#0f172a' : '#ffffff';
-    const textColor = isDark ? '#f8fafc' : '#0f172a';
+    // Always keep Self-learning background light in Word export to match our beautiful readable PDF
+    const isDark = false;
+    const bgColor = '#ffffff';
+    const textColor = '#1e293b';
 
     // Better Word styling header
     const header = `
@@ -293,42 +309,53 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
             background-color: ${bgColor};
             line-height: 1.5;
             margin: 0;
-            padding: 0;
+            padding: 20pt;
           }
           h1, h2, h3, h4, h5, h6 {
             page-break-after: avoid;
             break-after: avoid;
-            color: ${isDark ? '#38bdf8' : '#0f172a'};
+            color: #0f172a;
           }
           p, li, tr, .synthesis-card-wrapper, .qa-board-wrapper, table {
             page-break-inside: avoid !important;
             break-inside: avoid !important;
           }
-          h1 { color: ${isDark ? '#38bdf8' : '#0f172a'}; font-size: 24pt; border-bottom: 1px solid ${isDark ? '#334155' : '#eee'}; padding-bottom: 10px; }
-          h2 { color: ${isDark ? '#38bdf8' : '#1e293b'}; font-size: 18pt; margin-top: 20pt; }
-          p { margin-bottom: 10pt; }
-          table { width: 100% !important; border-collapse: collapse; margin-top: 15pt; }
-          th, td { border: 1px solid ${isDark ? '#334155' : '#cbd5e1'}; padding: 8pt; text-align: left; }
-          th { background-color: ${isDark ? '#1e293b' : '#f8fafc'}; font-weight: bold; color: ${isDark ? '#ffffff' : '#000000'}; }
+          h1 { color: #0f172a; font-size: 24pt; border-bottom: 2px solid #cbd5e1; padding-bottom: 10px; margin-bottom: 15pt; }
+          h2 { color: #1e293b; font-size: 18pt; margin-top: 20pt; margin-bottom: 10pt; }
+          p { margin-bottom: 10pt; color: ${textColor}; }
+          table { width: 100% !important; border-collapse: collapse; margin-top: 15pt; margin-bottom: 15pt; }
+          th, td { border: 1px solid #cbd5e1; padding: 8pt; text-align: left; color: ${textColor}; }
+          th { background-color: #f8fafc; font-weight: bold; color: #0f172a; }
           .synthesis-card-wrapper, .qa-board-wrapper { 
-            border: 1px solid ${isDark ? '#334155' : '#cbd5e1'}; 
-            background-color: ${isDark ? '#1e293b' : '#f8fafc'}; 
-            border-radius: 10pt; 
+            border: 2px solid #cbd5e1 !important; 
+            background-color: #f8fafc !important; 
+            border-radius: 12px; 
             padding: 15pt; 
             margin-top: 15pt; 
             margin-bottom: 15pt;
-            color: ${textColor};
+            color: ${textColor} !important;
           }
           .paper-dots, .paper-grid, .paper-ruled, .paper-engineering {
-            background-color: ${isDark ? '#1e293b' : '#f8fafc'} !important;
-            border: 1px solid ${isDark ? '#334155' : '#cbd5e1'} !important;
+            background-color: #f8fafc !important;
+            border: 1px solid #cbd5e1 !important;
             padding: 15px !important;
           }
+          .paper-stardust {
+            background-color: #f8fafc !important;
+            border: 1px solid #cbd5e1 !important;
+            padding: 15px !important;
+          }
+          .bg-white\/10, .bg-white\\/10 {
+            background-color: #ffffff !important;
+            border: 1px solid #cbd5e1 !important;
+          }
+          /* Ensure all nested links/buttons have clean style */
+          a { color: #10b981; text-decoration: underline; }
         </style>
       </head>
-      <body style="background-color: ${bgColor}; color: ${textColor}; margin: 0; padding: 0;">
+      <body style="background-color: ${bgColor}; color: ${textColor}; margin: 0; padding: 20pt;">
         <h1>${selectedTopic.title}</h1>
-        <div class="content">
+        <div class="content" style="color: ${textColor} !important;">
           ${editorRef.current.innerHTML}
         </div>
       </body>
@@ -1131,8 +1158,15 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
     if (selectedTopic) {
       prompt = `Generate a dedicated, highly structured Study Plan focusing exclusively on learning the topic: "${selectedTopic.title}". 
       Break it down into progressive learning modules, key concepts to master, practical exercises, and reflection questions. 
-      Use professional HTML formatting with beautifully styled Tailwind classes (use colors, modern card layouts, rounded corners, shadows). 
-      IMPORTANT: Make sure to use 'w-full' and 'max-w-full' for all main structural wrappers and tables you generate, so they take up the entire width of the page. Do NOT use fixed widths or constraints like 'max-w-md', 'max-w-lg', or 'max-w-2xl'. Ensure the content is fluid and full width.
+      Use professional HTML formatting with beautifully styled Tailwind classes.
+      STYLING AND CONTRAST MANDATES:
+      - Use an elegant, professional light-colored theme.
+      - NEVER use dark or black backgrounds for any panels, structural blocks, or cards.
+      - DO NOT default to or always use blue (or sky-blue or cyan) colors. You can use ANY premium colors (e.g., emerald green, warm amber, violet, terracotta/rust, plum, rose-brown), but keep it varied and professional.
+      - Contrast is critical: Make sure all text, numbers, list items, description paragraphs, and table/grid contents use highly readable deep charcoal/slate styles (e.g., text-slate-800, text-stone-900, or matching deep colors). NEVER use white, light-gray, or washed-out light text inside white/light cards or panels.
+      - Use clean, light borders (e.g., border-slate-200, border-stone-200) instead of thick dark backgrounds.
+      - For columns and grids, use clear, distinct borders or light shadows for clean alignment.
+      - Make sure to use 'w-full' and 'max-w-full' for all main structural wrappers and tables you generate, so they take up the entire width of the page. Do NOT use fixed widths or constraints like 'max-w-md', 'max-w-lg', or 'max-w-2xl'. Ensure the content is fluid and full width.
       Do NOT wrap in markdown code blocks like \`\`\`html, just output raw HTML directly.`;
       newTopicTitle = `🎯 Study Plan: ${selectedTopic.title}`;
     } else {
@@ -1142,8 +1176,15 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
         alert("Please add some self-learning topics first.");
         return;
       }
-      prompt = `Analyze my current self-learning topics: [${topicTitles}]. Generate a 4-week structured study plan with clear milestones and suggested daily tasks to help me master these topics. Use professional HTML formatting, beautifully styled with Tailwind CSS (use colors, elegant tables, and cards). 
-      IMPORTANT: Make sure to use 'w-full' and 'max-w-full' for all main structural wrappers and tables you generate, so they take up the entire full width of the page. Do NOT use fixed width constraints like 'max-w-2xl' or 'mx-auto' centering wrappers. Ensure the content is fluid and full-width.
+      prompt = `Analyze my current self-learning topics: [${topicTitles}]. Generate a 4-week structured study plan with clear milestones and suggested daily tasks to help me master these topics. Use professional HTML formatting, beautifully styled with Tailwind CSS.
+      STYLING AND CONTRAST MANDATES:
+      - Use an elegant, professional light-colored theme.
+      - NEVER use dark or black backgrounds for any panels, structural blocks, or cards.
+      - DO NOT default to or always use blue (or sky-blue or cyan) colors. You can use ANY premium colors (e.g., emerald green, warm amber, violet, terracotta/rust, plum, rose-brown), but keep it varied and professional.
+      - Contrast is critical: Make sure all text, numbers, list items, description paragraphs, and table/grid contents use highly readable deep charcoal/slate styles (e.g., text-slate-800, text-stone-900, or matching deep colors). NEVER use white, light-gray, or washed-out light text inside white/light cards or panels.
+      - Use clean, light borders (e.g., border-slate-200, border-stone-200) instead of thick dark backgrounds.
+      - For columns and grids, use clear, distinct borders or light shadows for clean alignment.
+      - Make sure to use 'w-full' and 'max-w-full' for all main structural wrappers and tables you generate, so they take up the entire full width of the page. Do NOT use fixed width constraints like 'max-w-2xl' or 'mx-auto' centering wrappers. Ensure the content is fluid and full-width.
       Do NOT include any markdown code wrappers (like \`\`\`html) in your output, just the raw HTML.`;
       newTopicTitle = '🎯 4-Week Study Plan';
     }
@@ -1220,8 +1261,15 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
     try {
       const prompt = `Generate a highly practical, step-by-step Action Plan specifically for mastering or implementing the goal or topic: "${selectedTopic.title}". 
       Include daily routines, specific micro-habits, friction-reduction techniques, obstacles handling, and measurable criteria for success. 
-      Use professional HTML formatting, beautifully styled with Tailwind CSS (use colors, elegant tables, borders, and cards). 
-      IMPORTANT: Use 'w-full' or 'max-w-full' for all structural wrappers, tables, and block container elements. The content must span the entire full width of the view. Do NOT use fixed width classes like 'max-w-md', 'max-w-xl', 'max-w-2xl' or centered fixed wrappers like 'mx-auto'. Make the layout fluid and full-width.
+      Use professional HTML formatting, beautifully styled with Tailwind CSS.
+      STYLING AND CONTRAST MANDATES:
+      - Use an elegant, professional light-colored theme.
+      - NEVER use dark or black backgrounds for any panels, structural blocks, or cards.
+      - DO NOT default to or always use blue (or sky-blue or cyan) colors. You can use ANY premium colors (e.g., emerald green, warm amber, violet, terracotta/rust, plum, rose-brown), but keep it varied and professional.
+      - Contrast is critical: Make sure all text, numbers, list items, description paragraphs, and table/grid contents use highly readable deep charcoal/slate styles (e.g., text-slate-800, text-stone-900, or matching deep colors). NEVER use white, light-gray, or washed-out light text inside white/light cards or panels.
+      - Use clean, light borders (e.g., border-slate-200, border-stone-200) instead of thick dark backgrounds.
+      - For columns and grids, use clear, distinct borders or light shadows for clean alignment.
+      - IMPORTANT: Use 'w-full' or 'max-w-full' for all structural wrappers, tables, and block container elements. The content must span the entire full width of the view. Do NOT use fixed width classes like 'max-w-md', 'max-w-xl', 'max-w-2xl' or centered fixed wrappers like 'mx-auto'. Make the layout fluid and full-width.
       Do NOT wrap in markdown code blocks like \`\`\`html, just output raw, polished HTML directly.`;
 
       const result = await callNeuralEngine(
@@ -1851,11 +1899,11 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                 })()}
 
                 {(() => {
-                  const isDarkPaper = selectedPaper.id === 'stars' || selectedPaper.id === 'none';
-                  const editorTextColor = isDarkPaper ? '#f8fafc' : '#1e293b';
-                  const editorHeaderColor = isDarkPaper ? '#38bdf8' : '#0f172a';
-                  const editorBorderColor = isDarkPaper ? '#334155' : '#cbd5e1';
-                  const editorCardBgColor = isDarkPaper ? 'rgba(30, 41, 59, 0.8)' : 'rgba(248, 250, 252, 0.8)';
+                  const isDarkPaper = false;
+                  const editorTextColor = '#1e293b';
+                  const editorHeaderColor = '#0f172a';
+                  const editorBorderColor = '#cbd5e1';
+                  const editorCardBgColor = 'rgba(248, 250, 252, 0.9)';
                   
                   return (
                     <style dangerouslySetInnerHTML={{ __html: `
@@ -1874,27 +1922,11 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                         color: ${editorTextColor};
                       }
                       
-                      ${isDarkPaper ? `
-                        .editor-content .text-slate-900,
-                        .editor-content .text-slate-800,
-                        .editor-content .text-slate-700,
-                        .editor-content .text-slate-600,
-                        .editor-content .text-gray-900,
-                        .editor-content .text-gray-800,
-                        .editor-content .text-neutral-900,
-                        .editor-content .text-black,
-                        .editor-content [class*="text-slate-"],
-                        .editor-content [class*="text-gray-"],
-                        .editor-content [class*="text-neutral-"] {
-                          color: ${editorTextColor} !important;
-                        }
-                      ` : `
-                        .editor-content .text-slate-100,
-                        .editor-content .text-white,
-                        .editor-content [class*="text-slate-100"] {
-                          color: ${editorTextColor} !important;
-                        }
-                      `}
+                      .editor-content .text-slate-100,
+                      .editor-content .text-white,
+                      .editor-content [class*="text-slate-100"] {
+                        color: ${editorTextColor} !important;
+                      }
                       
                       .editor-content h1, 
                       .editor-content h2, 
@@ -1922,6 +1954,22 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                         color: ${editorTextColor} !important;
                         border-radius: 16px !important;
                         padding: 18px !important;
+                      }
+
+                      /* Override stardust styling with a beautiful light starry background */
+                      .editor-content.paper-stardust {
+                        background-color: #f8fafc !important;
+                        background-image: 
+                          radial-gradient(rgba(15,23,42,0.1) 1px, transparent 1px) !important,
+                          radial-gradient(rgba(15,23,42,0.06) 1.5px, transparent 1.5px) !important;
+                        background-size: 2rem 2rem, 3rem 3rem !important;
+                      }
+
+                      /* Override glass theme bg-white/10 to act as bright white glass */
+                      .editor-content.bg-white\\/10 {
+                        background-color: rgba(255, 255, 255, 0.95) !important;
+                        backdrop-filter: blur(16px) !important;
+                        border: 1px solid rgba(226, 232, 240, 0.8) !important;
                       }
 
                       .editor-content a {
@@ -1959,7 +2007,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                       fontSize: `${textFontSize}px`,
                       fontFamily: textFontFamily
                     }}
-                    className={`editor-content w-full flex-1 outline-none p-8 rounded-3xl ${selectedPaper.id === 'stars' || selectedPaper.id === 'none' ? 'text-slate-100' : 'text-slate-800'} leading-relaxed font-medium transition-all focus:ring-4 focus:ring-emerald-500/10 overflow-y-auto shadow-md ${selectedPaper.className}`}
+                    className={`editor-content w-full flex-1 outline-none p-8 rounded-3xl text-slate-800 leading-relaxed font-medium transition-all focus:ring-4 focus:ring-emerald-500/10 overflow-y-auto shadow-md ${selectedPaper.className}`}
                 ></div>
 
                 {isTableModalOpen && (
