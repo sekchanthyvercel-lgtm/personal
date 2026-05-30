@@ -36,6 +36,21 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
   });
   const [sidebarWidth, setSidebarWidth] = useState(window.innerWidth < 768 ? 200 : 300);
 
+  const filterTopics = (items: DPSSTopic[]): DPSSTopic[] => {
+    return items
+      .filter(t => !t.deletedAt)
+      .map(t => ({
+        ...t,
+        content: typeof t.content === 'string' ? t.content : '',
+        alignment: t.alignment || 'left',
+        children: t.children ? filterTopics(t.children) : []
+      }));
+  };
+
+  const topics = React.useMemo(() => {
+    return filterTopics(data.selfLearningTopics || []);
+  }, [data.selfLearningTopics]);
+
   useEffect(() => {
     localStorage.setItem('self_learning_toolbar_hidden', String(isToolbarHidden));
   }, [isToolbarHidden]);
@@ -396,20 +411,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
   const paperStyle = dpssSettings.paperStyle || 'none';
   const selectedPaper = PAPER_STYLES.find(s => s.id === paperStyle) || PAPER_STYLES[0];
 
-  const filterTopics = (items: DPSSTopic[]): DPSSTopic[] => {
-    return items
-      .filter(t => !t.deletedAt)
-      .map(t => ({
-        ...t,
-        content: typeof t.content === 'string' ? t.content : '',
-        alignment: t.alignment || 'left',
-        children: t.children ? filterTopics(t.children) : []
-      }));
-  };
 
-  const topics = React.useMemo(() => {
-    return filterTopics(data.selfLearningTopics || []);
-  }, [data.selfLearningTopics]);
 
   const handleSelection = () => {
     const selection = window.getSelection();
