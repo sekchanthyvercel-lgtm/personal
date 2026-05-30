@@ -781,7 +781,7 @@ const App: React.FC = () => {
         </div>
       </main>
 
-        <div className="fixed bottom-3 right-3 md:bottom-4 md:right-4 flex flex-col gap-3 no-print z-50">
+        <div className="fixed bottom-2 right-2 md:bottom-2 md:right-2 flex flex-col gap-3 no-print z-50">
           <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="w-11 h-11 bg-white text-slate-500 hover:text-emerald-600 rounded-full shadow-lg flex items-center justify-center hover:scale-105 active:scale-95 transition-all border border-slate-200">
             <Menu size={18} />
           </button>
