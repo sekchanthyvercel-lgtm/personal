@@ -204,7 +204,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
       .grid, [class*="grid-cols-"], [class*="md:grid-cols-"], [class*="lg:grid-cols-"] {
         display: flex !important;
         flex-direction: row !important;
-        flex-wrap: nowrap !important;
+        flex-wrap: wrap !important;
         gap: 15px !important;
         width: 100% !important;
         max-width: 100% !important;
@@ -215,7 +215,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
       .grid-cols-3, [class*="grid-cols-3"], [class*="md:grid-cols-3"], [class*="lg:grid-cols-3"] {
         display: flex !important;
         flex-direction: row !important;
-        flex-wrap: nowrap !important;
+        flex-wrap: wrap !important;
         gap: 15px !important;
         width: 100% !important;
       }
@@ -227,15 +227,15 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
         width: 31.5% !important;
         max-width: 31.5% !important;
         min-width: 31.5% !important;
-        box-spacing: border-box !important;
-        margin-bottom: 0 !important;
+        box-sizing: border-box !important;
+        margin-bottom: 15px !important;
       }
       
       /* Target 2 columns */
       .grid-cols-2, [class*="grid-cols-2"], [class*="md:grid-cols-2"], [class*="lg:grid-cols-2"] {
         display: flex !important;
         flex-direction: row !important;
-        flex-wrap: nowrap !important;
+        flex-wrap: wrap !important;
         gap: 20px !important;
         width: 100% !important;
       }
@@ -247,8 +247,28 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
         width: 48% !important;
         max-width: 48% !important;
         min-width: 48% !important;
-        box-spacing: border-box !important;
-        margin-bottom: 0 !important;
+        box-sizing: border-box !important;
+        margin-bottom: 15px !important;
+      }
+
+      /* Target 4 columns - Wrap them into 2x2 for readable presentation */
+      .grid-cols-4, [class*="grid-cols-4"], [class*="md:grid-cols-4"], [class*="lg:grid-cols-4"] {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        gap: 20px !important;
+        width: 100% !important;
+      }
+      .grid-cols-4 > div, .grid-cols-4 > section,
+      [class*="grid-cols-4"] > div, [class*="grid-cols-4"] > section,
+      [class*="md:grid-cols-4"] > div, [class*="md:grid-cols-4"] > section,
+      [class*="lg:grid-cols-4"] > div, [class*="lg:grid-cols-4"] > section {
+        flex: 0 0 48% !important;
+        width: 48% !important;
+        max-width: 48% !important;
+        min-width: 48% !important;
+        box-sizing: border-box !important;
+        margin-bottom: 15px !important;
       }
     `;
     exportContainer.appendChild(style);
@@ -344,24 +364,41 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
       if (children.length === 0) return;
 
       const classStr = gridEl.className || '';
-      let colsCount = 1;
+      let colsLimit = 2; // Default to 2 columns for comfortable horizontal reading in Word
+      
       if (classStr.includes('grid-cols-3') || classStr.includes('md:grid-cols-3') || classStr.includes('lg:grid-cols-3')) {
-        colsCount = 3;
+        colsLimit = 3;
+      } else if (classStr.includes('grid-cols-1') || classStr.includes('md:grid-cols-1') || classStr.includes('lg:grid-cols-1')) {
+        colsLimit = 1;
       } else if (classStr.includes('grid-cols-2') || classStr.includes('md:grid-cols-2') || classStr.includes('lg:grid-cols-2')) {
-        colsCount = 2;
+        colsLimit = 2;
       } else if (classStr.includes('grid-cols-4') || classStr.includes('md:grid-cols-4') || classStr.includes('lg:grid-cols-4')) {
-        colsCount = 4;
+        colsLimit = 2; // Wrap 4 columns into 2x2 for readable, non-squeezed document width
+      } else {
+        colsLimit = Math.min(children.length, 2);
       }
 
-      if (colsCount > 1) {
+      if (colsLimit > 1) {
         const table = doc.createElement('table');
+        table.setAttribute('width', '100%');
         table.setAttribute('style', 'width: 100%; border-collapse: separate; border-spacing: 15px; margin-top: 15pt; margin-bottom: 25pt; table-layout: fixed;');
-        const tr = doc.createElement('tr');
-        table.appendChild(tr);
+        
+        let currentTr = doc.createElement('tr');
+        table.appendChild(currentTr);
 
-        const colWidth = Math.floor(100 / colsCount) + '%';
+        const colWidth = Math.floor(100 / colsLimit) + '%';
+        let colsInCurrentRow = 0;
+
         children.forEach((child) => {
+          if (colsInCurrentRow >= colsLimit) {
+            currentTr = doc.createElement('tr');
+            table.appendChild(currentTr);
+            colsInCurrentRow = 0;
+          }
+
           const td = doc.createElement('td');
+          td.setAttribute('width', colWidth);
+          td.setAttribute('valign', 'top');
           td.setAttribute('style', `width: ${colWidth}; vertical-align: top; border-radius: 12px; padding: 15px; border: 1.5px solid #cbd5e1; background-color: #f8fafc;`);
           
           const childClass = child.className || '';
@@ -415,8 +452,21 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
           td.style.color = textColorCode;
           td.style.border = border;
           td.innerHTML = child.innerHTML;
-          tr.appendChild(td);
+          
+          currentTr.appendChild(td);
+          colsInCurrentRow++;
         });
+
+        // Fill remaining empty cells in the last row if unevenly filled
+        if (colsInCurrentRow > 0 && colsInCurrentRow < colsLimit) {
+          for (let i = colsInCurrentRow; i < colsLimit; i++) {
+            const emptyTd = doc.createElement('td');
+            emptyTd.setAttribute('width', colWidth);
+            emptyTd.setAttribute('style', `width: ${colWidth}; border: none; background: transparent;`);
+            currentTr.appendChild(emptyTd);
+          }
+        }
+
         gridEl.parentNode?.replaceChild(table, gridEl);
       }
     });
