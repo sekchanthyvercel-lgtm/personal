@@ -37,10 +37,12 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
   const [sidebarWidth, setSidebarWidth] = useState(window.innerWidth < 768 ? 200 : 300);
 
   const filterTopics = (items: DPSSTopic[]): DPSSTopic[] => {
+    if (!Array.isArray(items)) return [];
     return items
-      .filter(t => !t.deletedAt)
+      .filter(t => t && !t.deletedAt)
       .map(t => ({
         ...t,
+        title: typeof t.title === 'string' ? t.title : 'New Topic',
         content: typeof t.content === 'string' ? t.content : '',
         alignment: t.alignment || 'left',
         children: t.children ? filterTopics(t.children) : []
@@ -60,8 +62,13 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
   }, [isSidebarOpen]);
 
   useEffect(() => {
-    if (topics.length > 0 && !selectedTopicId) {
-      setSelectedTopicId(topics[0].id);
+    if (topics.length > 0) {
+      const topicExists = selectedTopicId ? findTopic(topics, selectedTopicId) !== null : false;
+      if (!selectedTopicId || !topicExists) {
+        setSelectedTopicId(topics[0].id);
+      }
+    } else {
+      setSelectedTopicId(null);
     }
   }, [topics, selectedTopicId]);
 
@@ -78,19 +85,17 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
     const isDark = selectedPaper.id === 'stars' || selectedPaper.id === 'none-dark';
     const bgColor = isDark ? '#0f172a' : '#ffffff';
     const textColor = isDark ? '#f8fafc' : '#1e293b';
+    const accentColor = '#10b981';
 
     // Create a temporary container for pristine export
     const exportContainer = document.createElement('div');
     exportContainer.id = 'pdf-export-container';
-    exportContainer.style.position = 'fixed';
-    exportContainer.style.top = '0';
-    exportContainer.style.left = '0';
-    exportContainer.style.zIndex = '-999999';
+    exportContainer.style.position = 'relative';
+    exportContainer.style.zIndex = '999999';
     exportContainer.style.pointerEvents = 'none';
-    exportContainer.style.width = '900px'; // Consistent capture width mapping to A4 landscape printable area
+    exportContainer.style.width = '1200px'; 
     exportContainer.style.boxSizing = 'border-box';
-    exportContainer.style.padding = '0';
-    exportContainer.style.margin = '0';
+    exportContainer.style.padding = '40px';
     exportContainer.style.backgroundColor = bgColor;
     exportContainer.style.color = textColor;
     exportContainer.style.fontFamily = "'Inter', sans-serif";
@@ -98,7 +103,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
     
     exportContainer.innerHTML = `
       <div style="padding: 10px; box-sizing: border-box;">
-        <div style="margin-bottom: 25px; border-bottom: 3px solid ${isDark ? '#38bdf8' : '#0f172a'}; padding-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end;">
+        <div style="margin-bottom: 25px; border-bottom: 3px solid ${accentColor}; padding-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end;">
           <div>
             <h1 style="font-size: 24pt; font-weight: 900; color: ${isDark ? '#38bdf8' : '#0f172a'}; margin: 0; line-height: 1.1; letter-spacing: -0.02em;">${selectedTopic.title}</h1>
             <p style="font-size: 9pt; color: ${isDark ? '#94a3b8' : '#64748b'}; text-transform: uppercase; letter-spacing: 2px; margin-top: 8px; font-weight: 700;">Performance Documentation • ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
@@ -107,7 +112,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
             <div style="font-size: 8pt; font-weight: 900; color: ${isDark ? '#38bdf8' : '#0f172a'}; opacity: 0.5; text-transform: uppercase; letter-spacing: 1px;">Identity Mastery System</div>
           </div>
         </div>
-        <div class="export-content" style="line-height: 1.5; font-size: 11pt; max-width: 100% !important;">
+        <div class="export-content" style="line-height: 1.5; font-size: 11.5pt; max-width: 100% !important; color: ${textColor} !important;">
           ${editorRef.current.innerHTML}
         </div>
       </div>
@@ -126,16 +131,21 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
       }
       body {
         background-color: ${bgColor};
-        color: ${textColor};
+        color: ${textColor} !important;
         font-family: 'Inter', system-ui, -apple-system, sans-serif;
         -webkit-font-smoothing: antialiased;
       }
       h1, h2, h3, h4, h5, h6 {
         page-break-after: avoid;
         break-after: avoid;
-        color: ${isDark ? '#38bdf8' : '#0f172a'};
+        color: ${isDark ? '#38bdf8' : '#0f172a'} !important;
       }
       
+      /* Force colors because editor html might contain hardcoded dark tailwind text colors */
+      .export-content, .export-content *, .export-content p, .export-content span, .export-content div, .export-content li, .export-content td, .export-content th, .export-content font {
+        color: ${textColor} !important;
+      }
+
       /* Avoid slicing lines vertically */
       p, li, tr, th, td, blockquote, pre,
       h1, h2, h3, h4, h5, h6,
@@ -149,14 +159,14 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
       .flex { display: flex !important; }
       .grid { display: grid !important; }
 
-      .export-content { line-height: 1.5; font-size: 11pt; }
+      .export-content { line-height: 1.5; font-size: 11pt; color: ${textColor} !important; }
       .export-content p { margin-bottom: 0.8em; }
-      .export-content h1, .export-content h2, .export-content h3 { font-weight: 800; color: ${isDark ? '#38bdf8' : '#0f172a'}; margin-top: 1.2em; margin-bottom: 0.4em; }
+      .export-content h1, .export-content h2, .export-content h3 { font-weight: 800; color: ${isDark ? '#38bdf8' : '#0f172a'} !important; margin-top: 1.2em; margin-bottom: 0.4em; }
       .export-content table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-      .export-content th, .export-content td { border: 1px solid ${isDark ? '#334155' : '#e2e8f0'}; padding: 10px; }
+      .export-content th, .export-content td { border: 1px solid ${isDark ? '#334155' : '#e2e8f0'}; padding: 10px; color: ${textColor} !important; }
       
       .synthesis-card-wrapper, .qa-board-wrapper { 
-        border: 1.5px solid ${isDark ? '#334155' : '#cbd5e1'} !important; 
+        border: 2.5px solid ${isDark ? '#334155' : '#cbd5e1'} !important; 
         background-color: ${isDark ? '#1e293b' : '#f8fafc'} !important; 
         border-radius: 16px !important; 
         padding: 18px !important; 
@@ -186,11 +196,9 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
         scale: 2, 
         useCORS: true, 
         logging: false,
-        windowWidth: 900,
-        width: 900,
+        windowWidth: 1200,
         scrollX: 0,
-        scrollY: 0,
-        backgroundColor: bgColor
+        scrollY: 0
       },
       jsPDF:        { unit: 'mm' as const, format: 'a4' as const, orientation: 'landscape' as const },
       pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
