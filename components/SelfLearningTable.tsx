@@ -82,7 +82,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
     const paperStyle = settings.paperStyle || 'none';
     const selectedPaper = PAPER_STYLES.find(s => s.id === paperStyle) || PAPER_STYLES[0];
 
-    const isDark = selectedPaper.id === 'stars' || selectedPaper.id === 'none-dark';
+    const isDark = selectedPaper.id === 'stars' || selectedPaper.id === 'none-dark' || selectedPaper.id === 'none';
     const bgColor = isDark ? '#0f172a' : '#ffffff';
     const textColor = isDark ? '#f8fafc' : '#1e293b';
     const accentColor = '#10b981';
@@ -198,7 +198,8 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
         logging: false,
         windowWidth: 1200,
         scrollX: 0,
-        scrollY: 0
+        scrollY: 0,
+        backgroundColor: bgColor
       },
       jsPDF:        { unit: 'mm' as const, format: 'a4' as const, orientation: 'landscape' as const },
       pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
@@ -262,7 +263,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
     const paperStyle = settings.paperStyle || 'none';
     const selectedPaper = PAPER_STYLES.find(s => s.id === paperStyle) || PAPER_STYLES[0];
 
-    const isDark = selectedPaper.id === 'stars' || selectedPaper.id === 'none-dark';
+    const isDark = selectedPaper.id === 'stars' || selectedPaper.id === 'none-dark' || selectedPaper.id === 'none';
     const bgColor = isDark ? '#0f172a' : '#ffffff';
     const textColor = isDark ? '#f8fafc' : '#0f172a';
 
@@ -1360,7 +1361,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                   <input 
                       value={selectedTopic.title} 
                       onChange={(e) => updateTopic(selectedTopic.id, { title: e.target.value })}
-                      className="flex-1 text-2xl md:text-4xl font-black text-slate-900 bg-transparent outline-none p-2 border-b-2 border-emerald-500/20 focus:border-emerald-500 transition-all font-sans min-w-0"
+                      className="flex-1 text-2xl md:text-4xl font-black text-slate-100 bg-transparent outline-none p-2 border-b-2 border-emerald-500/20 focus:border-emerald-500 transition-all font-sans min-w-0"
                       placeholder="Topic Title..."
                   />
                   <button
@@ -1849,6 +1850,100 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                   );
                 })()}
 
+                {(() => {
+                  const isDarkPaper = selectedPaper.id === 'stars' || selectedPaper.id === 'none';
+                  const editorTextColor = isDarkPaper ? '#f8fafc' : '#1e293b';
+                  const editorHeaderColor = isDarkPaper ? '#38bdf8' : '#0f172a';
+                  const editorBorderColor = isDarkPaper ? '#334155' : '#cbd5e1';
+                  const editorCardBgColor = isDarkPaper ? 'rgba(30, 41, 59, 0.8)' : 'rgba(248, 250, 252, 0.8)';
+                  
+                  return (
+                    <style dangerouslySetInnerHTML={{ __html: `
+                      .editor-content {
+                        color: ${editorTextColor} !important;
+                      }
+                      
+                      .editor-content p, 
+                      .editor-content li, 
+                      .editor-content span, 
+                      .editor-content div, 
+                      .editor-content font,
+                      .editor-content td, 
+                      .editor-content th, 
+                      .editor-content blockquote {
+                        color: ${editorTextColor};
+                      }
+                      
+                      ${isDarkPaper ? `
+                        .editor-content .text-slate-900,
+                        .editor-content .text-slate-800,
+                        .editor-content .text-slate-700,
+                        .editor-content .text-slate-600,
+                        .editor-content .text-gray-900,
+                        .editor-content .text-gray-800,
+                        .editor-content .text-neutral-900,
+                        .editor-content .text-black,
+                        .editor-content [class*="text-slate-"],
+                        .editor-content [class*="text-gray-"],
+                        .editor-content [class*="text-neutral-"] {
+                          color: ${editorTextColor} !important;
+                        }
+                      ` : `
+                        .editor-content .text-slate-100,
+                        .editor-content .text-white,
+                        .editor-content [class*="text-slate-100"] {
+                          color: ${editorTextColor} !important;
+                        }
+                      `}
+                      
+                      .editor-content h1, 
+                      .editor-content h2, 
+                      .editor-content h3, 
+                      .editor-content h4, 
+                      .editor-content h5, 
+                      .editor-content h6 {
+                        color: ${editorHeaderColor} !important;
+                        font-weight: 800 !important;
+                      }
+                      
+                      .editor-content th, 
+                      .editor-content td {
+                        border: 1px solid ${editorBorderColor} !important;
+                        padding: 10px !important;
+                        color: ${editorTextColor} !important;
+                      }
+                      
+                      .editor-content .synthesis-card-wrapper, 
+                      .editor-content .qa-board-wrapper,
+                      .editor-content .study-plan-card,
+                      .editor-content .action-plan-card {
+                        border: 2px solid ${editorBorderColor} !important;
+                        background-color: ${editorCardBgColor} !important;
+                        color: ${editorTextColor} !important;
+                        border-radius: 16px !important;
+                        padding: 18px !important;
+                      }
+
+                      .editor-content a {
+                        color: #10b981 !important;
+                        text-decoration: underline !important;
+                        font-weight: 700 !important;
+                      }
+
+                      .editor-content ul {
+                        list-style-type: disc !important;
+                        padding-left: 20px !important;
+                        margin-bottom: 10px !important;
+                      }
+                      .editor-content ol {
+                        list-style-type: decimal !important;
+                        padding-left: 20px !important;
+                        margin-bottom: 10px !important;
+                      }
+                    ` }} />
+                  );
+                })()}
+
                 <div 
                     ref={editorRef}
                     contentEditable={true}
@@ -1864,7 +1959,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                       fontSize: `${textFontSize}px`,
                       fontFamily: textFontFamily
                     }}
-                    className={`editor-content w-full flex-1 outline-none p-8 rounded-3xl text-slate-800 leading-relaxed font-medium transition-all focus:ring-4 focus:ring-emerald-500/10 overflow-y-auto shadow-md ${selectedPaper.className}`}
+                    className={`editor-content w-full flex-1 outline-none p-8 rounded-3xl ${selectedPaper.id === 'stars' || selectedPaper.id === 'none' ? 'text-slate-100' : 'text-slate-800'} leading-relaxed font-medium transition-all focus:ring-4 focus:ring-emerald-500/10 overflow-y-auto shadow-md ${selectedPaper.className}`}
                 ></div>
 
                 {isTableModalOpen && (
