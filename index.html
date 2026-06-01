@@ -249,6 +249,48 @@
           background: white !important;
         }
       }
+
+      /* RESPONSIVE SCROLLBARS FOR ROTATED MOBILE DEVICES & SHORT SCREEN HEIGHTS */
+      @media (max-height: 768px) {
+        /* Allow main container to scroll naturally */
+        main {
+          overflow-y: auto !important;
+          height: auto !important;
+        }
+        
+        /* Allow the outer expense tracker container to grow and scroll */
+        .expense-tracker-container {
+          overflow-y: auto !important;
+          height: auto !important;
+        }
+        
+        /* Make columns wrapper stack vertically on short views */
+        .expense-columns-wrapper {
+          flex-direction: column !important;
+          height: auto !important;
+          overflow: visible !important;
+        }
+        
+        /* Allow left and right panels to expand to full content heights */
+        .expense-column {
+          width: 100% !important;
+          max-width: 100% !important;
+          height: auto !important;
+          overflow: visible !important;
+        }
+        
+        .expense-column > div,
+        .expense-column .flex-1,
+        .expense-column .overflow-y-auto {
+          height: auto !important;
+          overflow: visible !important;
+        }
+        
+        /* Disable custom scrollbars nesting in the columns to let browser scroll smoothly */
+        .custom-scrollbar-amber {
+          overflow-y: visible !important;
+        }
+      }
     </style>
   <script type="importmap">
 {
