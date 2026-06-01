@@ -1146,6 +1146,50 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, 
     });
   }, [filteredByView, searchTerm, viewMode, currencyMode]);
 
+  const getCategoryColorClass = (catName: string) => {
+    const clean = catName.toLowerCase().trim();
+    if (clean.includes('rice')) return { text: 'text-amber-500', bg: 'bg-amber-500/10', border: 'border-amber-100 dark:border-amber-500/20', focus: 'focus-within:ring-amber-500/20' };
+    if (clean.includes('noodle')) return { text: 'text-orange-500', bg: 'bg-orange-500/10', border: 'border-orange-100 dark:border-orange-500/20', focus: 'focus-within:ring-orange-500/20' };
+    if (clean.includes('water')) return { text: 'text-sky-500', bg: 'bg-sky-500/10', border: 'border-sky-100 dark:border-sky-500/20', focus: 'focus-within:ring-sky-500/20' };
+    if (clean.includes('gas_is_fuel') || clean.includes('gasoline') || clean.includes('fuel')) return { text: 'text-rose-500', bg: 'bg-rose-500/10', border: 'border-rose-100 dark:border-rose-500/20', focus: 'focus-within:ring-rose-500/20' };
+    if (clean.includes('coffee') || clean.includes('latte')) return { text: 'text-amber-700', bg: 'bg-amber-700/10', border: 'border-amber-700/10 dark:border-amber-700/20', focus: 'focus-within:ring-amber-700/20' };
+    if (clean.includes('tea')) return { text: 'text-emerald-500', bg: 'bg-emerald-500/10', border: 'border-emerald-100 dark:border-emerald-500/20', focus: 'focus-within:ring-emerald-500/20' };
+    if (clean.includes('clothes') || clean.includes('shirt')) return { text: 'text-indigo-500', bg: 'bg-indigo-500/10', border: 'border-indigo-100 dark:border-indigo-500/20', focus: 'focus-within:ring-indigo-500/20' };
+    if (clean.includes('milk')) return { text: 'text-pink-500', bg: 'bg-pink-500/10', border: 'border-pink-100 dark:border-pink-500/20', focus: 'focus-within:ring-pink-500/20' };
+    if (clean.includes('food')) return { text: 'text-green-500', bg: 'bg-green-500/10', border: 'border-green-100 dark:border-green-500/20', focus: 'focus-within:ring-green-500/20' };
+    return { text: 'text-slate-500', bg: 'bg-slate-500/10', border: 'border-slate-150 dark:border-slate-800/60', focus: 'focus-within:ring-slate-500/20' };
+  };
+
+  const getCategoryHexColor = (catName: string) => {
+    const clean = catName.toLowerCase().trim();
+    if (clean.includes('rice')) return '#f59e0b';
+    if (clean.includes('noodle')) return '#f97316';
+    if (clean.includes('water')) return '#0ea5e9';
+    if (clean.includes('gas_is_fuel') || clean.includes('gasoline') || clean.includes('fuel')) return '#f43f5e';
+    if (clean.includes('coffee') || clean.includes('latte')) return '#b45309';
+    if (clean.includes('tea')) return '#10b981';
+    if (clean.includes('clothes') || clean.includes('shirt')) return '#6366f1';
+    if (clean.includes('milk')) return '#ec4899';
+    if (clean.includes('food')) return '#22c55e';
+    return '#64748b';
+  };
+
+  const getCategoryTotalForSelectedDate = (category: string) => {
+    return expenses
+      .filter(exp => 
+        exp.category === category &&
+        exp.type === 'Expense' &&
+        format(new Date(exp.date), 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd')
+      )
+      .reduce((sum, exp) => {
+        if (exp.currency === 'KHR') {
+          return sum + (currencyMode === 'USD' ? exp.amount / EXCHANGE_RATE : exp.amount);
+        } else {
+          return sum + (currencyMode === 'USD' ? exp.amount : exp.amount * EXCHANGE_RATE);
+        }
+      }, 0);
+  };
+
   return (
     <div className="expense-tracker-container flex-1 flex flex-col h-full bg-white/[0.005] backdrop-blur-3xl p-3 md:p-6 overflow-y-auto md:overflow-hidden font-sans">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-4 gap-4">
@@ -1418,9 +1462,9 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, 
         </motion.div>
       </div>
 
-      <div className="expense-columns-wrapper flex-1 flex flex-col md:flex-row gap-6 overflow-visible md:overflow-hidden">
+      <div className="expense-columns-wrapper flex-1 flex flex-col gap-6 overflow-visible overflow-y-auto custom-scrollbar-amber pr-2 pb-20">
         {/* Structured Category List */}
-        <div className="expense-column w-full md:w-[350px] lg:w-[410px] xl:w-[460px] bg-white/70 dark:bg-slate-900/70 backdrop-blur-3xl border border-slate-200/50 dark:border-slate-800/80 rounded-[36px] shadow-sm flex flex-col overflow-hidden text-left shrink-0">
+        <div className="expense-column w-full bg-white/70 dark:bg-slate-900/70 backdrop-blur-3xl border border-slate-200/50 dark:border-slate-800/80 rounded-[36px] shadow-sm flex flex-col overflow-hidden text-left shrink-0">
             <div className="p-4 border-b border-slate-100 flex flex-col gap-3 bg-slate-50/50">
                 <div className="flex items-center justify-between">
                     <div className="flex bg-zinc-200/60 p-0.5 rounded-xl border border-zinc-300/20">
@@ -1468,38 +1512,106 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, 
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="flex-1 overflow-y-auto custom-scrollbar-amber p-4"
+                        className="p-4"
                     >
-                        <div className="space-y-2.5">
-                            {categories.map(cat => (
-                                <div key={cat} className="flex items-center justify-between p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/60 rounded-2xl group hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-all shadow-sm focus-within:ring-2 focus-within:ring-amber-500/20 overflow-hidden relative">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center shrink-0 border border-slate-150 dark:border-slate-700">
-                                            {getCategoryIcon(cat)}
-                                        </div>
-                                        <span className="text-[12px] font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight truncate max-w-[120px]">{cat}</span>
-                                    </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+                            {categories.map(cat => {
+                                const colors = getCategoryColorClass(cat);
+                                const todaySpend = getCategoryTotalForSelectedDate(cat);
+                                const hasInput = !!inlineInputs[cat];
 
-                                    <div className="flex items-center gap-2 z-10 transition-transform origin-right">
-                                        <input 
-                                          type="text"
-                                          placeholder="$0.00"
-                                          value={inlineInputs[cat] || ''}
-                                          onChange={(e) => setInlineInputs({...inlineInputs, [cat]: e.target.value})}
-                                          onKeyDown={(e) => e.key === 'Enter' && handleInlineAdd(cat)}
-                                          className="w-24 bg-transparent text-right text-[15px] font-black outline-none placeholder:text-slate-300 transition-all focus:text-amber-600"
-                                        />
-                                        {inlineInputs[cat] && (
-                                          <button 
-                                            onClick={() => handleInlineAdd(cat)}
-                                            className="p-1.5 bg-amber-500 text-white rounded-lg hover:scale-105 shadow-md transition-transform shrink-0"
-                                          >
-                                            <Check size={12} />
-                                          </button>
-                                        )}
+                                // Total today spent to calculate share percentage
+                                const todaySpentAll = expenses
+                                  .filter(exp => 
+                                    exp.type === 'Expense' &&
+                                    format(new Date(exp.date), 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd')
+                                  )
+                                  .reduce((sum, exp) => {
+                                    if (exp.currency === 'KHR') {
+                                      return sum + (currencyMode === 'USD' ? exp.amount / EXCHANGE_RATE : exp.amount);
+                                    } else {
+                                      return sum + (currencyMode === 'USD' ? exp.amount : exp.amount * EXCHANGE_RATE);
+                                    }
+                                  }, 0);
+                                const pctShare = todaySpentAll > 0 ? (todaySpend / todaySpentAll) * 100 : 0;
+                                const hexColor = getCategoryHexColor(cat);
+
+                                return (
+                                    <div 
+                                      key={cat} 
+                                      className={`flex items-center justify-between p-3.5 bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800/80 rounded-[24px] group hover:scale-[1.01] hover:shadow-md transition-all duration-300 relative overflow-hidden focus-within:ring-2 ${colors.focus} ${colors.border}`}
+                                    >
+                                        {/* Subtle micro background glow mapped to the category color */}
+                                        <div className={`absolute -right-6 -top-6 w-16 h-16 rounded-full blur-[24px] opacity-15 pointer-events-none ${colors.bg}`} />
+                                        
+                                        {/* Left Side: Icon & Category Information */}
+                                        <div className="flex items-center gap-2.5 shrink-0 min-w-0">
+                                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border dark:border-slate-800 ${colors.bg}`}>
+                                                {getCategoryIcon(cat)}
+                                            </div>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-[11px] font-black text-slate-850 dark:text-slate-100 uppercase tracking-tight truncate max-w-[95px]" title={cat}>
+                                                    {cat}
+                                                </span>
+                                                <span className="text-[7.5px] font-black text-slate-400 tracking-wider uppercase leading-none mt-0.5">
+                                                    Category
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* Mid-Section: Sleek horizontal dynamic indicator bar representing Spent share */}
+                                        <div className="hidden sm:flex flex-col flex-1 px-4 lg:px-6 min-w-0">
+                                            <div className="flex justify-between items-center text-[7.5px] font-extrabold text-slate-400 dark:text-slate-500 tracking-wider">
+                                                <span>SHARE OF SPENT</span>
+                                                <span>{Math.round(pctShare)}%</span>
+                                            </div>
+                                            <div className="w-full bg-slate-100 dark:bg-slate-800/80 h-1.5 rounded-full mt-1 overflow-hidden relative">
+                                                <motion.div 
+                                                    initial={{ width: 0 }}
+                                                    animate={{ width: `${Math.min(pctShare, 100)}%` }}
+                                                    className="h-full rounded-full transition-all duration-700"
+                                                    style={{ backgroundColor: hexColor }}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Right Side: Accumulated Today Spend & Interactive Numeric Input */}
+                                        <div className="flex items-center gap-3 shrink-0">
+                                            {todaySpend > 0 && (
+                                                <div className="flex flex-col items-end shrink-0 select-none animate-in fade-in zoom-in duration-300">
+                                                    <span className="text-[12px] font-black text-slate-900 dark:text-slate-150">
+                                                        {formatCurrency(todaySpend, currencyMode)}
+                                                    </span>
+                                                    <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest leading-none">
+                                                        TODAY
+                                                    </span>
+                                                </div>
+                                            )}
+                                            
+                                            <div className={`flex items-center gap-1 border-l border-slate-150/60 dark:border-slate-800/40 pl-3 ${todaySpend > 0 ? '' : 'border-l-0 pl-0'}`}>
+                                                <div className="relative">
+                                                    <input 
+                                                      type="text"
+                                                      placeholder={`$0.00`}
+                                                      value={inlineInputs[cat] || ''}
+                                                      onChange={(e) => setInlineInputs({...inlineInputs, [cat]: e.target.value})}
+                                                      onKeyDown={(e) => e.key === 'Enter' && handleInlineAdd(cat)}
+                                                      className="w-18 md:w-20 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-xl py-1 px-2.5 text-right text-[12px] font-black outline-none placeholder:text-slate-350 dark:placeholder:text-slate-650 transition-all focus:border-amber-500 focus:bg-white text-slate-900 dark:text-slate-150"
+                                                    />
+                                                </div>
+                                                {hasInput && (
+                                                    <button 
+                                                      onClick={() => handleInlineAdd(cat)}
+                                                      className="p-1.5 bg-amber-500 text-white rounded-lg hover:scale-110 shadow-sm hover:bg-amber-600 active:scale-95 transition-all shrink-0 animate-in slide-in-from-right duration-200"
+                                                    >
+                                                        <Check size={11} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     </motion.div>
                 )}
@@ -1686,22 +1798,22 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, 
             </div>
         </div>
 
-        {/* Detailed Transactions */}
-        <div className="expense-column flex-1 bg-white/[0.005] backdrop-blur-3xl border border-white/10 rounded-[40px] shadow-sm overflow-visible md:overflow-hidden flex flex-col">
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between gap-4">
-                <div className="relative flex-1 max-w-md w-full">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                    <input 
-                      type="text" 
-                      placeholder="Search records..." 
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 pl-10 pr-4 text-slate-900 font-bold placeholder:text-slate-400 outline-none focus:border-amber-500 transition-all uppercase tracking-widest text-[10px]"
-                    />
-                </div>
+        {/* Search & Quick Input Ribbon */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 shrink-0">
+            {/* Search Box */}
+            <div className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-3xl border border-slate-200/50 dark:border-slate-800/80 rounded-[30px] shadow-sm flex items-center p-2 relative h-full">
+                <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input 
+                  type="text" 
+                  placeholder="Search records..." 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full bg-transparent border-none py-3 pl-14 pr-6 text-slate-900 dark:text-slate-100 font-bold placeholder:text-slate-400 outline-none uppercase tracking-widest text-xs"
+                />
             </div>
-
-            <div className="p-4 bg-amber-50/10 dark:bg-amber-500/[0.02] border-b border-slate-100 dark:border-slate-800/60 flex flex-col gap-2 shadow-sm">
+            
+            {/* Quick Input Box */}
+            <div className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-3xl border border-slate-200/50 dark:border-slate-800/80 rounded-[30px] shadow-sm p-4 flex flex-col justify-center gap-3">
               <div className="flex items-center gap-3">
                 <input 
                     type="text"
@@ -1709,19 +1821,17 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, 
                     value={smartInput}
                     onChange={(e) => setSmartInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSmartAdd()}
-                    className="flex-1 w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 focus:border-amber-500 rounded-2xl py-3 px-4 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none transition-all placeholder:text-slate-400 placeholder:italic shadow-inner"
+                    className="flex-1 w-full bg-slate-50 border border-slate-200 dark:bg-slate-800/50 dark:border-slate-700/60 focus:border-amber-500 rounded-2xl py-3 px-4 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none transition-all placeholder:text-slate-400 placeholder:italic shadow-inner"
                 />
                 <button 
                     onClick={handleSmartAdd}
                     disabled={!smartInput.trim()}
-                    className="px-5 py-3 shrink-0 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:from-amber-600 hover:to-amber-700 active:scale-95 transition-all disabled:opacity-50 shadow-md shadow-amber-500/10"
+                    className="px-6 py-3 shrink-0 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-[16px] font-black text-[11px] uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 shadow-md shadow-amber-500/20"
                 >
                     Add
                 </button>
               </div>
-
-              {/* Quick Suggestion Chips */}
-              <div className="flex flex-wrap items-center gap-1.5 mt-1">
+              <div className="flex flex-wrap items-center gap-1.5 px-1">
                  <span className="text-[8px] font-black uppercase text-slate-400 tracking-wider mr-1">
                    {previousDaysSuggestions.entries.length > 0 ? '✨ Recent (Last 3 days):' : 'Examples:'}
                  </span>
@@ -1739,16 +1849,18 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, 
                      {chip.label}
                    </button>
                  ))}
-                 
                  {previousDaysSuggestions.entries.length > 0 && (
-                   <span className="text-[8px] font-black text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded italic">
+                   <span className="text-[8px] font-black text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded italic mt-0.5 lg:mt-0 xl:mt-0">
                      Smart Recommendations
                    </span>
                  )}
               </div>
             </div>
+        </div>
 
-            <div className="flex-1 overflow-visible md:overflow-y-auto custom-scrollbar-amber px-6 py-2">
+        {/* Detailed Transactions */}
+        <div className="expense-column w-full bg-white/[0.005] backdrop-blur-3xl border border-white/10 rounded-[40px] shadow-sm flex flex-col shrink-0">
+            <div className="flex-1 w-full p-4 md:p-6 lg:p-8">
                 <div className="space-y-3">
                     {filteredExpenses.map((expense) => {
                         const itemStyles = getCategoryItemStyles(expense.category, expense.type === 'Income');
