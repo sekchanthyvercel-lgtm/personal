@@ -485,10 +485,21 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
   const [finalReflectionText, setFinalReflectionText] = useState('');
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [remindersEnabled, setRemindersEnabled] = useState(false);
+  const [notificationPermission, setNotificationPermission] = useState<string>(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      return Notification.permission;
+    }
+    return 'denied';
+  });
 
   const requestNotificationPermission = async () => {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      console.log('Notifications not supported');
+      return;
+    }
     try {
       const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
       if (permission === 'granted') {
         setRemindersEnabled(true);
         new Notification('Reminders Enabled', { body: 'You will receive local reminders for uncompleted targets!', icon: '/logo.png' });
@@ -754,11 +765,15 @@ export const AdvancedHabitTracker: React.FC<AdvancedHabitTrackerProps> = ({ data
   };
 
   const showReminderNotification = (uncompletedCount: number) => {
-    if (Notification.permission === 'granted') {
-      new Notification('Habit Reminder', {
-        body: `You have ${uncompletedCount} effort targets to work on today!`,
-        icon: '/logo.png'
-      });
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+      try {
+        new Notification('Habit Reminder', {
+          body: `You have ${uncompletedCount} effort targets to work on today!`,
+          icon: '/logo.png'
+        });
+      } catch (e) {
+        console.error('Failed to display notification:', e);
+      }
     }
   };
 
@@ -1362,7 +1377,7 @@ date format must be 'yyyy-MM-dd'.`;
     style.innerHTML = `
       @page {
         size: A4;
-        margin: 1in;
+        margin: 10mm;
       }
       body {
         background-color: #ffffff;
@@ -1384,7 +1399,7 @@ date format must be 'yyyy-MM-dd'.`;
     document.body.appendChild(container);
 
     const opt = {
-      margin: [25.4, 25.4, 25.4, 25.4] as [number, number, number, number],
+      margin: [10, 10, 10, 10] as [number, number, number, number],
       filename: `Audit_${subjectName}_${format(new Date(record.date), 'yyyyMMdd')}.pdf`,
       image: { type: 'jpeg' as const, quality: 0.98 },
       html2canvas: { 
@@ -1781,10 +1796,10 @@ date format must be 'yyyy-MM-dd'.`;
         <div className="flex gap-2 items-center">
           <button 
             onClick={requestNotificationPermission}
-            className={`px-4 py-2 border rounded-xl font-bold text-xs transition-all flex items-center gap-2 ${Notification.permission === 'granted' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+            className={`px-4 py-2 border rounded-xl font-bold text-xs transition-all flex items-center gap-2 ${notificationPermission === 'granted' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
           >
-             {Notification.permission === 'granted' ? <CheckCircle2 size={14} /> : <Calendar size={14} />}
-             {Notification.permission === 'granted' ? 'Reminders On' : 'Enable Reminders'}
+             {notificationPermission === 'granted' ? <CheckCircle2 size={14} /> : <Calendar size={14} />}
+             {notificationPermission === 'granted' ? 'Reminders On' : 'Enable Reminders'}
           </button>
           
           <button 
