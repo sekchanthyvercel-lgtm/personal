@@ -864,14 +864,14 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
   }, [groupedHabits, collapsedCategories, categoryFilter]);
 
   const getItemSize = (index: number) => {
-    return flattenedItems[index].type === 'header' ? 60 : 130;
+    return flattenedItems[index].type === 'header' ? 60 : 90;
   };
 
   const listHeight = useMemo(() => {
     if (flattenedItems.length === 0) return 400;
     const totalHeight = flattenedItems.reduce((acc, _, idx) => acc + getItemSize(idx), 0);
     // Dynamic height without hard upper limits so newly added habits are fully rendered without vertical inner container clipping
-    return Math.max(500, totalHeight + 15);
+    return Math.max(400, totalHeight + 15);
   }, [flattenedItems]);
 
   const Row = ({ index, style }: { index: number, style: any }) => {
@@ -906,20 +906,20 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
     return (
       <div style={style} className="group hover:bg-black/5 dark:hover:bg-white/5 transition-colors border-b border-zinc-100 dark:border-zinc-800 flex items-center overflow-visible">
          <div 
-           className={`${isDisciplinesFrozen ? 'sticky left-0 z-10 shadow-[4px_0_15px_rgba(0,0,0,0.06)]' : 'relative'} transition-all bg-white/95 dark:bg-zinc-900/95 p-5 border-r border-black/10 dark:border-white/10 shrink-0 h-full flex flex-col justify-center`}
+           className={`${isDisciplinesFrozen ? 'sticky left-0 z-10 shadow-[4px_0_15px_rgba(0,0,0,0.06)]' : 'relative'} transition-all bg-white/95 dark:bg-zinc-900/95 py-2 px-4 border-r border-black/10 dark:border-white/10 shrink-0 h-full flex flex-col justify-center`}
            style={{
              width: disciplinesWidth,
              borderLeft: `6px solid ${habitColor}`,
              backgroundColor: `${habitColor}0d`
            }}
          >
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex flex-col gap-2 min-w-0 overflow-hidden w-full">
-                <span className="text-md md:text-lg font-black uppercase tracking-tight truncate animate-fade-in" style={{ color: habitColor }}>{habit.name}</span>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-col gap-0.5 min-w-0 overflow-hidden w-full">
+                <span className="text-sm md:text-md font-black uppercase tracking-tight truncate animate-fade-in" style={{ color: habitColor }}>{habit.name}</span>
                 {streak > 0 && (
-                  <div className="flex items-center gap-1.5 animate-pulse" style={{ color: habitColor }}>
-                    <Zap size={14} />
-                    <span className="text-xs font-bold tracking-tight">{streak} Day Streak</span>
+                  <div className="flex items-center gap-1 animate-pulse" style={{ color: habitColor }}>
+                    <Zap size={12} />
+                    <span className="text-[10px] font-bold tracking-tight">{streak} Day Streak</span>
                   </div>
                 )}
                 
@@ -927,12 +927,12 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
                 {(() => {
                   const progress = getWeeklyProgress(habit);
                   return (
-                    <div className="mt-1.5 w-full">
-                      <div className="flex items-center justify-between text-[9px] font-extrabold text-zinc-500 uppercase tracking-widest items-center">
+                    <div className="mt-1 w-full">
+                      <div className="flex items-center justify-between text-[8px] font-extrabold text-zinc-500 uppercase tracking-widest items-center leading-none">
                         <span>WK PROGRESS</span>
                         <span style={{ color: habitColor }} className="font-extrabold">{progress.text}</span>
                       </div>
-                      <div className="w-full bg-zinc-200/60 dark:bg-zinc-800 rounded-full h-2 mt-1 overflow-hidden">
+                      <div className="w-full bg-zinc-200/60 dark:bg-zinc-800 rounded-full h-1 mt-0.5 overflow-hidden">
                         <div 
                           className="h-full rounded-full transition-all duration-500 ease-out"
                           style={{ 
@@ -945,20 +945,20 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
                   );
                 })()}
               </div>
-              <div className="flex flex-col gap-1 shrink-0">
+              <div className="flex flex-col gap-0.5 shrink-0">
                 <button 
                   onClick={() => handleStartEditHabit(habit)}
-                  className="opacity-0 group-hover:opacity-100 p-2 text-black/30 dark:text-white/30 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all rounded-lg shrink-0"
+                  className="opacity-0 group-hover:opacity-100 p-1 text-black/30 dark:text-white/30 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all rounded-lg shrink-0"
                   title="Edit Habit Settings & Color"
                 >
-                  <Edit3 size={15} />
+                  <Edit3 size={13} />
                 </button>
                 <button 
                   onClick={() => handleDeleteHabit(habit.id)}
-                  className="opacity-0 group-hover:opacity-100 p-2 text-black/30 dark:text-white/30 hover:text-red-600 dark:hover:text-red-400 transition-all rounded-lg shrink-0"
+                  className="opacity-0 group-hover:opacity-100 p-1 text-black/30 dark:text-white/30 hover:text-red-600 dark:hover:text-red-400 transition-all rounded-lg shrink-0"
                   title="Delete Habit"
                 >
-                  <Trash2 size={16} />
+                  <Trash2 size={13} />
                 </button>
               </div>
             </div>
@@ -981,31 +981,31 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
 
                 return (
                   <div key={day.toString()} className="min-w-[130px] flex items-center justify-center border-r border-black/5 dark:border-white/5 last:border-r-0">
-                    <div className="flex flex-col items-center justify-center gap-2 select-none w-[110px] mx-auto">
-                      <span className="text-[10px] font-black text-zinc-400 tracking-wider leading-none mb-1" style={{ color: isFullDone ? habitColor : '' }}>
+                    <div className="flex flex-col items-center justify-center gap-0.5 select-none w-[110px] mx-auto">
+                      <span className="text-[8px] font-black text-zinc-400 tracking-wider leading-none mb-0.5" style={{ color: isFullDone ? habitColor : '' }}>
                         {isFullDone ? 'DONE' : 'GOAL'}
                       </span>
-                      <div className="flex items-center gap-1.5 bg-white/40 dark:bg-black/20 border border-zinc-200/50 dark:border-zinc-800 p-1 rounded-full shadow-sm">
+                      <div className="flex items-center gap-1 bg-white/40 dark:bg-black/20 border border-zinc-200/50 dark:border-zinc-800 p-0.5 rounded-full shadow-sm">
                         <button 
                           onClick={() => adjustNumericValue(habit.id, day, -0.5)}
-                          className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-xs font-black flex items-center justify-center cursor-pointer border border-zinc-200/60 dark:border-zinc-700 transition-all active:scale-95"
+                          className="w-5 h-5 rounded-full bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-[10px] font-black flex items-center justify-center cursor-pointer border border-zinc-200/60 dark:border-zinc-700 transition-all active:scale-95"
                         >-</button>
                         <div 
                           onClick={() => adjustNumericValue(habit.id, day, isFullDone ? -progressVal : (habit.targetValue || 2) - progressVal)}
-                          className={`px-2.5 py-1 rounded-full text-xs font-black cursor-pointer transition-all ${isFullDone ? 'text-white font-extrabold shadow-sm' : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
+                          className={`px-1.5 py-0.5 rounded-full text-[10px] font-black cursor-pointer transition-all ${isFullDone ? 'text-white font-extrabold shadow-sm' : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
                           style={{ backgroundColor: isFullDone ? habitColor : '' }}
                         >{progressVal}</div>
                         <button 
                           onClick={() => adjustNumericValue(habit.id, day, 0.5)}
-                          className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-xs font-black flex items-center justify-center cursor-pointer border border-zinc-200/60 dark:border-zinc-700 transition-all active:scale-95"
+                          className="w-5 h-5 rounded-full bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-[10px] font-black flex items-center justify-center cursor-pointer border border-zinc-200/60 dark:border-zinc-700 transition-all active:scale-95"
                         >+</button>
                       </div>
-                      <div className="flex items-center justify-center gap-1.5 mt-1">
-                        <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider leading-none truncate max-w-[70px]">
+                      <div className="flex items-center justify-center gap-1 mt-0.5">
+                        <span className="text-[8px] font-bold text-zinc-400 uppercase tracking-wider leading-none truncate max-w-[65px]">
                           {habit.targetValue} {habit.unit}
                         </span>
-                        <button onClick={() => openNoteDialog(habit, dateKey)} className={`p-1 rounded hover:bg-black/5 dark:hover:bg-white/5 transition-all relative ${noteText ? 'text-orange-500 scale-110' : 'text-slate-400'}`}>
-                          <MessageSquare size={13} />
+                        <button onClick={() => openNoteDialog(habit, dateKey)} className={`p-0.5 rounded hover:bg-black/5 dark:hover:bg-white/5 transition-all relative ${noteText ? 'text-orange-500 scale-105' : 'text-slate-400'}`}>
+                          <MessageSquare size={11} />
                         </button>
                       </div>
                     </div>
@@ -1018,10 +1018,10 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
                 <div key={day.toString()} className="min-w-[130px] flex items-center justify-center border-r border-black/5 dark:border-white/5 last:border-r-0">
                   <button 
                     onClick={() => handleToggleHabit(habit.id, day)}
-                    className={`w-11 h-11 rounded-full transition-all flex items-center justify-center ${isCompleted ? 'scale-110 shadow-lg' : 'bg-black/5 dark:bg-white/5 text-transparent hover:bg-black/10 dark:hover:bg-white/10'}`}
+                    className={`w-9 h-9 rounded-full transition-all flex items-center justify-center ${isCompleted ? 'scale-105 shadow-md' : 'bg-black/5 dark:bg-white/5 text-transparent hover:bg-black/10 dark:hover:bg-white/10'}`}
                     style={{ backgroundColor: isCompleted ? habitColor : '', color: 'white' }}
                   >
-                    <CheckCircle2 size={22} />
+                    <CheckCircle2 size={18} />
                   </button>
                 </div>
               );
@@ -1547,8 +1547,8 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
         </div>
       </div>
 
-      <div className={`w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-2xl rounded-[40px] overflow-hidden mt-6 flex flex-col min-h-[550px] md:min-h-[680px] ${isFullScreen ? 'hidden' : ''}`}>
-        <div ref={tableContainerRef} className="overflow-x-auto overflow-y-scroll max-h-[850px] relative scroll-smooth custom-scrollbar-orange">
+      <div className={`w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-2xl rounded-[40px] overflow-hidden mt-6 flex flex-col min-h-[400px] md:min-h-[520px] ${isFullScreen ? 'hidden' : ''}`}>
+        <div ref={tableContainerRef} className="overflow-x-auto overflow-y-scroll max-h-[520px] relative scroll-smooth custom-scrollbar-orange">
           <div className="w-full min-w-max">
             {/* Master Header */}
             <div className="flex bg-zinc-900/5 text-zinc-900 backdrop-blur-md sticky top-0 z-40 border-b border-zinc-200/50">
@@ -1595,17 +1595,20 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
               </div>
             </div>
 
-            {/* Virtualized Matrix */}
+            {/* Highly standard and robust mapped matrix to prevent blank screens in mobile APK / Android WebViews */}
             <div className="relative">
               {flattenedItems.length > 0 ? (
-                <List
-                  height={listHeight}
-                  itemCount={flattenedItems.length}
-                  itemSize={getItemSize}
-                  width="100%"
-                >
-                  {Row}
-                </List>
+                <div className="flex flex-col">
+                  {flattenedItems.map((_, index) => (
+                    <Row 
+                      key={index} 
+                      index={index} 
+                      style={{ 
+                        height: getItemSize(index)
+                      }} 
+                    />
+                  ))}
+                </div>
               ) : (
                 <div className="py-32 text-center border-b border-zinc-100">
                   <div className="flex flex-col items-center gap-4 text-white/20">
@@ -1620,7 +1623,7 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
       </div>
 
       {/* Streak Mastery Trends - Last 90 Days */}
-      <div className="mt-12 bg-white/40 backdrop-blur-3xl border border-white/20 rounded-[40px] p-10 shadow-2xl overflow-hidden relative group">
+      <div className="mt-12 bg-white/40 backdrop-blur-3xl border border-white/20 rounded-[40px] p-10 shadow-2xl overflow-hidden relative group flex flex-col min-h-[400px] md:min-h-[520px]">
           <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 blur-[120px] -mr-32 -mt-32"></div>
           
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 relative z-10">
@@ -1651,7 +1654,7 @@ export const HabitTracker: React.FC<HabitTrackerProps> = ({ data, onUpdate, onUp
             </div>
           </div>
 
-          <div className="h-[300px] w-full relative z-10 px-2 overflow-hidden">
+          <div className="flex-1 w-full relative z-10 px-2 min-h-[250px] md:min-h-[350px]">
              <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={streakData}>
                    <defs>
