@@ -1147,7 +1147,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, 
   }, [filteredByView, searchTerm, viewMode, currencyMode]);
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white/[0.005] backdrop-blur-3xl p-3 md:p-6 overflow-y-auto md:overflow-hidden font-sans">
+    <div className="expense-tracker-container flex-1 flex flex-col h-full bg-white/[0.005] backdrop-blur-3xl p-3 md:p-6 overflow-y-auto md:overflow-hidden font-sans">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-4 gap-4">
         <div>
           <h1 className="text-3xl font-black text-slate-900 tracking-tighter uppercase italic flex items-center gap-3 drop-shadow-sm">
@@ -1418,9 +1418,9 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, 
         </motion.div>
       </div>
 
-      <div className="flex-1 flex flex-col md:flex-row gap-6 overflow-visible md:overflow-hidden">
+      <div className="expense-columns-wrapper flex-1 flex flex-col md:flex-row gap-6 overflow-visible md:overflow-hidden">
         {/* Structured Category List */}
-        <div className="w-full md:w-[350px] lg:w-[410px] xl:w-[460px] bg-white/70 dark:bg-slate-900/70 backdrop-blur-3xl border border-slate-200/50 dark:border-slate-800/80 rounded-[36px] shadow-sm flex flex-col overflow-hidden text-left shrink-0">
+        <div className="expense-column w-full md:w-[350px] lg:w-[410px] xl:w-[460px] bg-white/70 dark:bg-slate-900/70 backdrop-blur-3xl border border-slate-200/50 dark:border-slate-800/80 rounded-[36px] shadow-sm flex flex-col overflow-hidden text-left shrink-0">
             <div className="p-4 border-b border-slate-100 flex flex-col gap-3 bg-slate-50/50">
                 <div className="flex items-center justify-between">
                     <div className="flex bg-zinc-200/60 p-0.5 rounded-xl border border-zinc-300/20">
@@ -1687,7 +1687,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, 
         </div>
 
         {/* Detailed Transactions */}
-        <div className="flex-1 bg-white/[0.005] backdrop-blur-3xl border border-white/10 rounded-[40px] shadow-sm overflow-visible md:overflow-hidden flex flex-col">
+        <div className="expense-column flex-1 bg-white/[0.005] backdrop-blur-3xl border border-white/10 rounded-[40px] shadow-sm overflow-visible md:overflow-hidden flex flex-col">
             <div className="p-6 border-b border-slate-100 flex items-center justify-between gap-4">
                 <div className="relative flex-1 max-w-md w-full">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
@@ -1760,7 +1760,36 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, 
                             key={expense.id} 
                             className={`group flex items-center justify-between p-3 sm:p-5 rounded-2xl border border-slate-100 dark:border-slate-800/40 transition-all gap-2 sm:gap-6 shadow-sm ${itemStyles.bg}`}
                           >
-                              <div className="flex items-center gap-2 sm:gap-6 min-w-0">
+                              <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+                                  {viewMode === 'Daily' && (
+                                    <div className="flex items-center gap-1 shrink-0">
+                                      <button 
+                                        onClick={() => {
+                                          setNewExpense({
+                                            description: expense.description,
+                                            amount: expense.amount.toString(),
+                                            category: expense.category,
+                                            type: expense.type,
+                                            currency: expense.currency || currencyMode
+                                          });
+                                          setEditingExpenseId(expense.id);
+                                          setIsAdding(true);
+                                        }}
+                                        className="p-1.5 sm:p-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-605 dark:text-amber-400 rounded-xl transition-all"
+                                        title="Edit Record"
+                                      >
+                                          <Edit2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                      </button>
+                                      <button 
+                                        onClick={() => handleDeleteExpense(expense.id)}
+                                        className="p-1.5 sm:p-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 rounded-xl transition-all"
+                                        title="Delete Record"
+                                      >
+                                          <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                      </button>
+                                    </div>
+                                  )}
+
                                   <div className={`p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl flex items-center justify-center shrink-0 bg-white dark:bg-slate-900 border border-slate-250/30 dark:border-slate-750 shadow-sm ${expense.type === 'Income' ? 'text-emerald-500' : 'text-rose-500'}`}>
                                      {expense.type === 'Income' ? <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6" /> : <TrendingDown className="w-5 h-5 sm:w-6 sm:h-6" />}
                                   </div>
@@ -1783,34 +1812,6 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ data, onUpdate, 
                                   <div className={`text-base sm:text-2xl font-black italic tracking-tighter ${expense.type === 'Income' ? 'text-emerald-600' : 'text-rose-600'}`}>
                                       {expense.type === 'Income' ? '+' : '-'}{formatCurrency(expense.amount, expense.currency as 'USD' | 'KHR')}
                                   </div>
-                                  {viewMode === 'Daily' && (
-                                    <div className="flex items-center gap-0.5 sm:gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all shrink-0">
-                                      <button 
-                                        onClick={() => {
-                                          setNewExpense({
-                                            description: expense.description,
-                                            amount: expense.amount.toString(),
-                                            category: expense.category,
-                                            type: expense.type,
-                                            currency: expense.currency || currencyMode
-                                          });
-                                          setEditingExpenseId(expense.id);
-                                          setIsAdding(true);
-                                        }}
-                                        className="p-1.5 sm:p-2 text-slate-400 hover:text-amber-500 hover:bg-amber-500/10 rounded-xl transition-all"
-                                        title="Edit Record"
-                                      >
-                                          <Edit2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                      </button>
-                                      <button 
-                                        onClick={() => handleDeleteExpense(expense.id)}
-                                        className="p-1.5 sm:p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-500/10 rounded-xl transition-all"
-                                        title="Delete Record"
-                                      >
-                                          <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                      </button>
-                                    </div>
-                                  )}
                               </div>
                           </motion.div>
                         );
