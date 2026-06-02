@@ -81,6 +81,21 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
 
   const isResizing = useRef(false);
   const editorRef = useRef<HTMLDivElement>(null);
+  const resizeState = useRef<{
+    isResizing: boolean;
+    startX: number;
+    startWidth: number;
+    activeCell: HTMLTableCellElement | null;
+    activeTable: HTMLTableElement | null;
+    colIndex: number;
+  }>({
+    isResizing: false,
+    startX: 0,
+    startWidth: 0,
+    activeCell: null,
+    activeTable: null,
+    colIndex: -1
+  });
 
   const exportPDF = async () => {
     if (!editorRef.current || !selectedTopic) return;
@@ -673,6 +688,205 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
       window.removeEventListener('mouseup', handleMouseUp);
     };
   }, []);
+
+  // Dynamic column resizing by dragging column borders inside the note-taking tables
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (resizeState.current.isResizing) return;
+
+      const target = e.target as HTMLElement;
+      const cell = target.closest('td, th') as HTMLTableCellElement;
+      if (cell && editor.contains(cell)) {
+        const rect = cell.getBoundingClientRect();
+        const mouseX = e.clientX;
+        const resizeThreshold = 10; // comfortable border grasp area
+        const isNearRightBorder = Math.abs(mouseX - rect.right) < resizeThreshold;
+        
+        if (isNearRightBorder) {
+          cell.style.cursor = 'col-resize';
+          cell.classList.add('resizing');
+        } else {
+          cell.style.cursor = '';
+          cell.classList.remove('resizing');
+        }
+      }
+    };
+
+    const onMouseDown = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const cell = target.closest('td, th') as HTMLTableCellElement;
+      if (cell && editor.contains(cell)) {
+        const rect = cell.getBoundingClientRect();
+        const mouseX = e.clientX;
+        const resizeThreshold = 10;
+        const isNearRightBorder = Math.abs(mouseX - rect.right) < resizeThreshold;
+
+        if (isNearRightBorder) {
+          e.preventDefault();
+          e.stopPropagation();
+
+          resizeState.current = {
+            isResizing: true,
+            startX: e.clientX,
+            startWidth: cell.offsetWidth,
+            activeCell: cell,
+            activeTable: cell.closest('table'),
+            colIndex: cell.cellIndex
+          };
+
+          document.addEventListener('mousemove', onGlobalMouseMove);
+          document.addEventListener('mouseup', onGlobalMouseUp);
+          document.body.style.cursor = 'col-resize';
+          document.body.style.userSelect = 'none';
+        }
+      }
+    };
+
+    const onGlobalMouseMove = (e: MouseEvent) => {
+      if (!resizeState.current.isResizing) return;
+      
+      const { startX, startWidth, activeCell } = resizeState.current;
+      if (activeCell) {
+        const deltaX = e.clientX - startX;
+        const newWidth = Math.max(40, startWidth + deltaX);
+        
+        const table = activeCell.closest('table');
+        const colIndex = resizeState.current.colIndex;
+        if (table && colIndex !== -1) {
+          table.style.tableLayout = 'fixed';
+          
+          let colGroup = table.querySelector('colgroup');
+          if (!colGroup) {
+            colGroup = document.createElement('colgroup');
+            const numCols = table.rows[1]?.cells.length || table.rows[0]?.cells.length || 0;
+            for (let i = 0; i < numCols; i++) {
+              const col = document.createElement('col');
+              const sampleCell = table.rows[1]?.cells[i] || table.rows[0]?.cells[i];
+              if (sampleCell) {
+                col.style.width = sampleCell.style.width || 'auto';
+              }
+              colGroup.appendChild(col);
+            }
+            table.insertBefore(colGroup, table.firstChild);
+          }
+          
+          const colEl = colGroup.children[colIndex] as HTMLElement;
+          if (colEl) {
+            colEl.style.width = `${newWidth}px`;
+          }
+        }
+      }
+    };
+
+    const onGlobalMouseUp = () => {
+      if (resizeState.current.isResizing) {
+        resizeState.current.isResizing = false;
+        document.removeEventListener('mousemove', onGlobalMouseMove);
+        document.removeEventListener('mouseup', onGlobalMouseUp);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        
+        if (selectedTopicId && editorRef.current) {
+          updateTopic(selectedTopicId, { content: editorRef.current.innerHTML });
+        }
+      }
+    };
+
+    editor.addEventListener('mousemove', onMouseMove);
+    editor.addEventListener('mousedown', onMouseDown);
+
+    return () => {
+      editor.removeEventListener('mousemove', onMouseMove);
+      editor.removeEventListener('mousedown', onMouseDown);
+      document.removeEventListener('mousemove', onGlobalMouseMove);
+      document.removeEventListener('mouseup', onGlobalMouseUp);
+    };
+  }, [selectedTopicId]);
+
+  const focusCell = (cell: HTMLElement) => {
+    cell.focus();
+    const range = document.createRange();
+    range.selectNodeContents(cell);
+    range.collapse(false); // caret to end
+    const sel = window.getSelection();
+    if (sel) {
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const selection = window.getSelection();
+    if (!selection || !selection.anchorNode) return;
+
+    const cell = selection.anchorNode.nodeType === Node.TEXT_NODE 
+      ? selection.anchorNode.parentElement?.closest('td, th') 
+      : (selection.anchorNode as HTMLElement).closest?.('td, th');
+
+    if (!cell) return;
+
+    const row = cell.parentElement as HTMLTableRowElement;
+    const table = row?.closest('table') as HTMLTableElement;
+    if (!table || !row) return;
+
+    const colIndex = (cell as HTMLTableCellElement).cellIndex;
+    const rowIndex = row.rowIndex;
+
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      
+      const allCells = Array.from(table.querySelectorAll('td, th')).filter(c => {
+        const cellEl = c as HTMLTableCellElement;
+        return (cellEl.colSpan || 1) === 1;
+      }) as HTMLTableCellElement[];
+      
+      const currentIndex = allCells.indexOf(cell as HTMLTableCellElement);
+      if (currentIndex !== -1) {
+        let nextIndex = e.shiftKey ? currentIndex - 1 : currentIndex + 1;
+        if (nextIndex >= 0 && nextIndex < allCells.length) {
+          focusCell(allCells[nextIndex]);
+        }
+      }
+    } else if (e.key === 'Enter') {
+      if (e.shiftKey) {
+        // Shift + Enter stays in the same cell/column (default browser behavior)
+        return;
+      }
+      
+      // Enter without Shift = Create another row immediately below
+      e.preventDefault();
+      
+      const numCols = row.cells.length;
+      const newRow = table.insertRow(rowIndex + 1);
+      
+      for (let i = 0; i < numCols; i++) {
+        const newCell = newRow.insertCell(i);
+        const origCell = row.cells[i] as HTMLTableCellElement;
+        
+        newCell.style.cssText = origCell.style.cssText;
+        if (origCell.hasAttribute('data-col-type')) {
+          newCell.setAttribute('data-col-type', origCell.getAttribute('data-col-type') || '');
+        }
+        if (origCell.style.width) {
+          newCell.style.width = origCell.style.width;
+        }
+        
+        newCell.innerHTML = '&nbsp;';
+      }
+      
+      if (newRow.cells.length > 0) {
+        focusCell(newRow.cells[0]);
+      }
+      
+      if (selectedTopic && editorRef.current) {
+        updateTopic(selectedTopic.id, { content: editorRef.current.innerHTML });
+      }
+    }
+  };
+
   const savedRange = useRef<Range | null>(null);
   
   const colors = [
@@ -967,24 +1181,108 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
 
   const insertSmartTable = () => {
     const { rows, cols, hasHeader, theme, headerTitle } = tableConfig;
-    let html = `<table style="width: 100%; border-collapse: collapse; margin: 20px 0; border: 2px solid ${theme}; font-size: 14px; border-radius: 12px; overflow: hidden; display: table;">`;
+    
+    // Build explicit colgroup widths for fixed proportions
+    let colgroupHtml = '<colgroup>';
+    for (let c = 0; c < cols; c++) {
+      let width = 'auto';
+      if (cols === 4) {
+        if (c === 0) width = '12%';
+        else if (c === 1) width = '35%';
+        else if (c === 2) width = '15%';
+        else if (c === 3) width = '38%';
+      } else if (cols === 3) {
+        if (c === 0) width = '15%';
+        else if (c === 1) width = '45%';
+        else if (c === 2) width = '40%';
+      } else if (cols === 2) {
+        if (c === 0) width = '40%';
+        else if (c === 1) width = '60%';
+      } else {
+        if (c === 0) width = '10%';
+        else if (c === cols - 1) width = '35%';
+        else if (c === cols - 2) width = '15%';
+        else width = 'auto';
+      }
+      colgroupHtml += `<col style="width: ${width};" />`;
+    }
+    colgroupHtml += '</colgroup>';
+
+    // Style settings for high contrast, medium-thickness border table
+    let html = `<table style="width: 100%; border-collapse: collapse; margin: 24px 0; border: 2.5px solid ${theme}; background-color: #ffffff; border-radius: 8px; overflow: hidden; table-layout: fixed;">`;
+    html += colgroupHtml;
     
     if (hasHeader) {
-      html += `<thead><tr style="background-color: ${theme}; color: white;">
-        <th colspan="${cols}" style="padding: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; border: 1px solid rgba(255,255,255,0.2);">${headerTitle}</th>
-      </tr></thead>`;
+      html += `<thead>`;
+      
+      // Caption Header Row
+      html += `<tr style="background-color: ${theme}; color: #ffffff;">
+        <th colspan="${cols}" style="padding: 14px 16px; font-weight: 950; text-transform: uppercase; letter-spacing: 1.5px; border: 2px solid ${theme}; text-align: center; font-size: 13px; color: #ffffff !important; background-color: ${theme} !important;">${headerTitle}</th>
+      </tr>`;
+      
+      // Column Labels Row (balancing column widths based on content importance - wide Comment, narrow Level)
+      html += `<tr style="background-color: #f1f5f9; color: #1e293b;">`;
+      for (let c = 0; c < cols; c++) {
+        let label = `Column ${c + 1}`;
+        let width = 'auto';
+        let textAlign = 'left';
+        
+        if (cols === 4) {
+          if (c === 0) { label = 'Level'; width = '12%'; textAlign = 'center'; }
+          else if (c === 1) { label = 'Learning Topic / Subject'; width = '35%'; textAlign = 'left'; }
+          else if (c === 2) { label = 'Priority / Status'; width = '15%'; textAlign = 'center'; }
+          else if (c === 3) { label = 'Comment / Next Steps'; width = '38%'; textAlign = 'left'; }
+        } else if (cols === 3) {
+          if (c === 0) { label = 'Level'; width = '15%'; textAlign = 'center'; }
+          else if (c === 1) { label = 'Subject / Concept'; width = '45%'; textAlign = 'left'; }
+          else if (c === 2) { label = 'Comment / Reflection'; width = '40%'; textAlign = 'left'; }
+        } else if (cols === 2) {
+          if (c === 0) { label = 'Learning Component'; width = '40%'; textAlign = 'left'; }
+          else if (c === 1) { label = 'Detailed Note / Summary'; width = '60%'; textAlign = 'left'; }
+        } else {
+          if (c === 0) { label = 'No.'; width = '10%'; textAlign = 'center'; }
+          else if (c === cols - 1) { label = 'Comment / Feedback'; width = '35%'; textAlign = 'left'; }
+          else if (c === cols - 2) { label = 'Level / Status'; width = '15%'; textAlign = 'center'; }
+          else { label = `Learning Goal ${c}`; width = 'auto'; textAlign = 'left'; }
+        }
+        
+        const cellStyle = `padding: 12px 14px; font-weight: 850; text-transform: uppercase; font-size: 10px; letter-spacing: 0.5px; border: 2px solid #cbd5e1; text-align: ${textAlign}; width: ${width}; color: #0f172a !important; background-color: #f1f5f9 !important;`;
+        html += `<th style="${cellStyle}">${label}</th>`;
+      }
+      html += `</tr></thead>`;
     }
 
     html += '<tbody>';
     for (let r = 0; r < rows; r++) {
-      html += '<tr>';
+      html += '<tr style="border-bottom: 2px solid #cbd5e1;">';
       for (let c = 0; c < cols; c++) {
-        const isFirstCol = c === 0;
-        const cellStyle = `padding: 10px; border: 1px solid ${theme}40; min-height: 24px; transition: background 0.2s;`;
-        const content = isFirstCol ? (r + 1).toString() : '';
-        const textAlign = isFirstCol ? 'center' : 'left';
-        const width = isFirstCol ? '40px' : 'auto';
-        html += `<td style="${cellStyle} text-align: ${textAlign}; width: ${width}; font-weight: ${isFirstCol ? '800' : '500'};">${content}</td>`;
+        let width = 'auto';
+        let textAlign = 'left';
+        let content = '&nbsp;';
+        let isNumericOrLevel = false;
+        
+        if (cols === 4) {
+          if (c === 0) { content = `Lvl ${r + 1}`; width = '12%'; textAlign = 'center'; isNumericOrLevel = true; }
+          else if (c === 1) { width = '35%'; textAlign = 'left'; }
+          else if (c === 2) { content = 'Pending'; width = '15%'; textAlign = 'center'; isNumericOrLevel = true; }
+          else if (c === 3) { width = '38%'; textAlign = 'left'; }
+        } else if (cols === 3) {
+          if (c === 0) { content = `A_${r + 1}`; width = '15%'; textAlign = 'center'; isNumericOrLevel = true; }
+          else if (c === 1) { width = '45%'; textAlign = 'left'; }
+          else if (c === 2) { width = '40%'; textAlign = 'left'; }
+        } else if (cols === 2) {
+          if (c === 0) { width = '40%'; textAlign = 'left'; }
+          else if (c === 1) { width = '60%'; textAlign = 'left'; }
+        } else {
+          if (c === 0) { content = (r + 1).toString(); width = '10%'; textAlign = 'center'; isNumericOrLevel = true; }
+          else if (c === cols - 1) { width = '35%'; textAlign = 'left'; }
+          else if (c === cols - 2) { content = 'Medium'; width = '15%'; textAlign = 'center'; isNumericOrLevel = true; }
+          else { width = 'auto'; textAlign = 'left'; }
+        }
+
+        const cellStyle = `padding: 12px 14px; border: 2px solid #cbd5e1; font-size: 13px; color: #1e293b; min-height: 32px;`;
+        const colAttr = isNumericOrLevel ? 'data-col-type="level"' : '';
+        html += `<td ${colAttr} style="${cellStyle} text-align: ${textAlign}; width: ${width}; font-weight: ${isNumericOrLevel ? '800' : '500'};">${content}</td>`;
       }
       html += '</tr>';
     }
@@ -2222,10 +2520,26 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                         color: ${editorTextColor};
                       }
                       
-                      .editor-content .text-slate-100,
-                      .editor-content .text-white,
-                      .editor-content [class*="text-slate-100"] {
-                        color: ${editorTextColor} !important;
+                      /* Ensure high legibility of text inside dark containers */
+                      .editor-content [class*="bg-slate-9"], .editor-content [class*="bg-slate-9"] *,
+                      .editor-content [class*="bg-zinc-9"], .editor-content [class*="bg-zinc-9"] *,
+                      .editor-content [class*="bg-black"], .editor-content [class*="bg-black"] *,
+                      .editor-content [class*="bg-[#0f"], .editor-content [class*="bg-[#0f"] *,
+                      .editor-content [class*="bg-[#1e"], .editor-content [class*="bg-[#1e"] *,
+                      .editor-content [style*="background-color:#0"], .editor-content [style*="background-color:#0"] *,
+                      .editor-content [style*="background-color: #0"], .editor-content [style*="background-color: #0"] *,
+                      .editor-content [style*="background:#0"], .editor-content [style*="background:#0"] *,
+                      .editor-content [style*="background-color:#1e"], .editor-content [style*="background-color:#1e"] *,
+                      .editor-content [style*="background:#1e"], .editor-content [style*="background:#1e"] *,
+                      .editor-content [style*="background-color: rgb(15"], .editor-content [style*="background-color: rgb(15"] *,
+                      .editor-content [style*="background-color:rgb(15"], .editor-content [style*="background-color:rgb(15"] *,
+                      .editor-content [style*="background-color: rgb(30"], .editor-content [style*="background-color: rgb(30"] *,
+                      .editor-content [style*="background-color:rgb(30"], .editor-content [style*="background-color:rgb(30"] *,
+                      .editor-content [style*="background:rgb(15"], .editor-content [style*="background:rgb(15"] *,
+                      .editor-content [style*="background: rgb(15"], .editor-content [style*="background: rgb(15"] *,
+                      .editor-content [style*="background:rgb(30"], .editor-content [style*="background:rgb(30"] *,
+                      .editor-content [style*="background: rgb(30"], .editor-content [style*="background: rgb(30"] * {
+                        color: #f8fafc !important;
                       }
                       
                       .editor-content h1, 
@@ -2238,11 +2552,69 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                         font-weight: 800 !important;
                       }
                       
-                      .editor-content th, 
+                      /* High contrast, academic-grade tables supporting custom borders */
+                      .editor-content table {
+                        width: 100% !important;
+                        border-collapse: collapse !important;
+                        margin: 24px 0 !important;
+                        background-color: #ffffff !important;
+                        border: 2.5px solid #1e293b;
+                        border-radius: 8px !important;
+                        overflow: hidden !important;
+                        font-family: inherit !important;
+                        box-shadow: 0 4px 15px rgba(15, 23, 42, 0.05) !important;
+                        table-layout: fixed !important;
+                      }
+
+                      .editor-content tr {
+                        border-bottom: 2px solid #cbd5e1 !important;
+                        transition: background-color 0.15s ease !important;
+                      }
+
+                      .editor-content tr:hover {
+                        background-color: #f8fafc !important;
+                      }
+
+                      .editor-content th {
+                        background-color: #1e293b;
+                        color: #ffffff;
+                        font-weight: 850 !important;
+                        text-transform: uppercase !important;
+                        letter-spacing: 1px !important;
+                        padding: 12px 14px !important;
+                        border: 2px solid #1e293b;
+                        font-size: 11px !important;
+                        text-align: center !important;
+                      }
+
                       .editor-content td {
-                        border: 1px solid ${editorBorderColor} !important;
-                        padding: 10px !important;
-                        color: ${editorTextColor} !important;
+                        padding: 12px 14px !important;
+                        border: 2px solid #cbd5e1 !important;
+                        color: #1e293b;
+                        font-size: 13px !important;
+                        line-height: 1.5 !important;
+                        vertical-align: middle !important;
+                        text-align: left;
+                      }
+
+                      /* Align columns appropriately based on data attributes */
+                      .editor-content td[data-col-type="level"],
+                      .editor-content td[data-col-type="numeric"] {
+                        text-align: center !important;
+                        font-weight: 800 !important;
+                      }
+
+                      /* Excel / Word style highlight of focused cell */
+                      .editor-content td:focus, 
+                      .editor-content th:focus {
+                        outline: none !important;
+                        background-color: #f0fdf4 !important;
+                        box-shadow: inset 0 0 0 2.5px #10b981 !important;
+                      }
+
+                      .editor-content th.resizing, 
+                      .editor-content td.resizing {
+                        cursor: col-resize !important;
                       }
                       
                       .editor-content .synthesis-card-wrapper, 
@@ -2298,49 +2670,20 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                         }
 
                         /* Target all child structures of .editor-content and replace dark background styles with clean light styles */
-                        .editor-content [class*="bg-slate-"],
-                        .editor-content [class*="bg-zinc-"],
-                        .editor-content [class*="bg-gray-"],
-                        .editor-content [class*="bg-neutral-"],
-                        .editor-content [class*="bg-stone-"],
-                        .editor-content [class*="bg-black"],
-                        .editor-content [class*="bg-blue-"],
-                        .editor-content [class*="bg-indigo-"],
-                        .editor-content [class*="bg-sky-"],
-                        .editor-content [class*="bg-emerald-9"],
-                        .editor-content [class*="bg-emerald-8"],
-                        .editor-content [class*="bg-[#0f"],
-                        .editor-content [class*="bg-[#1e"],
-                        .editor-content [class*="bg-[#11"],
-                        .editor-content [class*="bg-[#0c"],
-                        .editor-content [class*="bg-[#1a"],
-                        .editor-content [class*="bg-[rgba"],
-                        .editor-content div[class*="bg-"],
-                        .editor-content section[class*="bg-"],
-                        .editor-content article[class*="bg-"],
-                        .editor-content div.bg-white\\/10,
-                        .editor-content div.bg-slate-900,
-                        .editor-content div.bg-slate-950,
-                        .editor-content div.bg-[#0f172a],
-                        .editor-content div.bg-[#0c111d],
+                        .editor-content [class*="bg-"],
+                        .editor-content [style*="background"],
                         .editor-content div.border-white\\/10 {
-                          background-color: rgba(248, 250, 252, 0.95) !important;
-                          background: rgba(248, 250, 252, 0.95) !important;
+                          background-color: #f8fafc !important;
+                          background: #f8fafc !important;
                           color: #1e293b !important;
                           border: 1.5px solid #cbd5e1 !important;
                           box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
                         }
 
-                        /* Also, match if any element inside has inline color style or dark backgrounds */
-                        .editor-content [style*="background-color: rgb(15"], 
-                        .editor-content [style*="background-color: rgb(12"], 
-                        .editor-content [style*="background-color: rgb(16"], 
-                        .editor-content [style*="background-color: #0"], 
-                        .editor-content [style*="background-color: #1"] {
-                          background-color: rgba(248, 250, 252, 0.95) !important;
-                          background: rgba(248, 250, 252, 0.95) !important;
-                          color: #1e293b !important;
-                          border: 1.5px solid #cbd5e1 !important;
+                        .editor-content td:focus, 
+                        .editor-content th:focus {
+                          background-color: #f0fdf4 !important;
+                          box-shadow: inset 0 0 0 2.5px #10b981 !important;
                         }
 
                         .editor-content p, 
@@ -2386,6 +2729,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                     ref={editorRef}
                     contentEditable={true}
                     onClick={handleEditorClick}
+                    onKeyDown={handleKeyDown}
                     onMouseUp={handleSelection}
                     onKeyUp={handleSelection}
                     onBlur={(e) => {
