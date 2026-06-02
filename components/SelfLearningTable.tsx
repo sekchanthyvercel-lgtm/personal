@@ -1364,11 +1364,55 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
   const insertDate = () => {
     if (!selectedTopic) return;
     const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-    const formattedDate = `<div style="color: #10b981; font-weight: 800; font-size: 1.2em; border-left: 4px solid #10b981; padding-left: 12px; margin: 10px 0;">${dateStr}</div>`;
-    const newContent = formattedDate + selectedTopic.content;
-    updateTopic(selectedTopic.id, { content: newContent });
+    
+    // Check if the current savedRange or selection is active and inside the editor
+    let insideEditor = false;
+    let insideSpecial = false;
+    
     if (editorRef.current) {
+      if (savedRange.current && editorRef.current.contains(savedRange.current.commonAncestorContainer)) {
+        insideEditor = true;
+        const container = savedRange.current.commonAncestorContainer;
+        const element = container.nodeType === Node.TEXT_NODE ? container.parentElement : container as HTMLElement;
+        if (element?.closest('td, th, table, li')) {
+          insideSpecial = true;
+        }
+      } else {
+        const selection = window.getSelection();
+        if (selection && selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0);
+          if (editorRef.current.contains(range.commonAncestorContainer)) {
+            insideEditor = true;
+            const container = range.commonAncestorContainer;
+            const element = container.nodeType === Node.TEXT_NODE ? container.parentElement : container as HTMLElement;
+            if (element?.closest('td, th, table, li')) {
+              insideSpecial = true;
+            }
+          }
+        }
+      }
+    }
+
+    const dateHtml = insideSpecial
+      ? `<span style="color: #10b981; font-weight: 850; font-size: 0.95em;">${dateStr}</span>`
+      : `<div style="color: #10b981; font-weight: 800; font-size: 1.2em; border-left: 4px solid #10b981; padding-left: 12px; margin: 10px 0;">${dateStr}</div><p><br></p>`;
+
+    if (editorRef.current && insideEditor) {
+      editorRef.current.focus();
+      if (savedRange.current) {
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(savedRange.current);
+      }
+      document.execCommand('insertHTML', false, dateHtml);
+      updateTopic(selectedTopic.id, { content: editorRef.current.innerHTML });
+    } else {
+      // Fallback: prepend at the top if no active cursor in editor
+      const newContent = `<div style="color: #10b981; font-weight: 800; font-size: 1.2em; border-left: 4px solid #10b981; padding-left: 12px; margin: 10px 0;">${dateStr}</div><p><br></p>` + selectedTopic.content;
+      updateTopic(selectedTopic.id, { content: newContent });
+      if (editorRef.current) {
         editorRef.current.innerHTML = newContent;
+      }
     }
   };
 
@@ -2576,13 +2620,13 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                       }
 
                       .editor-content th {
-                        background-color: #1e293b;
-                        color: #ffffff;
+                        background-color: #f1f5f9;
+                        color: #1e293b;
                         font-weight: 850 !important;
                         text-transform: uppercase !important;
                         letter-spacing: 1px !important;
                         padding: 12px 14px !important;
-                        border: 2px solid #1e293b;
+                        border: 2px solid #cbd5e1;
                         font-size: 11px !important;
                         text-align: center !important;
                       }
