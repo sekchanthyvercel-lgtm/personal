@@ -1,8 +1,68 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { AppSettings, CurrentUser } from '../types';
 import { X, Save, Settings2, Type, Baseline, Paintbrush, Check, Cloud, LogIn, LogOut, Image as ImageIcon, Trash2, FileText, Coins } from 'lucide-react';
 import { PAPER_STYLES } from '../src/styles/paperStyles';
 import { signInWithEmailAndPassword, auth } from '../services/firebase';
+
+export const AMBIENT_WALLPAPERS = [
+  // --- Calm Nature & Landscapes (15) ---
+  { name: 'Ocean Waves', category: 'Nature', url: 'https://images.unsplash.com/photo-1465146344425-f00d5f5c8f07?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Calming Mist', category: 'Nature', url: 'https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Misty Lake Reflection', category: 'Nature', url: 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Quiet Sand Dunes', category: 'Nature', url: 'https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Sakura Blooms', category: 'Nature', url: 'https://images.unsplash.com/photo-1522441815192-d9f04eb0615c?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Sunny Lavender Field', category: 'Nature', url: 'https://images.unsplash.com/photo-1471958680802-1345a684ba65?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Eucalyptus Morning', category: 'Nature', url: 'https://images.unsplash.com/photo-1512428559087-560fa5ceab42?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Alpine Summer Peak', category: 'Nature', url: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Bright Sunflower Fields', category: 'Nature', url: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Morning Beach Shore', category: 'Nature', url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Light Snowy Peaks', category: 'Nature', url: 'https://images.unsplash.com/photo-1486915307837-23ac3a155c91?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Aesthetic White Flowers', category: 'Nature', url: 'https://images.unsplash.com/photo-1490750967868-88aa4486c944?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Bright Forest Sunbeams', category: 'Nature', url: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Whispering Pampa Grass', category: 'Nature', url: 'https://images.unsplash.com/photo-1505235687559-2551ff146c92?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Soft Sea Glass Coast', category: 'Nature', url: 'https://images.unsplash.com/photo-1505118380757-91f5f5632de0?auto=format&fit=crop&q=80&w=1600' },
+ 
+  // --- Cozy Study & Desks (11) ---
+  { name: 'Bright Study Desk', category: 'Cozy Work', url: 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Sunlit Coffee Break', category: 'Cozy Work', url: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Minimal Workspace', category: 'Cozy Work', url: 'https://images.unsplash.com/photo-1496181130204-7552cc14AC1b?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Quiet Light Library', category: 'Cozy Work', url: 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'White Creative Hub', category: 'Cozy Work', url: 'https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Warm Lit Journal', category: 'Cozy Work', url: 'https://images.unsplash.com/photo-1517842645767-c639042777db?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Eucalyptus Vase Office', category: 'Cozy Work', url: 'https://images.unsplash.com/photo-1533090161767-e6ffed986c88?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Bright Cozy Cafe Corner', category: 'Cozy Work', url: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Morning Tea In Bed', category: 'Cozy Work', url: 'https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Writers Desk Diary', category: 'Cozy Work', url: 'https://images.unsplash.com/photo-1516962215378-7fa2e137ae93?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Sunny Window Reading', category: 'Cozy Work', url: 'https://images.unsplash.com/photo-1506880018603-83d5b814b5a6?auto=format&fit=crop&q=80&w=1600' },
+ 
+  // --- Abstract & Textures (12) ---
+  { name: 'Aesthetic Linen Fiber', category: 'Textures', url: 'https://images.unsplash.com/photo-1508807526345-15e9b7f430dd?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Minimal White Plaster', category: 'Textures', url: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Warm Marble Swirls', category: 'Textures', url: 'https://images.unsplash.com/photo-1517816743773-6e0fd518b4a6?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Light Terrazzo Stone', category: 'Textures', url: 'https://images.unsplash.com/photo-1531685222403-f928502d2b60?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Pastel Chalk Texture', category: 'Textures', url: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Soft Concrete Clean', category: 'Textures', url: 'https://images.unsplash.com/photo-1541701494587-cb58502866ab?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Washed Clay Wave', category: 'Textures', url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Aesthetic Paper Fibers', category: 'Textures', url: 'https://images.unsplash.com/photo-1517842645767-c639042777db?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Morning Shadows Play', category: 'Textures', url: 'https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Fine Sand Ripple', category: 'Textures', url: 'https://images.unsplash.com/photo-1547234935-80c7145ec969?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Light Ceramic Glaze', category: 'Textures', url: 'https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Frosted Glass Mist', category: 'Textures', url: 'https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?auto=format&fit=crop&q=80&w=1600' },
+ 
+  // --- Artistic Gradients & Cosmic (12) ---
+  { name: 'Peach Sunset Glow', category: 'Gradients', url: 'https://images.unsplash.com/photo-1557683316-973673baf926?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Silk Ribbon Wave', category: 'Gradients', url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Sunrise Silk Air', category: 'Gradients', url: 'https://images.unsplash.com/photo-1557683311-eac922347aa1?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Ethereal Daydream', category: 'Gradients', url: 'https://images.unsplash.com/photo-1557682204-e53b55fd750c?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Pastel Sky Mist', category: 'Gradients', url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Vibrant Mesh Pastel', category: 'Gradients', url: 'https://images.unsplash.com/photo-1557682204-e53b55fd750c?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Cream Cotton Clouds', category: 'Gradients', url: 'https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Holographic Fluid Light', category: 'Gradients', url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Misty Lavender Dream', category: 'Gradients', url: 'https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Soft Apricot Gradient', category: 'Gradients', url: 'https://images.unsplash.com/photo-1557683316-973673baf926?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Aura Horizon Sunrise', category: 'Gradients', url: 'https://images.unsplash.com/photo-1557683311-eac922347aa1?auto=format&fit=crop&q=80&w=1600' },
+  { name: 'Lilac Flow Air', category: 'Gradients', url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=1600' }
+];
 
 interface Props {
   isOpen: boolean;
@@ -35,6 +95,7 @@ const colors = [
 
 export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onUpdate, currentUser, onLogin, onPhoneLogin, onLogout }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [bgTab, setBgTab] = useState('All');
   const [localSettings, setLocalSettings] = useState<AppSettings>({
     fontFamily: settings?.fontFamily || 'ui-sans-serif, system-ui, -apple-system, sans-serif',
     fontSize: settings?.fontSize || 16,
@@ -48,6 +109,11 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onUp
     backgroundImage: settings?.backgroundImage,
     paperStyle: settings?.paperStyle || 'none'
   });
+
+  const filteredWallpapers = useMemo(() => {
+    if (bgTab === 'All') return AMBIENT_WALLPAPERS;
+    return AMBIENT_WALLPAPERS.filter(wp => wp.category === bgTab);
+  }, [bgTab]);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -380,13 +446,14 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onUp
             <div className="space-y-4">
                 <div className="flex items-center gap-2 text-slate-800 font-black mb-2">
                     <ImageIcon size={18} className="text-emerald-500" />
-                    <h3 className="tracking-wide">Wallpaper</h3>
+                    <h3 className="tracking-wide">Wallpaper Control</h3>
                 </div>
 
                 <div className="bg-white/50 border border-white/60 p-4 rounded-2xl space-y-4 shadow-sm">
                     <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1 mb-2">Workspace Background</p>
                     <div className="flex gap-3">
                         <button 
+                            type="button"
                             onClick={() => fileInputRef.current?.click()}
                             className="flex-1 flex items-center justify-center gap-2 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-all text-xs font-bold shadow-sm"
                         >
@@ -396,6 +463,7 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onUp
                         
                         {localSettings.backgroundImage && (
                             <button 
+                                type="button"
                                 onClick={() => setLocalSettings(prev => ({...prev, backgroundImage: undefined}))}
                                 className="w-12 h-12 flex items-center justify-center bg-rose-50 text-rose-500 border border-rose-100 rounded-xl hover:bg-rose-500 hover:text-white transition-all"
                                 title="Remove Background"
@@ -406,12 +474,61 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onUp
                     </div>
                     {localSettings.backgroundImage && (
                         <div className="mt-2 relative rounded-xl overflow-hidden border border-slate-200 h-24">
-                            <img src={localSettings.backgroundImage} className="w-full h-full object-cover" alt="Preview" />
+                            <img src={localSettings.backgroundImage} className="w-full h-full object-cover" alt="Preview" referrerPolicy="no-referrer" />
                             <div className="absolute inset-0 bg-black/10 flex items-center justify-center">
                                 <span className="text-[9px] font-black uppercase text-white bg-black/40 px-2 py-1 rounded-md backdrop-blur-sm">Active Wallpaper</span>
                             </div>
                         </div>
                     )}
+
+                    {/* Preset Wallpapers (50 Options) */}
+                    <div className="pt-3 border-t border-slate-200/50 space-y-3">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">Ambient Studio Presets (50 Wallpapers)</p>
+                        
+                        {/* Categorized Tabs */}
+                        <div className="flex gap-1 overflow-x-auto pb-1 no-scrollbar shrink-0">
+                            {['All', 'Nature', 'Cozy Work', 'Textures', 'Gradients'].map((tab) => (
+                                <button
+                                    key={tab}
+                                    type="button"
+                                    onClick={() => setBgTab(tab)}
+                                    className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider whitespace-nowrap transition-all border ${bgTab === tab ? 'bg-orange-500 text-white border-transparent' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                                >
+                                    {tab}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Grid */}
+                        <div className="grid grid-cols-4 gap-2 max-h-[220px] overflow-y-auto p-1.5 border border-slate-200/50 bg-slate-100/50 rounded-2xl no-scrollbar scroll-smooth">
+                            {filteredWallpapers.map((wp, idx) => (
+                                <button
+                                    key={wp.url + idx}
+                                    type="button"
+                                    onClick={() => setLocalSettings(prev => ({...prev, backgroundImage: wp.url}))}
+                                    className={`group relative h-12 rounded-xl border-2 overflow-hidden transition-all hover:scale-105 active:scale-95 flex-shrink-0 ${localSettings.backgroundImage === wp.url ? 'border-orange-500 shadow-md ring-2 ring-orange-500/15' : 'border-slate-200 hover:border-orange-300'}`}
+                                    title={wp.name}
+                                >
+                                    <img 
+                                        src={wp.url.replace('&q=80&w=1600', '&q=40&w=100')} 
+                                        alt={wp.name} 
+                                        className="w-full h-full object-cover select-none pointer-events-none" 
+                                        referrerPolicy="no-referrer" 
+                                    />
+                                    <div className="absolute inset-x-0 bottom-0 bg-black/60 backdrop-blur-xs py-0.5 text-[6px] font-bold text-white uppercase text-center truncate">
+                                        {wp.name}
+                                    </div>
+                                    {localSettings.backgroundImage === wp.url && (
+                                        <div className="absolute inset-0 bg-orange-500/20 flex items-center justify-center">
+                                            <div className="bg-orange-500 text-white rounded-full p-0.5 shadow-md">
+                                                <Check size={8} strokeWidth={4} />
+                                            </div>
+                                        </div>
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
                 </div>
             </div>
 
