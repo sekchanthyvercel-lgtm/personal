@@ -619,7 +619,7 @@ const App: React.FC = () => {
 
   return (
     <div 
-      className="h-screen bg-cover bg-center bg-no-repeat flex font-sans overflow-hidden md:overflow-hidden transition-all duration-700" 
+      className="h-screen bg-cover bg-center bg-no-repeat flex font-sans overflow-hidden md:overflow-hidden transition-all duration-700 relative" 
       style={{ 
         fontFamily: data.settings?.fontFamily || "'Inter', sans-serif",
         backgroundImage: data.settings?.backgroundImage ? `url(${data.settings.backgroundImage})` : 'none',
@@ -627,6 +627,11 @@ const App: React.FC = () => {
         color: data.settings?.fontColor || 'inherit'
       }}
     >
+      {/* Light overlay on background image to improve readability of core card texts */}
+      {data.settings?.backgroundImage && (
+        <div className="absolute inset-0 bg-white/70 backdrop-blur-[1.5px] transition-all duration-700 z-0 pointer-events-none" />
+      )}
+      
       <div className="fixed inset-0 bg-slate-900/0 dark:bg-slate-950/80 transition-colors duration-700 pointer-events-none z-0"></div>
       
       <div className="flex h-screen w-full relative z-10 transition-colors duration-700 dark:text-slate-200">
