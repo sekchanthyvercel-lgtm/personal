@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Plus, Trash2, Calendar, AlignLeft, AlignCenter, AlignRight, Highlighter, Type, Settings2, MousePointer2, Minus, Layout, Square, Quote, FileUp, FileDown, Loader2, Wand2, Menu, ChevronLeft, FileText, ChevronDown, ChevronRight, Table, Grid3X3, Columns, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Palette, Italic, Underline, Strikethrough, Indent, Outdent, List, ListOrdered, CheckSquare, MoreHorizontal, Download, Maximize2, Minimize2 } from 'lucide-react';
+import { Plus, Trash2, Calendar, AlignLeft, AlignCenter, AlignRight, Highlighter, Type, Settings2, MousePointer2, Minus, Layout, Square, Quote, FileUp, FileDown, Loader2, Wand2, Menu, ChevronLeft, FileText, ChevronDown, ChevronRight, Table, Grid3X3, Columns, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Palette, Italic, Underline, Strikethrough, Indent, Outdent, List, ListOrdered, CheckSquare, MoreHorizontal, Download, Maximize2, Minimize2, Search, Archive, Folder } from 'lucide-react';
 import { AppData, DPSSTopic } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { callNeuralEngine } from '../services/neuralEngine';
@@ -27,6 +27,10 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [isToolbarHidden, setIsToolbarHidden] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(window.innerWidth < 768 ? 200 : 300);
+  
+  const [searchTerm, setSearchTerm] = useState('');
+  const [expandedTopics, setExpandedTopics] = useState<Record<string, boolean>>({});
+  const [isArchiveFolderOpen, setIsArchiveFolderOpen] = useState(false);
   const isResizing = useRef(false);
   const editorRef = useRef<HTMLDivElement>(null);
   const savedRange = useRef<Range | null>(null);
@@ -333,19 +337,113 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
   const selectedPaper = PAPER_STYLES.find(s => s.id === paperStyle) || PAPER_STYLES[0];
 
   const filterTopics = (items: DPSSTopic[]): DPSSTopic[] => {
+    if (!Array.isArray(items)) return [];
     return items
-      .filter(t => !t.deletedAt)
+      .filter(t => t && !t.deletedAt)
       .map(t => ({
         ...t,
+        title: typeof t.title === 'string' ? t.title : 'New Topic',
         content: typeof t.content === 'string' ? t.content : '',
         alignment: t.alignment || 'left',
         children: t.children ? filterTopics(t.children) : []
       }));
   };
 
+  const filterActiveTopics = (items: DPSSTopic[]): DPSSTopic[] => {
+    if (!Array.isArray(items)) return [];
+    return items
+      .filter(t => t && !t.deletedAt && !t.isArchived)
+      .map(t => ({
+        ...t,
+        title: typeof t.title === 'string' ? t.title : 'New Topic',
+        content: typeof t.content === 'string' ? t.content : '',
+        alignment: t.alignment || 'left',
+        children: t.children ? filterActiveTopics(t.children) : []
+      }));
+  };
+
+  const getArchivedRootTopics = (items: DPSSTopic[]): DPSSTopic[] => {
+    if (!Array.isArray(items)) return [];
+    const archived: DPSSTopic[] = [];
+    const traverse = (list: DPSSTopic[]) => {
+      list.forEach(t => {
+        if (t && !t.deletedAt && t.isArchived) {
+          archived.push({
+            ...t,
+            children: t.children ? filterActiveTopics(t.children) : []
+          });
+        } else if (t && t.children) {
+          traverse(t.children);
+        }
+      });
+    };
+    traverse(items);
+    return archived;
+  };
+
   const topics = React.useMemo(() => {
     return filterTopics(data.dpssTopics || []);
   }, [data.dpssTopics]);
+
+  const activeTopics = React.useMemo(() => {
+    return filterActiveTopics(data.dpssTopics || []);
+  }, [data.dpssTopics]);
+
+  const archivedTopics = React.useMemo(() => {
+    return getArchivedRootTopics(data.dpssTopics || []);
+  }, [data.dpssTopics]);
+
+  const filterTopicsBySearch = (items: DPSSTopic[], searchStr: string): DPSSTopic[] => {
+    if (!searchStr) return items;
+    const cleanSearch = searchStr.toLowerCase().trim();
+    
+    return items.map(item => {
+      const isMatched = item.title.toLowerCase().includes(cleanSearch);
+      const filteredChildren = item.children ? filterTopicsBySearch(item.children, searchStr) : [];
+      
+      if (isMatched || filteredChildren.length > 0) {
+        return {
+          ...item,
+          children: filteredChildren
+        };
+      }
+      return null;
+    }).filter((item): item is NonNullable<typeof item> => item !== null);
+  };
+
+  const filteredTopics = React.useMemo(() => {
+    return filterTopicsBySearch(activeTopics, searchTerm);
+  }, [activeTopics, searchTerm]);
+
+  const filteredArchivedTopics = React.useMemo(() => {
+    return filterTopicsBySearch(archivedTopics, searchTerm);
+  }, [archivedTopics, searchTerm]);
+
+  // Auto-expand matched topics when searching
+  useEffect(() => {
+    if (searchTerm) {
+      const autoExpand = (items: DPSSTopic[]) => {
+        const expanded: Record<string, boolean> = {};
+        const traverse = (itemList: DPSSTopic[]) => {
+          itemList.forEach(item => {
+            if (item.children && item.children.length > 0) {
+              const matchInDescendants = (i: DPSSTopic): boolean => {
+                if (i.title.toLowerCase().includes(searchTerm.toLowerCase())) return true;
+                return i.children ? i.children.some(matchInDescendants) : false;
+              };
+              if (item.children.some(matchInDescendants)) {
+                expanded[item.id] = true;
+              }
+            }
+            if (item.children) traverse(item.children);
+          });
+        };
+        traverse(activeTopics);
+        setExpandedTopics(prev => ({ ...prev, ...expanded }));
+      };
+      autoExpand(activeTopics);
+    }
+  }, [searchTerm, activeTopics]);
 
   const handleSelection = () => {
     const selection = window.getSelection();
@@ -1034,24 +1132,165 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
     }
   };
 
-  const renderTopic = (topic: DPSSTopic, depth = 0) => (
-    <div key={topic.id} style={{ marginLeft: `${depth * 15}px` }}>
-      <div 
-        onClick={() => {
-          setSelectedTopicId(topic.id);
-          if (window.innerWidth < 768) setIsSidebarOpen(false);
-        }} 
-        className={`p-2 my-1 rounded-lg cursor-pointer flex items-center justify-between ${selectedTopicId === topic.id ? 'bg-orange-100/50' : 'bg-white/5 hover:bg-white/10'}`}
-      >
-        <span className="font-bold text-[13px] text-slate-700 truncate max-w-[180px]">{topic.title}</span>
-        <div className='flex gap-1 shrink-0'>
-            <button onClick={(e) => { e.stopPropagation(); addTopic(topic.id); }}><Plus size={14} className="text-slate-400 hover:text-green-500"/></button>
-            <button onClick={(e) => { e.stopPropagation(); deleteTopic(topic.id); }}><Trash2 size={14} className="text-slate-400 hover:text-red-500"/></button>
+  const getTopicStyles = (id: string, isSelected: boolean) => {
+    const hash = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const colors = [
+      {
+        text: 'text-orange-850 dark:text-orange-400 font-bold',
+        bg: 'bg-orange-500/5',
+        border: 'border-orange-500/20',
+        activeBg: 'bg-orange-500/15 border-orange-500/40',
+        indicator: 'bg-orange-500',
+        iconColor: 'text-orange-500',
+        hover: 'hover:bg-orange-500/10'
+      },
+      {
+        text: 'text-indigo-800 dark:text-indigo-400 font-bold',
+        bg: 'bg-indigo-500/5',
+        border: 'border-indigo-500/20',
+        activeBg: 'bg-indigo-500/15 border-indigo-500/40',
+        indicator: 'bg-indigo-500',
+        iconColor: 'text-indigo-500',
+        hover: 'hover:bg-indigo-500/10'
+      },
+      {
+        text: 'text-emerald-800 dark:text-emerald-400 font-bold',
+        bg: 'bg-emerald-500/5',
+        border: 'border-emerald-500/20',
+        activeBg: 'bg-emerald-500/15 border-emerald-500/40',
+        indicator: 'bg-emerald-500',
+        iconColor: 'text-emerald-500',
+        hover: 'hover:bg-emerald-500/10'
+      },
+      {
+        text: 'text-amber-800 dark:text-amber-400 font-bold',
+        bg: 'bg-amber-500/5',
+        border: 'border-amber-500/20',
+        activeBg: 'bg-amber-500/15 border-amber-500/40',
+        indicator: 'bg-amber-500',
+        iconColor: 'text-amber-500',
+        hover: 'hover:bg-amber-500/10'
+      },
+      {
+        text: 'text-rose-800 dark:text-rose-400 font-bold',
+        bg: 'bg-rose-500/5',
+        border: 'border-rose-500/20',
+        activeBg: 'bg-rose-500/15 border-rose-500/40',
+        indicator: 'bg-rose-500',
+        iconColor: 'text-rose-500',
+        hover: 'hover:bg-rose-500/10'
+      },
+      {
+        text: 'text-sky-800 dark:text-sky-400 font-bold',
+        bg: 'bg-sky-500/5',
+        border: 'border-sky-500/20',
+        activeBg: 'bg-sky-500/15 border-sky-500/40',
+        indicator: 'bg-sky-500',
+        iconColor: 'text-sky-500',
+        hover: 'hover:bg-sky-500/10'
+      },
+      {
+        text: 'text-purple-800 dark:text-purple-400 font-bold',
+        bg: 'bg-purple-500/5',
+        border: 'border-purple-500/20',
+        activeBg: 'bg-purple-500/15 border-purple-50 border-purple-500/40',
+        indicator: 'bg-purple-500',
+        iconColor: 'text-purple-500',
+        hover: 'hover:bg-purple-500/10'
+      },
+      {
+        text: 'text-teal-800 dark:text-teal-400 font-bold',
+        bg: 'bg-teal-500/5',
+        border: 'border-teal-500/20',
+        activeBg: 'bg-teal-500/15 border-teal-500/40',
+        indicator: 'bg-teal-500',
+        iconColor: 'text-teal-500',
+        hover: 'hover:bg-teal-500/10'
+      }
+    ];
+    return colors[hash % colors.length];
+  };
+
+  const renderTopic = (topic: DPSSTopic, depth = 0): React.ReactNode => {
+    const isSelected = selectedTopicId === topic.id;
+    const style = getTopicStyles(topic.id, isSelected);
+    const hasChildren = topic.children && topic.children.length > 0;
+    const isExpanded = !!expandedTopics[topic.id];
+
+    return (
+      <div key={topic.id} className="relative select-none" style={{ marginLeft: `${depth * 8}px` }}>
+        <div 
+          onClick={() => {
+            setSelectedTopicId(topic.id);
+            if (hasChildren) {
+              setExpandedTopics(prev => ({ ...prev, [topic.id]: !prev[topic.id] }));
+            }
+            if (window.innerWidth < 768) {
+              setIsSidebarOpen(false);
+            }
+          }} 
+          className={`group flex items-center justify-between p-2 my-1 rounded-xl cursor-pointer border transition-all ${
+            isSelected 
+              ? `${style.activeBg} ${style.border} ${style.text} shadow-sm scale-[1.01]` 
+              : `bg-white/40 dark:bg-slate-900/10 ${style.border} ${style.text} hover:scale-[1.01] hover:bg-white/70`
+          }`}
+        >
+          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+            {hasChildren ? (
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setExpandedTopics(prev => ({ ...prev, [topic.id]: !prev[topic.id] }));
+                }}
+                className="p-0.5 rounded hover:bg-slate-200/50 dark:hover:bg-slate-800 shrink-0 text-slate-500"
+              >
+                {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+              </button>
+            ) : (
+              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${style.indicator} ml-1.5`} />
+            )}
+            
+            <span className="font-bold text-[12px] truncate max-w-[140px]" title={topic.title}>{topic.title}</span>
+          </div>
+
+          <div className="flex gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button 
+                onClick={(e) => { e.stopPropagation(); addTopic(topic.id); }} 
+                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-500 hover:text-emerald-600 transition-all"
+                title="Add nesting sub-topic"
+              >
+                <Plus size={13} />
+              </button>
+              
+              <button 
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  updateTopic(topic.id, { isArchived: !topic.isArchived });
+                }} 
+                className={`p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-500 hover:text-indigo-600 transition-all ${topic.isArchived ? 'text-indigo-600 font-bold' : ''}`}
+                title={topic.isArchived ? "Unarchive / Restore" : "Move to Folder Archive"}
+              >
+                <Archive size={13} />
+              </button>
+
+              <button 
+                onClick={(e) => { e.stopPropagation(); deleteTopic(topic.id); }} 
+                className="p-1 hover:bg-red-50/50 dark:hover:bg-red-950/20 rounded text-slate-400 hover:text-red-500 transition-all"
+                title="Delete Topic"
+              >
+                <Trash2 size={13} />
+              </button>
+          </div>
         </div>
+        
+        {hasChildren && isExpanded && (
+          <div className="border-l border-dashed border-slate-200 dark:border-slate-800 ml-2.5 pl-1.5">
+            {topic.children!.map(child => renderTopic(child, depth + 1))}
+          </div>
+        )}
       </div>
-      {topic.children?.map(child => renderTopic(child, depth + 1))}
-    </div>
-  );
+    );
+  };
 
   useEffect(() => {
     if (editorRef.current && selectedTopic) {
@@ -1103,8 +1342,65 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
           <Plus size={18} /> Add New Topic
         </button>
 
+        {/* Search Bar */}
+        <div className="relative mt-3 mb-2 shrink-0">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search notes..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-9 pr-8 py-2 bg-slate-100 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-medium text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500 transition-all"
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 font-bold text-xs"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+
+        {/* Scrollable Topics Section */}
         <div className="flex-1 overflow-y-auto pr-2 space-y-1 custom-scrollbar">
-            {topics.map(t => renderTopic(t))}
+          {/* Active Topics */}
+          {filteredTopics.length > 0 ? (
+            filteredTopics.map(t => renderTopic(t))
+          ) : (
+            <div className="text-center py-6 text-xs text-slate-400 select-none">
+              {searchTerm ? 'No matching note topics found' : 'No active note topics yet'}
+            </div>
+          )}
+
+          {/* Folder Archive */}
+          <div className="mt-4 pt-4 border-t border-slate-200/65 dark:border-slate-800/60">
+            <button
+              onClick={() => setIsArchiveFolderOpen(prev => !prev)}
+              className="w-full flex items-center justify-between p-2 rounded-xl bg-orange-50/50 dark:bg-slate-900/20 text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-950/20 border border-orange-100/40 transition-all select-none cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <Folder size={15} className="text-orange-500" />
+                <span className="text-[11px] font-black uppercase tracking-wider">Folder Archive</span>
+                <span className="bg-orange-100 dark:bg-orange-900/40 text-orange-700 px-1.5 py-0.5 rounded-full text-[9px] font-bold">
+                  {archivedTopics.length}
+                </span>
+              </div>
+              {isArchiveFolderOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            </button>
+
+            {isArchiveFolderOpen && (
+              <div className="mt-2 space-y-1.5 pl-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                {filteredArchivedTopics.length > 0 ? (
+                  filteredArchivedTopics.map(t => renderTopic(t))
+                ) : (
+                  <div className="text-center py-4 text-[10px] text-slate-400 select-none">
+                    {searchTerm ? 'No matching archived note topics' : 'Archive folder is empty'}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
