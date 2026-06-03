@@ -31,91 +31,6 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
   const editorRef = useRef<HTMLDivElement>(null);
   const savedRange = useRef<Range | null>(null);
 
-  const resizeState = useRef<{
-    isResizing: boolean;
-    startX: number;
-    startWidth: number;
-    activeCell: HTMLTableCellElement | null;
-    activeTable: HTMLTableElement | null;
-    colIndex: number;
-  }>({
-    isResizing: false,
-    startX: 0,
-    startWidth: 0,
-    activeCell: null,
-    activeTable: null,
-    colIndex: -1
-  });
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    const selection = window.getSelection();
-    if (!selection || !selection.anchorNode) return;
-
-    const cell = selection.anchorNode.nodeType === Node.TEXT_NODE 
-      ? selection.anchorNode.parentElement?.closest('td, th') 
-      : (selection.anchorNode as HTMLElement).closest?.('td, th');
-
-    if (!cell) return;
-
-    const row = cell.parentElement as HTMLTableRowElement;
-    const table = row?.closest('table') as HTMLTableElement;
-    if (!table || !row) return;
-
-    const colIndex = (cell as HTMLTableCellElement).cellIndex;
-    const rowIndex = row.rowIndex;
-
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      
-      const allCells = Array.from(table.querySelectorAll('td, th')).filter(c => {
-        const cellEl = c as HTMLTableCellElement;
-        return (cellEl.colSpan || 1) === 1;
-      }) as HTMLTableCellElement[];
-      
-      const currentIndex = allCells.indexOf(cell as HTMLTableCellElement);
-      if (currentIndex !== -1) {
-        let nextIndex = e.shiftKey ? currentIndex - 1 : currentIndex + 1;
-        if (nextIndex >= 0 && nextIndex < allCells.length) {
-          focusCell(allCells[nextIndex]);
-        }
-      }
-    } else if (e.key === 'Enter') {
-      if (e.shiftKey) {
-        // Shift + Enter stays in the same cell/column (default browser behavior)
-        return;
-      }
-      
-      // Enter alone = Create another row immediately below
-      e.preventDefault();
-      
-      const numCols = row.cells.length;
-      const newRow = table.insertRow(rowIndex + 1);
-      
-      for (let i = 0; i < numCols; i++) {
-        const newCell = newRow.insertCell(i);
-        const origCell = row.cells[i] as HTMLTableCellElement;
-        
-        newCell.style.cssText = origCell.style.cssText;
-        if (origCell.hasAttribute('data-col-type')) {
-          newCell.setAttribute('data-col-type', origCell.getAttribute('data-col-type') || '');
-        }
-        if (origCell.style.width) {
-          newCell.style.width = origCell.style.width;
-        }
-        
-        newCell.innerHTML = '&nbsp;';
-      }
-      
-      if (newRow.cells.length > 0) {
-        focusCell(newRow.cells[0]);
-      }
-      
-      if (selectedTopic && editorRef.current) {
-        updateTopic(selectedTopic.id, { content: editorRef.current.innerHTML });
-      }
-    }
-  };
-
   const exportPDF = async () => {
     if (!editorRef.current) return;
     const activeTopic = data?.dpssTopics?.find((t: DPSSTopic) => t.id === selectedTopicId) || { title: 'Notes' };
@@ -144,7 +59,7 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
     exportContainer.innerHTML = `
       <div style="margin-bottom: 30px; border-bottom: 3px solid ${accentColor}; padding-bottom: 20px;">
         <h1 style="font-size: 26pt; font-weight: 900; color: ${isDark ? '#38bdf8' : '#0f172a'}; margin: 0; line-height: 1.2;">${activeTopic.title}</h1>
-        <p style="font-size: 10pt; color: ${isDark ? '#94a3b8' : '#64748b'}; margin-top: 8px; text-transform: uppercase; letter-spacing: 2px;">Strategic Notes Export • ${new Date().toLocaleDateString()}</p>
+        <p style="font-size: 10pt; color: ${isDark ? '#94a3b8' : '#64748b'}; margin-top: 8px; text-transform: uppercase; letter-spacing: 2px;">Strategic Notes Export • ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
       </div>
       <div class="note-content" style="line-height: 1.6; font-size: 11.5pt;">
         ${editorRef.current.innerHTML}
@@ -488,8 +403,8 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
     }
     
     // Cleanup
+    selection.removeAllRanges();
     if (!selectionProvided) {
-      selection.removeAllRanges();
       savedRange.current = null;
       setPickerPos(null);
     }
@@ -512,8 +427,8 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
     }
     
     // Cleanup
+    selection.removeAllRanges();
     if (!selectionProvided) {
-      selection.removeAllRanges();
       savedRange.current = null;
       setPickerPos(null);
     }
@@ -657,56 +572,50 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
 
   const insertDate = () => {
     if (!selectedTopic) return;
-    const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const dateStr = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    const formattedDate = `<span style="color: #f59e0b; font-weight: 800; font-family: sans-serif; display: inline-block;">${dateStr}</span>`;
     
-    // Check if the current savedRange or selection is active and inside the editor
-    let insideEditor = false;
-    let insideSpecial = false;
-    
-    if (editorRef.current) {
-      if (savedRange.current && editorRef.current.contains(savedRange.current.commonAncestorContainer)) {
-        insideEditor = true;
-        const container = savedRange.current.commonAncestorContainer;
-        const element = container.nodeType === Node.TEXT_NODE ? container.parentElement : container as HTMLElement;
-        if (element?.closest('td, th, table, li')) {
-          insideSpecial = true;
+    let inserted = false;
+    const sel = window.getSelection();
+    if (editorRef.current && sel) {
+      const activeRange = (sel.rangeCount > 0 ? sel.getRangeAt(0) : null) || savedRange.current;
+      if (activeRange && editorRef.current.contains(activeRange.commonAncestorContainer)) {
+        editorRef.current.focus();
+        sel.removeAllRanges();
+        sel.addRange(activeRange);
+        activeRange.deleteContents();
+        
+        const el = document.createElement("span");
+        el.innerHTML = formattedDate;
+        
+        const frag = document.createDocumentFragment();
+        let node;
+        let lastNode;
+        while ((node = el.firstChild)) {
+          lastNode = frag.appendChild(node);
         }
-      } else {
-        const selection = window.getSelection();
-        if (selection && selection.rangeCount > 0) {
-          const range = selection.getRangeAt(0);
-          if (editorRef.current.contains(range.commonAncestorContainer)) {
-            insideEditor = true;
-            const container = range.commonAncestorContainer;
-            const element = container.nodeType === Node.TEXT_NODE ? container.parentElement : container as HTMLElement;
-            if (element?.closest('td, th, table, li')) {
-              insideSpecial = true;
-            }
-          }
+        activeRange.insertNode(frag);
+        
+        if (lastNode) {
+          const newRange = activeRange.cloneRange();
+          newRange.setStartAfter(lastNode);
+          newRange.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(newRange);
+          savedRange.current = newRange;
         }
+        inserted = true;
       }
     }
 
-    const dateHtml = insideSpecial
-      ? `<span style="color: #f59e0b; font-weight: 850; font-size: 0.95em;">${dateStr}</span>`
-      : `<div style="color: #f59e0b; font-weight: 800; font-size: 1.2em; border-left: 4px solid #f59e0b; padding-left: 12px; margin: 10px 0;">${dateStr}</div><p><br></p>`;
-
-    if (editorRef.current && insideEditor) {
-      editorRef.current.focus();
-      if (savedRange.current) {
-        const selection = window.getSelection();
-        selection?.removeAllRanges();
-        selection?.addRange(savedRange.current);
-      }
-      document.execCommand('insertHTML', false, dateHtml);
-      updateTopic(selectedTopic.id, { content: editorRef.current.innerHTML });
-    } else {
-      // Fallback: prepend at the top if no active cursor in editor
-      const newContent = `<div style="color: #f59e0b; font-weight: 800; font-size: 1.2em; border-left: 4px solid #f59e0b; padding-left: 12px; margin: 10px 0;">${dateStr}</div><p><br></p>` + selectedTopic.content;
+    if (!inserted && editorRef.current) {
+      const currentContent = editorRef.current.innerHTML || '';
+      const spacing = currentContent.trim().length > 0 ? ' &nbsp; ' : '';
+      const newContent = currentContent + spacing + formattedDate;
+      editorRef.current.innerHTML = newContent;
       updateTopic(selectedTopic.id, { content: newContent });
-      if (editorRef.current) {
-        editorRef.current.innerHTML = newContent;
-      }
+    } else if (editorRef.current) {
+      updateTopic(selectedTopic.id, { content: editorRef.current.innerHTML });
     }
   };
 
@@ -910,106 +819,24 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
 
   const insertSmartTable = () => {
     const { rows, cols, hasHeader, theme, headerTitle } = tableConfig;
-    
-    // Build explicit colgroup widths for fixed proportions
-    let colgroupHtml = '<colgroup>';
-    for (let c = 0; c < cols; c++) {
-      let width = 'auto';
-      if (cols === 4) {
-        if (c === 0) width = '12%';
-        else if (c === 1) width = '35%';
-        else if (c === 2) width = '15%';
-        else if (c === 3) width = '38%';
-      } else if (cols === 3) {
-        if (c === 0) width = '15%';
-        else if (c === 1) width = '45%';
-        else if (c === 2) width = '40%';
-      } else if (cols === 2) {
-        if (c === 0) width = '40%';
-        else if (c === 1) width = '60%';
-      } else {
-        if (c === 0) width = '10%';
-        else if (c === cols - 1) width = '35%';
-        else if (c === cols - 2) width = '15%';
-        else width = 'auto';
-      }
-      colgroupHtml += `<col style="width: ${width};" />`;
-    }
-    colgroupHtml += '</colgroup>';
-
-    let html = `<table style="width: 100%; border-collapse: collapse; margin: 24px 0; border: 2.5px solid ${theme}; background-color: #ffffff; border-radius: 8px; overflow: hidden; table-layout: fixed;">`;
-    html += colgroupHtml;
+    let html = `<table style="width: 100%; border-collapse: collapse; margin: 20px 0; border: 2px solid ${theme}; font-size: 14px; border-radius: 12px; overflow: hidden; display: table;">`;
     
     if (hasHeader) {
-      html += `<thead>`;
-      
-      // Caption Header Row
-      html += `<tr style="background-color: ${theme}; color: #ffffff;">
-        <th colspan="${cols}" style="padding: 14px 16px; font-weight: 950; text-transform: uppercase; letter-spacing: 1.5px; border: 2px solid ${theme}; text-align: center; font-size: 13px; color: #ffffff !important; background-color: ${theme} !important;">${headerTitle}</th>
-      </tr>`;
-      
-      // Column Labels Row
-      html += `<tr style="background-color: #f1f5f9; color: #1e293b;">`;
-      for (let c = 0; c < cols; c++) {
-        let label = `Column ${c + 1}`;
-        let width = 'auto';
-        let textAlign = 'left';
-        
-        if (cols === 4) {
-          if (c === 0) { label = 'Level'; width = '12%'; textAlign = 'center'; }
-          else if (c === 1) { label = 'Learning Topic / Subject'; width = '35%'; textAlign = 'left'; }
-          else if (c === 2) { label = 'Priority / Status'; width = '15%'; textAlign = 'center'; }
-          else if (c === 3) { label = 'Comment / Next Steps'; width = '38%'; textAlign = 'left'; }
-        } else if (cols === 3) {
-          if (c === 0) { label = 'Level'; width = '15%'; textAlign = 'center'; }
-          else if (c === 1) { label = 'Subject / Concept'; width = '45%'; textAlign = 'left'; }
-          else if (c === 2) { label = 'Comment / Reflection'; width = '40%'; textAlign = 'left'; }
-        } else if (cols === 2) {
-          if (c === 0) { label = 'Learning Component'; width = '40%'; textAlign = 'left'; }
-          else if (c === 1) { label = 'Detailed Note / Summary'; width = '60%'; textAlign = 'left'; }
-        } else {
-          if (c === 0) { label = 'No.'; width = '10%'; textAlign = 'center'; }
-          else if (c === cols - 1) { label = 'Comment / Feedback'; width = '35%'; textAlign = 'left'; }
-          else if (c === cols - 2) { label = 'Level / Status'; width = '15%'; textAlign = 'center'; }
-          else { label = `Learning Goal ${c}`; width = 'auto'; textAlign = 'left'; }
-        }
-        
-        const cellStyle = `padding: 12px 14px; font-weight: 850; text-transform: uppercase; font-size: 10px; letter-spacing: 0.5px; border: 2px solid #cbd5e1; text-align: ${textAlign}; width: ${width}; color: #0f172a !important; background-color: #f1f5f9 !important;`;
-        html += `<th style="${cellStyle}">${label}</th>`;
-      }
-      html += `</tr></thead>`;
+      html += `<thead><tr style="background-color: ${theme}; color: white;">
+        <th colspan="${cols}" style="padding: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; border: 1px solid rgba(255,255,255,0.2);">${headerTitle}</th>
+      </tr></thead>`;
     }
 
     html += '<tbody>';
     for (let r = 0; r < rows; r++) {
-      html += '<tr style="border-bottom: 2px solid #cbd5e1;">';
+      html += '<tr>';
       for (let c = 0; c < cols; c++) {
-        let width = 'auto';
-        let textAlign = 'left';
-        let content = '&nbsp;';
-        let isNumericOrLevel = false;
-        
-        if (cols === 4) {
-          if (c === 0) { content = `Lvl ${r + 1}`; textAlign = 'center'; width = '12%'; isNumericOrLevel = true; }
-          else if (c === 1) { content = ''; width = '35%'; }
-          else if (c === 2) { content = 'Pending'; textAlign = 'center'; width = '15%'; isNumericOrLevel = true; }
-          else if (c === 3) { content = ''; width = '38%'; }
-        } else if (cols === 3) {
-          if (c === 0) { content = `Lvl ${r + 1}`; textAlign = 'center'; width = '15%'; isNumericOrLevel = true; }
-          else if (c === 1) { content = ''; width = '45%'; }
-          else if (c === 2) { content = ''; width = '40%'; }
-        } else if (cols === 2) {
-          if (c === 0) { content = ''; width = '40%'; }
-          else if (c === 1) { content = ''; width = '60%'; }
-        } else {
-          if (c === 0) { content = `${r + 1}`; textAlign = 'center'; width = '10%'; isNumericOrLevel = true; }
-          else if (c === cols - 1) { content = ''; width = '35%'; }
-          else if (c === cols - 2) { content = 'Pending'; textAlign = 'center'; width = '15%'; isNumericOrLevel = true; }
-          else { content = ''; width = 'auto'; }
-        }
-
-        const cellStyle = `padding: 12px 14px; border: 2px solid #cbd5e1; min-height: 24px; text-align: ${textAlign}; width: ${width}; font-weight: ${isNumericOrLevel ? '800' : '500'}; background-color: #ffffff;`;
-        html += `<td style="${cellStyle}"${isNumericOrLevel ? ' data-col-type="level"' : ''}>${content}</td>`;
+        const isFirstCol = c === 0;
+        const cellStyle = `padding: 10px; border: 1px solid ${theme}40; min-height: 24px; transition: background 0.2s;`;
+        const content = isFirstCol ? (r + 1).toString() : '';
+        const textAlign = isFirstCol ? 'center' : 'left';
+        const width = isFirstCol ? '40px' : 'auto';
+        html += `<td style="${cellStyle} text-align: ${textAlign}; width: ${width}; font-weight: ${isFirstCol ? '800' : '500'};">${content}</td>`;
       }
       html += '</tr>';
     }
@@ -1243,134 +1070,6 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
       }
     }
   }, [selectedTopic?.id, selectedTopic?.content]);
-
-  useEffect(() => {
-    const editor = editorRef.current;
-    if (!editor) return;
-
-    const onMouseMove = (e: MouseEvent) => {
-      if (resizeState.current.isResizing) return;
-
-      const target = e.target as HTMLElement;
-      const cell = target.closest('td, th') as HTMLTableCellElement;
-      if (cell && editor.contains(cell)) {
-        const rect = cell.getBoundingClientRect();
-        const mouseX = e.clientX;
-        const resizeThreshold = 10;
-        const isNearRightBorder = Math.abs(mouseX - rect.right) < resizeThreshold;
-
-        if (isNearRightBorder) {
-          cell.style.cursor = 'col-resize';
-          cell.classList.add('resizing');
-        } else {
-          cell.style.cursor = '';
-          cell.classList.remove('resizing');
-        }
-      }
-    };
-
-    const onMouseDown = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      const cell = target.closest('td, th') as HTMLTableCellElement;
-      if (cell && editor.contains(cell)) {
-        const rect = cell.getBoundingClientRect();
-        const mouseX = e.clientX;
-        const resizeThreshold = 10;
-        const isNearRightBorder = Math.abs(mouseX - rect.right) < resizeThreshold;
-
-        if (isNearRightBorder) {
-          e.preventDefault();
-          e.stopPropagation();
-
-          resizeState.current = {
-            isResizing: true,
-            startX: e.clientX,
-            startWidth: cell.offsetWidth,
-            activeCell: cell,
-            activeTable: cell.closest('table'),
-            colIndex: cell.cellIndex
-          };
-
-          document.addEventListener('mousemove', onGlobalMouseMove);
-          document.addEventListener('mouseup', onGlobalMouseUp);
-          document.body.style.cursor = 'col-resize';
-          document.body.style.userSelect = 'none';
-        }
-      }
-    };
-
-    const onGlobalMouseMove = (e: MouseEvent) => {
-      if (!resizeState.current.isResizing) return;
-      
-      const { startX, startWidth, activeCell } = resizeState.current;
-      if (activeCell) {
-        const deltaX = e.clientX - startX;
-        const newWidth = Math.max(40, startWidth + deltaX);
-        
-        const table = activeCell.closest('table');
-        const colIndex = resizeState.current.colIndex;
-        if (table && colIndex !== -1) {
-          table.style.tableLayout = 'fixed';
-          
-          let colGroup = table.querySelector('colgroup');
-          if (!colGroup) {
-            colGroup = document.createElement('colgroup');
-            const numCols = table.rows[1]?.cells.length || table.rows[0]?.cells.length || 0;
-            for (let i = 0; i < numCols; i++) {
-              const col = document.createElement('col');
-              const sampleCell = table.rows[1]?.cells[i] || table.rows[0]?.cells[i];
-              if (sampleCell) {
-                col.style.width = sampleCell.style.width || 'auto';
-              }
-              colGroup.appendChild(col);
-            }
-            table.insertBefore(colGroup, table.firstChild);
-          }
-          
-          const colEl = colGroup.children[colIndex] as HTMLElement;
-          if (colEl) {
-            colEl.style.width = `${newWidth}px`;
-          }
-        }
-      }
-    };
-
-    const onGlobalMouseUp = () => {
-      if (resizeState.current.isResizing) {
-        resizeState.current.isResizing = false;
-        document.removeEventListener('mousemove', onGlobalMouseMove);
-        document.removeEventListener('mouseup', onGlobalMouseUp);
-        document.body.style.cursor = '';
-        document.body.style.userSelect = '';
-        
-        if (selectedTopicId && editorRef.current) {
-          updateTopic(selectedTopicId, { content: editorRef.current.innerHTML });
-        }
-      }
-    };
-
-    editor.addEventListener('mousemove', onMouseMove);
-    editor.addEventListener('mousedown', onMouseDown);
-
-    return () => {
-      editor.removeEventListener('mousemove', onMouseMove);
-      editor.removeEventListener('mousedown', onMouseDown);
-      document.removeEventListener('mousemove', onGlobalMouseMove);
-      document.removeEventListener('mouseup', onGlobalMouseUp);
-    };
-  }, [selectedTopicId]);
-
-  const focusCell = (cell: HTMLElement) => {
-    cell.focus();
-    const range = document.createRange();
-    range.selectNodeContents(cell);
-    range.collapse(false); // caret to end
-    const sel = window.getSelection();
-    if (sel) {
-      sel.removeAllRanges();
-      sel.addRange(range);
-    }
-  };
 
   return (
     <div className="flex flex-col md:flex-row h-full md:h-[90vh] w-full p-2 gap-0 overflow-hidden relative">
@@ -1964,49 +1663,21 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
                 })()}
 
                 {(() => {
-                  const isDarkPaper = selectedPaper.id === 'stars' || selectedPaper.id === 'none';
-                  const editorTextColor = isDarkPaper ? '#f8fafc' : '#1e293b';
-                  const editorHeaderColor = isDarkPaper ? '#ffedd5' : '#0f172a';
-                  const editorBorderColor = isDarkPaper ? '#475569' : '#cbd5e1';
-                  const editorCardBgColor = isDarkPaper ? 'rgba(30, 41, 59, 0.8)' : 'rgba(254, 243, 199, 0.8)';
+                  const editorTextColor = '#1e293b';
+                  const editorHeaderColor = '#0f172a';
+                  const editorBorderColor = '#cbd5e1';
+                  const editorCardBgColor = '#f1f5f9';
                   
                   return (
                     <style dangerouslySetInnerHTML={{ __html: `
                       .editor-content {
-                        color: ${editorTextColor} !important;
+                        color: ${editorTextColor};
                       }
                       
                       .editor-content p, 
                       .editor-content li, 
-                      .editor-content span, 
-                      .editor-content div, 
-                      .editor-content font,
-                      .editor-content td, 
-                      .editor-content th, 
-                      .editor-content blockquote {
+                      .editor-content div {
                         color: ${editorTextColor};
-                      }
-                      
-                      /* Ensure high legibility of text inside dark containers */
-                      .editor-content [class*="bg-slate-9"], .editor-content [class*="bg-slate-9"] *,
-                      .editor-content [class*="bg-zinc-9"], .editor-content [class*="bg-zinc-9"] *,
-                      .editor-content [class*="bg-black"], .editor-content [class*="bg-black"] *,
-                      .editor-content [class*="bg-[#0f"], .editor-content [class*="bg-[#0f"] *,
-                      .editor-content [class*="bg-[#1e"], .editor-content [class*="bg-[#1e"] *,
-                      .editor-content [style*="background-color:#0"], .editor-content [style*="background-color:#0"] *,
-                      .editor-content [style*="background-color: #0"], .editor-content [style*="background-color: #0"] *,
-                      .editor-content [style*="background:#0"], .editor-content [style*="background:#0"] *,
-                      .editor-content [style*="background-color:#1e"], .editor-content [style*="background-color:#1e"] *,
-                      .editor-content [style*="background:#1e"], .editor-content [style*="background:#1e"] *,
-                      .editor-content [style*="background-color: rgb(15"], .editor-content [style*="background-color: rgb(15"] *,
-                      .editor-content [style*="background-color:rgb(15"], .editor-content [style*="background-color:rgb(15"] *,
-                      .editor-content [style*="background-color: rgb(30"], .editor-content [style*="background-color: rgb(30"] *,
-                      .editor-content [style*="background-color:rgb(30"], .editor-content [style*="background-color:rgb(30"] *,
-                      .editor-content [style*="background:rgb(15"], .editor-content [style*="background:rgb(15"] *,
-                      .editor-content [style*="background: rgb(15"], .editor-content [style*="background: rgb(15"] *,
-                      .editor-content [style*="background:rgb(30"], .editor-content [style*="background:rgb(30"] *,
-                      .editor-content [style*="background: rgb(30"], .editor-content [style*="background: rgb(30"] * {
-                        color: #f8fafc !important;
                       }
                       
                       .editor-content h1, 
@@ -2019,81 +1690,91 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
                         font-weight: 800 !important;
                       }
                       
-                      /* High contrast, academic-grade tables supporting custom borders */
-                      .editor-content table {
-                        width: 100% !important;
-                        border-collapse: collapse !important;
-                        margin: 24px 0 !important;
-                        background-color: #ffffff !important;
-                        border: 2.5px solid #1e293b;
-                        border-radius: 8px !important;
-                        overflow: hidden !important;
-                        font-family: inherit !important;
-                        box-shadow: 0 4px 15px rgba(15, 23, 42, 0.05) !important;
-                        table-layout: fixed !important;
-                      }
-
-                      .editor-content tr {
-                        border-bottom: 2px solid #cbd5e1 !important;
-                        transition: background-color 0.15s ease !important;
-                      }
-
-                      .editor-content tr:hover {
-                        background-color: #f8fafc !important;
-                      }
-
-                      .editor-content th {
-                        background-color: #f1f5f9;
-                        color: #1e293b;
-                        font-weight: 850 !important;
-                        text-transform: uppercase !important;
-                        letter-spacing: 1px !important;
-                        padding: 12px 14px !important;
-                        border: 2px solid #cbd5e1;
-                        font-size: 11px !important;
-                        text-align: center !important;
-                      }
-
+                      .editor-content th, 
                       .editor-content td {
-                        padding: 12px 14px !important;
-                        border: 2px solid #cbd5e1 !important;
-                        color: #1e293b;
-                        font-size: 13px !important;
-                        line-height: 1.5 !important;
-                        vertical-align: middle !important;
-                        text-align: left;
-                        background-color: #ffffff !important;
-                      }
-
-                      /* Align columns appropriately based on data attributes */
-                      .editor-content td[data-col-type="level"],
-                      .editor-content td[data-col-type="numeric"] {
-                        text-align: center !important;
-                        font-weight: 800 !important;
-                      }
-
-                      /* Excel / Word style highlight of focused cell */
-                      .editor-content td:focus, 
-                      .editor-content th:focus {
-                        outline: none !important;
-                        background-color: #f0fdf4 !important;
-                        box-shadow: inset 0 0 0 2.5px #10b981 !important;
-                      }
-
-                      .editor-content th.resizing, 
-                      .editor-content td.resizing {
-                        cursor: col-resize !important;
+                        border: 1px solid ${editorBorderColor} !important;
+                        padding: 10px !important;
+                        color: ${editorTextColor} !important;
                       }
                       
+                      /* Lightbox styling to guarantee that custom templates (study plan, synthesis, QA boards) have a gorgeous light design on any background */
                       .editor-content .synthesis-card-wrapper, 
                       .editor-content .qa-board-wrapper,
                       .editor-content .study-plan-card,
                       .editor-content .action-plan-card {
                         border: 2px solid ${editorBorderColor} !important;
                         background-color: ${editorCardBgColor} !important;
+                        background: ${editorCardBgColor} !important;
                         color: ${editorTextColor} !important;
                         border-radius: 16px !important;
                         padding: 18px !important;
+                        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+                      }
+
+                      .editor-content .synthesis-card-wrapper h1,
+                      .editor-content .synthesis-card-wrapper h2,
+                      .editor-content .synthesis-card-wrapper h3,
+                      .editor-content .qa-board-wrapper h1,
+                      .editor-content .qa-board-wrapper h2,
+                      .editor-content .qa-board-wrapper h3,
+                      .editor-content .study-plan-card h1,
+                      .editor-content .study-plan-card h2,
+                      .editor-content .study-plan-card h3,
+                      .editor-content .action-plan-card h1,
+                      .editor-content .action-plan-card h2,
+                      .editor-content .action-plan-card h3 {
+                        color: ${editorHeaderColor} !important;
+                      }
+
+                      .editor-content .synthesis-card-wrapper p, 
+                      .editor-content .synthesis-card-wrapper li, 
+                      .editor-content .synthesis-card-wrapper div,
+                      .editor-content .qa-board-wrapper p, 
+                      .editor-content .qa-board-wrapper li, 
+                      .editor-content .qa-board-wrapper div,
+                      .editor-content .study-plan-card p, 
+                      .editor-content .study-plan-card li, 
+                      .editor-content .study-plan-card div,
+                      .editor-content .action-plan-card p, 
+                      .editor-content .action-plan-card li, 
+                      .editor-content .action-plan-card div {
+                        color: ${editorTextColor} !important;
+                      }
+
+                      /* Ensure unstyled spans inside template cards are readable dark, while preserving custom highlighted/colored texts */
+                      .editor-content .synthesis-card-wrapper span:not([style*="color"]):not([style*="background-color"]),
+                      .editor-content .qa-board-wrapper span:not([style*="color"]):not([style*="background-color"]),
+                      .editor-content .study-plan-card span:not([style*="color"]):not([style*="background-color"]),
+                      .editor-content .action-plan-card span:not([style*="color"]):not([style*="background-color"]) {
+                        color: ${editorTextColor} !important;
+                      }
+
+                      /* Force elegant light design on template elements with dark classes or hardcoded dark background behaviors */
+                      .editor-content [class*="bg-slate-9"],
+                      .editor-content [class*="bg-zinc-9"],
+                      .editor-content [class*="bg-gray-9"],
+                      .editor-content [class*="bg-neutral-9"],
+                      .editor-content [class*="bg-[#0f"],
+                      .editor-content [class*="bg-[#1e"],
+                      .editor-content [class*="bg-[#11"],
+                      .editor-content [class*="bg-[#0a"],
+                      .editor-content [class*="bg-[#18"],
+                      .editor-content [class*="bg-[#1c"],
+                      .editor-content [class*="bg-black"] {
+                        background-color: ${editorCardBgColor} !important;
+                        background: ${editorCardBgColor} !important;
+                        border: 1.5px solid ${editorBorderColor} !important;
+                        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+                      }
+
+                      .editor-content [class*="bg-slate-9"] p,
+                      .editor-content [class*="bg-slate-9"] div,
+                      .editor-content [class*="bg-slate-9"] span:not([style*="color"]):not([style*="background-color"]),
+                      .editor-content [class*="bg-zinc-9"] p,
+                      .editor-content [class*="bg-[#1e"] p,
+                      .editor-content [class*="bg-[#1e"] div,
+                      .editor-content [class*="bg-[#1e"] span:not([style*="color"]):not([style*="background-color"]) {
+                        color: ${editorTextColor} !important;
                       }
 
                       .editor-content a {
@@ -2119,7 +1800,6 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
                 <div 
                     ref={editorRef}
                     contentEditable={true}
-                    onKeyDown={handleKeyDown}
                     onClick={handleEditorClick}
                     onMouseUp={handleSelection}
                     onKeyUp={handleSelection}
@@ -2132,7 +1812,7 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
                       fontSize: `${textFontSize}px`,
                       fontFamily: textFontFamily
                     }}
-                    className={`editor-content w-full flex-1 outline-none p-8 rounded-3xl ${selectedPaper.id === 'stars' || selectedPaper.id === 'none' ? 'text-slate-100' : 'text-slate-800'} leading-relaxed font-medium transition-all focus:ring-4 focus:ring-orange-500/10 overflow-y-auto shadow-md ${selectedPaper.className}`}
+                    className={`editor-content w-full flex-1 outline-none p-8 rounded-3xl text-slate-800 leading-relaxed font-medium transition-all focus:ring-4 focus:ring-orange-500/10 overflow-y-auto shadow-md ${selectedPaper.className}`}
                 ></div>
 
                 {isTableModalOpen && (
