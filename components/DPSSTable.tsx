@@ -270,7 +270,7 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizing.current) return;
-      const newWidth = Math.max(150, Math.min(e.clientX - 10, 500));
+      const newWidth = Math.max(160, Math.min(e.clientX - 10, 600));
       setSidebarWidth(newWidth);
     };
     const handleMouseUp = () => {
@@ -1250,7 +1250,7 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
               <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${style.indicator} ml-1.5`} />
             )}
             
-            <span className="font-bold text-[12px] truncate max-w-[140px]" title={topic.title}>{topic.title}</span>
+            <span className="font-bold text-[12px] truncate flex-1 min-w-0" title={topic.title}>{topic.title}</span>
           </div>
 
           <div className="flex gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1333,48 +1333,50 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
           </button>
         </div>
 
-        <button 
-          onClick={() => {
-            addTopic();
-          }} 
-          className="w-full py-4 bg-orange-500 text-white rounded-2xl text-[10px] font-black flex items-center justify-center gap-2 hover:bg-orange-600 shadow-xl shadow-orange-500/20 active:scale-95 transition-all shrink-0 whitespace-nowrap"
-        >
-          <Plus size={18} /> Add New Topic
-        </button>
+        {/* Unifed Scrollable Column containing action buttons, search, topics, and folder archive */}
+        <div className="flex-1 overflow-y-auto pr-1 -mr-1 space-y-4 custom-scrollbar flex flex-col">
+          <button 
+            onClick={() => {
+              addTopic();
+            }} 
+            className="w-full py-4 bg-orange-500 text-white rounded-2xl text-[10px] font-black flex items-center justify-center gap-2 hover:bg-orange-600 shadow-xl shadow-orange-500/20 active:scale-95 transition-all whitespace-nowrap"
+          >
+            <Plus size={18} /> Add New Topic
+          </button>
 
-        {/* Search Bar */}
-        <div className="relative mt-3 mb-2 shrink-0">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search notes..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-8 py-2 bg-slate-100 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-medium text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500 transition-all"
-          />
-          {searchTerm && (
-            <button
-              onClick={() => setSearchTerm('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 font-bold text-xs"
-            >
-              ✕
-            </button>
-          )}
-        </div>
+          {/* Search Bar */}
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search notes..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-8 py-2 bg-slate-100 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-medium text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500 transition-all"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 font-bold text-xs"
+              >
+                ✕
+              </button>
+            )}
+          </div>
 
-        {/* Scrollable Topics Section */}
-        <div className="flex-1 overflow-y-auto pr-2 space-y-1 custom-scrollbar">
           {/* Active Topics */}
-          {filteredTopics.length > 0 ? (
-            filteredTopics.map(t => renderTopic(t))
-          ) : (
-            <div className="text-center py-6 text-xs text-slate-400 select-none">
-              {searchTerm ? 'No matching note topics found' : 'No active note topics yet'}
-            </div>
-          )}
+          <div className="space-y-1">
+            {filteredTopics.length > 0 ? (
+              filteredTopics.map(t => renderTopic(t))
+            ) : (
+              <div className="text-center py-6 text-xs text-slate-400 select-none">
+                {searchTerm ? 'No matching note topics found' : 'No active note topics yet'}
+              </div>
+            )}
+          </div>
 
           {/* Folder Archive */}
-          <div className="mt-4 pt-4 border-t border-slate-200/65 dark:border-slate-800/60">
+          <div className="pt-4 border-t border-slate-200/65 dark:border-slate-800/60">
             <button
               onClick={() => setIsArchiveFolderOpen(prev => !prev)}
               className="w-full flex items-center justify-between p-2 rounded-xl bg-orange-50/50 dark:bg-slate-900/20 text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-950/20 border border-orange-100/40 transition-all select-none cursor-pointer"
