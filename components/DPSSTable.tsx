@@ -273,15 +273,35 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
       const newWidth = Math.max(160, Math.min(e.clientX - 10, 600));
       setSidebarWidth(newWidth);
     };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!isResizing.current) return;
+      if (e.touches && e.touches.length > 0) {
+        const clientX = e.touches[0].clientX;
+        const maxMobileWidth = Math.min(600, window.innerWidth - 45);
+        const newWidth = Math.max(160, Math.min(clientX - 10, maxMobileWidth));
+        setSidebarWidth(newWidth);
+      }
+    };
+
     const handleMouseUp = () => {
       isResizing.current = false;
       document.body.style.cursor = 'default';
     };
+
+    const handleTouchEnd = () => {
+      isResizing.current = false;
+    };
+
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('touchmove', handleTouchMove, { passive: true });
+    window.addEventListener('touchend', handleTouchEnd);
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
     };
   }, []);
   
@@ -1318,12 +1338,12 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
         className={`
           fixed md:relative inset-y-0 left-0 z-50 md:z-30
           bg-white/95 md:bg-white/10 backdrop-blur-3xl md:backdrop-blur-md 
-          rounded-r-3xl md:rounded-3xl overflow-hidden shrink-0 transition-all duration-300 transform
-          ${isSidebarOpen ? 'p-4 md:p-6 border-r md:border border-white/20 translate-x-0' : 'p-0 border-none -translate-x-full md:translate-x-0 pointer-events-none opacity-0 select-none hidden md:hidden'}
-          flex flex-col gap-4
+          rounded-r-3xl md:rounded-3xl shrink-0 transition-[transform,opacity] duration-300 transform
+          ${isSidebarOpen ? 'p-3 md:p-6 border-r md:border border-white/20 translate-x-0' : 'p-0 border-none -translate-x-full md:translate-x-0 pointer-events-none opacity-0 select-none hidden md:hidden'}
+          flex flex-col gap-3 md:gap-4 max-[767px]:landscape:gap-2 relative select-none
         `}
       >
-        <div className="flex items-center justify-between mb-4 shrink-0">
+        <div className="flex items-center justify-between mb-2 shrink-0">
           <h2 className="text-xl font-black text-slate-800 tracking-tight whitespace-nowrap">Note-taking</h2>
           <button 
             onClick={() => setIsSidebarOpen(false)} 
@@ -1334,34 +1354,36 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
         </div>
 
         {/* Unifed Scrollable Column containing action buttons, search, topics, and folder archive */}
-        <div className="flex-1 overflow-y-auto pr-1 -mr-1 space-y-4 custom-scrollbar flex flex-col">
-          <button 
-            onClick={() => {
-              addTopic();
-            }} 
-            className="w-full py-4 bg-orange-500 text-white rounded-2xl text-[10px] font-black flex items-center justify-center gap-2 hover:bg-orange-600 shadow-xl shadow-orange-500/20 active:scale-95 transition-all whitespace-nowrap"
-          >
-            <Plus size={18} /> Add New Topic
-          </button>
+        <div className="flex-1 overflow-y-auto pr-1 -mr-1 space-y-3 max-[767px]:landscape:space-y-2.5 custom-scrollbar flex flex-col">
+          <div className="flex flex-col max-[767px]:landscape:flex-row gap-2 shrink-0">
+            <button 
+              onClick={() => {
+                addTopic();
+              }} 
+              className="flex-1 py-3 bg-orange-500 text-white rounded-2xl text-[10px] font-black flex items-center justify-center gap-1.5 hover:bg-orange-600 shadow-xl shadow-orange-500/20 active:scale-95 transition-all whitespace-nowrap"
+            >
+              <Plus size={16} /> Add New Topic
+            </button>
 
-          {/* Search Bar */}
-          <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search notes..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-8 py-2 bg-slate-100 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-medium text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500 transition-all"
-            />
-            {searchTerm && (
-              <button
-                onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 font-bold text-xs"
-              >
-                ✕
-              </button>
-            )}
+            {/* Search Bar */}
+            <div className="relative flex-1">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search notes..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-8 py-2.5 bg-slate-100 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-medium text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500 transition-all"
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 font-bold text-xs"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Active Topics */}
@@ -1404,19 +1426,26 @@ export const DPSSTable: React.FC<DPSSTableProps> = ({ data, onUpdate, onUpdateTo
             )}
           </div>
         </div>
+
+        {/* Resizable drag handle (Touch + Mouse friendly) */}
+        {isSidebarOpen && (
+          <div
+            className="absolute top-0 bottom-0 right-0 w-3 cursor-col-resize z-50 flex items-center justify-center group/resize-handle select-none touch-none touch-pan-y"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              isResizing.current = true;
+              document.body.style.cursor = 'col-resize';
+            }}
+            onTouchStart={() => {
+              isResizing.current = true;
+            }}
+          >
+            {/* Visual handle indicator bar */}
+            <div className="h-10 w-1 rounded-full bg-slate-350 dark:bg-slate-700 opacity-40 group-hover/resize-handle:opacity-100 group-active/resize-handle:opacity-100 group-hover/resize-handle:bg-orange-500 group-active/resize-handle:bg-orange-500 transition-all shadow-sm" />
+          </div>
+        )}
       </div>
 
-      {/* Resize Handle */}
-      {isSidebarOpen && (
-        <div 
-          className="hidden md:block w-1 hover:w-2 bg-transparent hover:bg-orange-500/20 cursor-col-resize z-40 transition-all shrink-0"
-          onMouseDown={() => {
-            isResizing.current = true;
-            document.body.style.cursor = 'col-resize';
-          }}
-        />
-      )}
-      
       {/* Editor Area */}
       <div className={`flex-1 bg-transparent rounded-3xl p-4 md:p-6 border border-white/20 relative overflow-hidden flex flex-col ${!isSidebarOpen ? 'w-full' : 'hidden md:flex'}`}>
         {!isSidebarOpen && (
