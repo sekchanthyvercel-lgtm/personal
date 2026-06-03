@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Zap, Plus, Trash2, Calendar, AlignLeft, AlignCenter, AlignRight, Highlighter, MousePointer2, Minus, Layout, Square, Quote, Settings2, FileUp, FileDown, Image as ImageIcon, Video, Music, FileText, Loader2, Wand2, Menu, ChevronLeft, GraduationCap, ChevronRight, Table, Grid3X3, Columns, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Palette, Italic, Underline, Strikethrough, Indent, Outdent, List, ListOrdered, CheckSquare, ChevronDown, MoreHorizontal, Download, Maximize2, Minimize2 } from 'lucide-react';
+import { Zap, Plus, Trash2, Calendar, AlignLeft, AlignCenter, AlignRight, Highlighter, MousePointer2, Minus, Layout, Square, Quote, Settings2, FileUp, FileDown, Image as ImageIcon, Video, Music, FileText, Loader2, Wand2, Menu, ChevronLeft, GraduationCap, ChevronRight, Table, Grid3X3, Columns, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Palette, Italic, Underline, Strikethrough, Indent, Outdent, List, ListOrdered, CheckSquare, ChevronDown, MoreHorizontal, Download, Maximize2, Minimize2, Search, Archive, Folder } from 'lucide-react';
 import { AppData, DPSSTopic } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { callNeuralEngine } from '../services/neuralEngine';
@@ -18,7 +18,8 @@ interface SelfLearningTableProps {
 export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUpdate, onUpdateTopic, onOpenSidebar }) => {
   const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
   const [forceLightBg, setForceLightBg] = useState<boolean>(() => {
-    return localStorage.getItem('self_learning_plain_light') !== 'false';
+    const saved = localStorage.getItem('self_learning_plain_light');
+    return saved === null ? true : saved === 'true';
   });
   const [showMoreTools, setShowMoreTools] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -39,6 +40,10 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
   });
   const [sidebarWidth, setSidebarWidth] = useState(window.innerWidth < 768 ? 200 : 300);
 
+  const [searchTerm, setSearchTerm] = useState('');
+  const [expandedTopics, setExpandedTopics] = useState<Record<string, boolean>>({});
+  const [isArchiveFolderOpen, setIsArchiveFolderOpen] = useState(false);
+
   const filterTopics = (items: DPSSTopic[]): DPSSTopic[] => {
     if (!Array.isArray(items)) return [];
     return items
@@ -52,9 +57,101 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
       }));
   };
 
+  const filterActiveTopics = (items: DPSSTopic[]): DPSSTopic[] => {
+    if (!Array.isArray(items)) return [];
+    return items
+      .filter(t => t && !t.deletedAt && !t.isArchived)
+      .map(t => ({
+        ...t,
+        title: typeof t.title === 'string' ? t.title : 'New Topic',
+        content: typeof t.content === 'string' ? t.content : '',
+        alignment: t.alignment || 'left',
+        children: t.children ? filterActiveTopics(t.children) : []
+      }));
+  };
+
+  const getArchivedRootTopics = (items: DPSSTopic[]): DPSSTopic[] => {
+    if (!Array.isArray(items)) return [];
+    const archived: DPSSTopic[] = [];
+    const traverse = (list: DPSSTopic[]) => {
+      list.forEach(t => {
+        if (t && !t.deletedAt && t.isArchived) {
+          archived.push({
+            ...t,
+            children: t.children ? filterActiveTopics(t.children) : []
+          });
+        } else if (t && t.children) {
+          traverse(t.children);
+        }
+      });
+    };
+    traverse(items);
+    return archived;
+  };
+
   const topics = React.useMemo(() => {
     return filterTopics(data.selfLearningTopics || []);
   }, [data.selfLearningTopics]);
+
+  const activeTopics = React.useMemo(() => {
+    return filterActiveTopics(data.selfLearningTopics || []);
+  }, [data.selfLearningTopics]);
+
+  const archivedTopics = React.useMemo(() => {
+    return getArchivedRootTopics(data.selfLearningTopics || []);
+  }, [data.selfLearningTopics]);
+
+  const filterTopicsBySearch = (items: DPSSTopic[], searchStr: string): DPSSTopic[] => {
+    if (!searchStr) return items;
+    const cleanSearch = searchStr.toLowerCase().trim();
+    
+    return items.map(item => {
+      const isMatched = item.title.toLowerCase().includes(cleanSearch);
+      const filteredChildren = item.children ? filterTopicsBySearch(item.children, searchStr) : [];
+      
+      if (isMatched || filteredChildren.length > 0) {
+        return {
+          ...item,
+          children: filteredChildren
+        };
+      }
+      return null;
+    }).filter((item): item is NonNullable<typeof item> => item !== null);
+  };
+
+  const filteredTopics = React.useMemo(() => {
+    return filterTopicsBySearch(activeTopics, searchTerm);
+  }, [activeTopics, searchTerm]);
+
+  const filteredArchivedTopics = React.useMemo(() => {
+    return filterTopicsBySearch(archivedTopics, searchTerm);
+  }, [archivedTopics, searchTerm]);
+
+  // Auto-expand matched topics when searching
+  useEffect(() => {
+    if (searchTerm) {
+      const autoExpand = (items: DPSSTopic[]) => {
+        const expanded: Record<string, boolean> = {};
+        const traverse = (itemList: DPSSTopic[]) => {
+          itemList.forEach(item => {
+            if (item.children && item.children.length > 0) {
+              const matchInDescendants = (i: DPSSTopic): boolean => {
+                if (i.title.toLowerCase().includes(searchTerm.toLowerCase())) return true;
+                return i.children ? i.children.some(matchInDescendants) : false;
+              };
+              if (item.children.some(matchInDescendants)) {
+                expanded[item.id] = true;
+              }
+            }
+            if (item.children) traverse(item.children);
+          });
+        };
+        traverse(activeTopics);
+        setExpandedTopics(prev => ({ ...prev, ...expanded }));
+      };
+      autoExpand(activeTopics);
+    }
+  }, [searchTerm, activeTopics]);
 
   useEffect(() => {
     localStorage.setItem('self_learning_toolbar_hidden', String(isToolbarHidden));
@@ -81,21 +178,6 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
 
   const isResizing = useRef(false);
   const editorRef = useRef<HTMLDivElement>(null);
-  const resizeState = useRef<{
-    isResizing: boolean;
-    startX: number;
-    startWidth: number;
-    activeCell: HTMLTableCellElement | null;
-    activeTable: HTMLTableElement | null;
-    colIndex: number;
-  }>({
-    isResizing: false,
-    startX: 0,
-    startWidth: 0,
-    activeCell: null,
-    activeTable: null,
-    colIndex: -1
-  });
 
   const exportPDF = async () => {
     if (!editorRef.current || !selectedTopic) return;
@@ -688,205 +770,6 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
       window.removeEventListener('mouseup', handleMouseUp);
     };
   }, []);
-
-  // Dynamic column resizing by dragging column borders inside the note-taking tables
-  useEffect(() => {
-    const editor = editorRef.current;
-    if (!editor) return;
-
-    const onMouseMove = (e: MouseEvent) => {
-      if (resizeState.current.isResizing) return;
-
-      const target = e.target as HTMLElement;
-      const cell = target.closest('td, th') as HTMLTableCellElement;
-      if (cell && editor.contains(cell)) {
-        const rect = cell.getBoundingClientRect();
-        const mouseX = e.clientX;
-        const resizeThreshold = 10; // comfortable border grasp area
-        const isNearRightBorder = Math.abs(mouseX - rect.right) < resizeThreshold;
-        
-        if (isNearRightBorder) {
-          cell.style.cursor = 'col-resize';
-          cell.classList.add('resizing');
-        } else {
-          cell.style.cursor = '';
-          cell.classList.remove('resizing');
-        }
-      }
-    };
-
-    const onMouseDown = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      const cell = target.closest('td, th') as HTMLTableCellElement;
-      if (cell && editor.contains(cell)) {
-        const rect = cell.getBoundingClientRect();
-        const mouseX = e.clientX;
-        const resizeThreshold = 10;
-        const isNearRightBorder = Math.abs(mouseX - rect.right) < resizeThreshold;
-
-        if (isNearRightBorder) {
-          e.preventDefault();
-          e.stopPropagation();
-
-          resizeState.current = {
-            isResizing: true,
-            startX: e.clientX,
-            startWidth: cell.offsetWidth,
-            activeCell: cell,
-            activeTable: cell.closest('table'),
-            colIndex: cell.cellIndex
-          };
-
-          document.addEventListener('mousemove', onGlobalMouseMove);
-          document.addEventListener('mouseup', onGlobalMouseUp);
-          document.body.style.cursor = 'col-resize';
-          document.body.style.userSelect = 'none';
-        }
-      }
-    };
-
-    const onGlobalMouseMove = (e: MouseEvent) => {
-      if (!resizeState.current.isResizing) return;
-      
-      const { startX, startWidth, activeCell } = resizeState.current;
-      if (activeCell) {
-        const deltaX = e.clientX - startX;
-        const newWidth = Math.max(40, startWidth + deltaX);
-        
-        const table = activeCell.closest('table');
-        const colIndex = resizeState.current.colIndex;
-        if (table && colIndex !== -1) {
-          table.style.tableLayout = 'fixed';
-          
-          let colGroup = table.querySelector('colgroup');
-          if (!colGroup) {
-            colGroup = document.createElement('colgroup');
-            const numCols = table.rows[1]?.cells.length || table.rows[0]?.cells.length || 0;
-            for (let i = 0; i < numCols; i++) {
-              const col = document.createElement('col');
-              const sampleCell = table.rows[1]?.cells[i] || table.rows[0]?.cells[i];
-              if (sampleCell) {
-                col.style.width = sampleCell.style.width || 'auto';
-              }
-              colGroup.appendChild(col);
-            }
-            table.insertBefore(colGroup, table.firstChild);
-          }
-          
-          const colEl = colGroup.children[colIndex] as HTMLElement;
-          if (colEl) {
-            colEl.style.width = `${newWidth}px`;
-          }
-        }
-      }
-    };
-
-    const onGlobalMouseUp = () => {
-      if (resizeState.current.isResizing) {
-        resizeState.current.isResizing = false;
-        document.removeEventListener('mousemove', onGlobalMouseMove);
-        document.removeEventListener('mouseup', onGlobalMouseUp);
-        document.body.style.cursor = '';
-        document.body.style.userSelect = '';
-        
-        if (selectedTopicId && editorRef.current) {
-          updateTopic(selectedTopicId, { content: editorRef.current.innerHTML });
-        }
-      }
-    };
-
-    editor.addEventListener('mousemove', onMouseMove);
-    editor.addEventListener('mousedown', onMouseDown);
-
-    return () => {
-      editor.removeEventListener('mousemove', onMouseMove);
-      editor.removeEventListener('mousedown', onMouseDown);
-      document.removeEventListener('mousemove', onGlobalMouseMove);
-      document.removeEventListener('mouseup', onGlobalMouseUp);
-    };
-  }, [selectedTopicId]);
-
-  const focusCell = (cell: HTMLElement) => {
-    cell.focus();
-    const range = document.createRange();
-    range.selectNodeContents(cell);
-    range.collapse(false); // caret to end
-    const sel = window.getSelection();
-    if (sel) {
-      sel.removeAllRanges();
-      sel.addRange(range);
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    const selection = window.getSelection();
-    if (!selection || !selection.anchorNode) return;
-
-    const cell = selection.anchorNode.nodeType === Node.TEXT_NODE 
-      ? selection.anchorNode.parentElement?.closest('td, th') 
-      : (selection.anchorNode as HTMLElement).closest?.('td, th');
-
-    if (!cell) return;
-
-    const row = cell.parentElement as HTMLTableRowElement;
-    const table = row?.closest('table') as HTMLTableElement;
-    if (!table || !row) return;
-
-    const colIndex = (cell as HTMLTableCellElement).cellIndex;
-    const rowIndex = row.rowIndex;
-
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      
-      const allCells = Array.from(table.querySelectorAll('td, th')).filter(c => {
-        const cellEl = c as HTMLTableCellElement;
-        return (cellEl.colSpan || 1) === 1;
-      }) as HTMLTableCellElement[];
-      
-      const currentIndex = allCells.indexOf(cell as HTMLTableCellElement);
-      if (currentIndex !== -1) {
-        let nextIndex = e.shiftKey ? currentIndex - 1 : currentIndex + 1;
-        if (nextIndex >= 0 && nextIndex < allCells.length) {
-          focusCell(allCells[nextIndex]);
-        }
-      }
-    } else if (e.key === 'Enter') {
-      if (e.shiftKey) {
-        // Shift + Enter stays in the same cell/column (default browser behavior)
-        return;
-      }
-      
-      // Enter without Shift = Create another row immediately below
-      e.preventDefault();
-      
-      const numCols = row.cells.length;
-      const newRow = table.insertRow(rowIndex + 1);
-      
-      for (let i = 0; i < numCols; i++) {
-        const newCell = newRow.insertCell(i);
-        const origCell = row.cells[i] as HTMLTableCellElement;
-        
-        newCell.style.cssText = origCell.style.cssText;
-        if (origCell.hasAttribute('data-col-type')) {
-          newCell.setAttribute('data-col-type', origCell.getAttribute('data-col-type') || '');
-        }
-        if (origCell.style.width) {
-          newCell.style.width = origCell.style.width;
-        }
-        
-        newCell.innerHTML = '&nbsp;';
-      }
-      
-      if (newRow.cells.length > 0) {
-        focusCell(newRow.cells[0]);
-      }
-      
-      if (selectedTopic && editorRef.current) {
-        updateTopic(selectedTopic.id, { content: editorRef.current.innerHTML });
-      }
-    }
-  };
-
   const savedRange = useRef<Range | null>(null);
   
   const colors = [
@@ -994,8 +877,8 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
       document.execCommand('foreColor', false, color);
     }
     
+    selection.removeAllRanges();
     if (!selectionProvided) {
-      selection.removeAllRanges();
       savedRange.current = null;
       setPickerPos(null);
     }
@@ -1017,8 +900,8 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
       document.execCommand('backColor', false, color);
     }
     
+    selection.removeAllRanges();
     if (!selectionProvided) {
-      selection.removeAllRanges();
       savedRange.current = null;
       setPickerPos(null);
     }
@@ -1181,108 +1064,24 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
 
   const insertSmartTable = () => {
     const { rows, cols, hasHeader, theme, headerTitle } = tableConfig;
-    
-    // Build explicit colgroup widths for fixed proportions
-    let colgroupHtml = '<colgroup>';
-    for (let c = 0; c < cols; c++) {
-      let width = 'auto';
-      if (cols === 4) {
-        if (c === 0) width = '12%';
-        else if (c === 1) width = '35%';
-        else if (c === 2) width = '15%';
-        else if (c === 3) width = '38%';
-      } else if (cols === 3) {
-        if (c === 0) width = '15%';
-        else if (c === 1) width = '45%';
-        else if (c === 2) width = '40%';
-      } else if (cols === 2) {
-        if (c === 0) width = '40%';
-        else if (c === 1) width = '60%';
-      } else {
-        if (c === 0) width = '10%';
-        else if (c === cols - 1) width = '35%';
-        else if (c === cols - 2) width = '15%';
-        else width = 'auto';
-      }
-      colgroupHtml += `<col style="width: ${width};" />`;
-    }
-    colgroupHtml += '</colgroup>';
-
-    // Style settings for high contrast, medium-thickness border table
-    let html = `<table style="width: 100%; border-collapse: collapse; margin: 24px 0; border: 2.5px solid ${theme}; background-color: #ffffff; border-radius: 8px; overflow: hidden; table-layout: fixed;">`;
-    html += colgroupHtml;
+    let html = `<table style="width: 100%; border-collapse: collapse; margin: 20px 0; border: 2px solid ${theme}; font-size: 14px; border-radius: 12px; overflow: hidden; display: table;">`;
     
     if (hasHeader) {
-      html += `<thead>`;
-      
-      // Caption Header Row
-      html += `<tr style="background-color: ${theme}; color: #ffffff;">
-        <th colspan="${cols}" style="padding: 14px 16px; font-weight: 950; text-transform: uppercase; letter-spacing: 1.5px; border: 2px solid ${theme}; text-align: center; font-size: 13px; color: #ffffff !important; background-color: ${theme} !important;">${headerTitle}</th>
-      </tr>`;
-      
-      // Column Labels Row (balancing column widths based on content importance - wide Comment, narrow Level)
-      html += `<tr style="background-color: #f1f5f9; color: #1e293b;">`;
-      for (let c = 0; c < cols; c++) {
-        let label = `Column ${c + 1}`;
-        let width = 'auto';
-        let textAlign = 'left';
-        
-        if (cols === 4) {
-          if (c === 0) { label = 'Level'; width = '12%'; textAlign = 'center'; }
-          else if (c === 1) { label = 'Learning Topic / Subject'; width = '35%'; textAlign = 'left'; }
-          else if (c === 2) { label = 'Priority / Status'; width = '15%'; textAlign = 'center'; }
-          else if (c === 3) { label = 'Comment / Next Steps'; width = '38%'; textAlign = 'left'; }
-        } else if (cols === 3) {
-          if (c === 0) { label = 'Level'; width = '15%'; textAlign = 'center'; }
-          else if (c === 1) { label = 'Subject / Concept'; width = '45%'; textAlign = 'left'; }
-          else if (c === 2) { label = 'Comment / Reflection'; width = '40%'; textAlign = 'left'; }
-        } else if (cols === 2) {
-          if (c === 0) { label = 'Learning Component'; width = '40%'; textAlign = 'left'; }
-          else if (c === 1) { label = 'Detailed Note / Summary'; width = '60%'; textAlign = 'left'; }
-        } else {
-          if (c === 0) { label = 'No.'; width = '10%'; textAlign = 'center'; }
-          else if (c === cols - 1) { label = 'Comment / Feedback'; width = '35%'; textAlign = 'left'; }
-          else if (c === cols - 2) { label = 'Level / Status'; width = '15%'; textAlign = 'center'; }
-          else { label = `Learning Goal ${c}`; width = 'auto'; textAlign = 'left'; }
-        }
-        
-        const cellStyle = `padding: 12px 14px; font-weight: 850; text-transform: uppercase; font-size: 10px; letter-spacing: 0.5px; border: 2px solid #cbd5e1; text-align: ${textAlign}; width: ${width}; color: #0f172a !important; background-color: #f1f5f9 !important;`;
-        html += `<th style="${cellStyle}">${label}</th>`;
-      }
-      html += `</tr></thead>`;
+      html += `<thead><tr style="background-color: ${theme}; color: white;">
+        <th colspan="${cols}" style="padding: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; border: 1px solid rgba(255,255,255,0.2);">${headerTitle}</th>
+      </tr></thead>`;
     }
 
     html += '<tbody>';
     for (let r = 0; r < rows; r++) {
-      html += '<tr style="border-bottom: 2px solid #cbd5e1;">';
+      html += '<tr>';
       for (let c = 0; c < cols; c++) {
-        let width = 'auto';
-        let textAlign = 'left';
-        let content = '&nbsp;';
-        let isNumericOrLevel = false;
-        
-        if (cols === 4) {
-          if (c === 0) { content = `Lvl ${r + 1}`; width = '12%'; textAlign = 'center'; isNumericOrLevel = true; }
-          else if (c === 1) { width = '35%'; textAlign = 'left'; }
-          else if (c === 2) { content = 'Pending'; width = '15%'; textAlign = 'center'; isNumericOrLevel = true; }
-          else if (c === 3) { width = '38%'; textAlign = 'left'; }
-        } else if (cols === 3) {
-          if (c === 0) { content = `A_${r + 1}`; width = '15%'; textAlign = 'center'; isNumericOrLevel = true; }
-          else if (c === 1) { width = '45%'; textAlign = 'left'; }
-          else if (c === 2) { width = '40%'; textAlign = 'left'; }
-        } else if (cols === 2) {
-          if (c === 0) { width = '40%'; textAlign = 'left'; }
-          else if (c === 1) { width = '60%'; textAlign = 'left'; }
-        } else {
-          if (c === 0) { content = (r + 1).toString(); width = '10%'; textAlign = 'center'; isNumericOrLevel = true; }
-          else if (c === cols - 1) { width = '35%'; textAlign = 'left'; }
-          else if (c === cols - 2) { content = 'Medium'; width = '15%'; textAlign = 'center'; isNumericOrLevel = true; }
-          else { width = 'auto'; textAlign = 'left'; }
-        }
-
-        const cellStyle = `padding: 12px 14px; border: 2px solid #cbd5e1; font-size: 13px; color: #1e293b; min-height: 32px;`;
-        const colAttr = isNumericOrLevel ? 'data-col-type="level"' : '';
-        html += `<td ${colAttr} style="${cellStyle} text-align: ${textAlign}; width: ${width}; font-weight: ${isNumericOrLevel ? '800' : '500'};">${content}</td>`;
+        const isFirstCol = c === 0;
+        const cellStyle = `padding: 10px; border: 1px solid ${theme}40; min-height: 24px; transition: background 0.2s;`;
+        const content = isFirstCol ? (r + 1).toString() : '';
+        const textAlign = isFirstCol ? 'center' : 'left';
+        const width = isFirstCol ? '40px' : 'auto';
+        html += `<td style="${cellStyle} text-align: ${textAlign}; width: ${width}; font-weight: ${isFirstCol ? '800' : '500'};">${content}</td>`;
       }
       html += '</tr>';
     }
@@ -1363,56 +1162,50 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
 
   const insertDate = () => {
     if (!selectedTopic) return;
-    const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const dateStr = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    const formattedDate = `<span style="color: #10b981; font-weight: 800; font-family: sans-serif; display: inline-block;">${dateStr}</span>`;
     
-    // Check if the current savedRange or selection is active and inside the editor
-    let insideEditor = false;
-    let insideSpecial = false;
-    
-    if (editorRef.current) {
-      if (savedRange.current && editorRef.current.contains(savedRange.current.commonAncestorContainer)) {
-        insideEditor = true;
-        const container = savedRange.current.commonAncestorContainer;
-        const element = container.nodeType === Node.TEXT_NODE ? container.parentElement : container as HTMLElement;
-        if (element?.closest('td, th, table, li')) {
-          insideSpecial = true;
+    let inserted = false;
+    const sel = window.getSelection();
+    if (editorRef.current && sel) {
+      const activeRange = (sel.rangeCount > 0 ? sel.getRangeAt(0) : null) || savedRange.current;
+      if (activeRange && editorRef.current.contains(activeRange.commonAncestorContainer)) {
+        editorRef.current.focus();
+        sel.removeAllRanges();
+        sel.addRange(activeRange);
+        activeRange.deleteContents();
+        
+        const el = document.createElement("span");
+        el.innerHTML = formattedDate;
+        
+        const frag = document.createDocumentFragment();
+        let node;
+        let lastNode;
+        while ((node = el.firstChild)) {
+          lastNode = frag.appendChild(node);
         }
-      } else {
-        const selection = window.getSelection();
-        if (selection && selection.rangeCount > 0) {
-          const range = selection.getRangeAt(0);
-          if (editorRef.current.contains(range.commonAncestorContainer)) {
-            insideEditor = true;
-            const container = range.commonAncestorContainer;
-            const element = container.nodeType === Node.TEXT_NODE ? container.parentElement : container as HTMLElement;
-            if (element?.closest('td, th, table, li')) {
-              insideSpecial = true;
-            }
-          }
+        activeRange.insertNode(frag);
+        
+        if (lastNode) {
+          const newRange = activeRange.cloneRange();
+          newRange.setStartAfter(lastNode);
+          newRange.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(newRange);
+          savedRange.current = newRange;
         }
+        inserted = true;
       }
     }
 
-    const dateHtml = insideSpecial
-      ? `<span style="color: #10b981; font-weight: 850; font-size: 0.95em;">${dateStr}</span>`
-      : `<div style="color: #10b981; font-weight: 800; font-size: 1.2em; border-left: 4px solid #10b981; padding-left: 12px; margin: 10px 0;">${dateStr}</div><p><br></p>`;
-
-    if (editorRef.current && insideEditor) {
-      editorRef.current.focus();
-      if (savedRange.current) {
-        const selection = window.getSelection();
-        selection?.removeAllRanges();
-        selection?.addRange(savedRange.current);
-      }
-      document.execCommand('insertHTML', false, dateHtml);
-      updateTopic(selectedTopic.id, { content: editorRef.current.innerHTML });
-    } else {
-      // Fallback: prepend at the top if no active cursor in editor
-      const newContent = `<div style="color: #10b981; font-weight: 800; font-size: 1.2em; border-left: 4px solid #10b981; padding-left: 12px; margin: 10px 0;">${dateStr}</div><p><br></p>` + selectedTopic.content;
+    if (!inserted && editorRef.current) {
+      const currentContent = editorRef.current.innerHTML || '';
+      const spacing = currentContent.trim().length > 0 ? ' &nbsp; ' : '';
+      const newContent = currentContent + spacing + formattedDate;
+      editorRef.current.innerHTML = newContent;
       updateTopic(selectedTopic.id, { content: newContent });
-      if (editorRef.current) {
-        editorRef.current.innerHTML = newContent;
-      }
+    } else if (editorRef.current) {
+      updateTopic(selectedTopic.id, { content: editorRef.current.innerHTML });
     }
   };
 
@@ -1731,29 +1524,166 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
     }
   };
 
+  const getTopicStyles = (id: string, isSelected: boolean) => {
+    const hash = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const colors = [
+      {
+        text: 'text-emerald-800 dark:text-emerald-400 font-bold',
+        bg: 'bg-emerald-500/5',
+        border: 'border-emerald-500/20',
+        activeBg: 'bg-emerald-500/15 border-emerald-500/40',
+        indicator: 'bg-emerald-500',
+        iconColor: 'text-emerald-500',
+        hover: 'hover:bg-emerald-500/10'
+      },
+      {
+        text: 'text-indigo-800 dark:text-indigo-400 font-bold',
+        bg: 'bg-indigo-500/5',
+        border: 'border-indigo-500/20',
+        activeBg: 'bg-indigo-500/15 border-indigo-500/40',
+        indicator: 'bg-indigo-500',
+        iconColor: 'text-indigo-500',
+        hover: 'hover:bg-indigo-500/10'
+      },
+      {
+        text: 'text-amber-800 dark:text-amber-450 font-bold',
+        bg: 'bg-amber-500/5',
+        border: 'border-amber-500/20',
+        activeBg: 'bg-amber-500/15 border-amber-500/40',
+        indicator: 'bg-amber-500',
+        iconColor: 'text-amber-500',
+        hover: 'hover:bg-amber-500/10'
+      },
+      {
+        text: 'text-rose-850 dark:text-rose-400 font-bold',
+        bg: 'bg-rose-500/5',
+        border: 'border-rose-500/20',
+        activeBg: 'bg-rose-500/15 border-rose-500/40',
+        indicator: 'bg-rose-500',
+        iconColor: 'text-rose-500',
+        hover: 'hover:bg-rose-500/10'
+      },
+      {
+        text: 'text-sky-800 dark:text-sky-400 font-bold',
+        bg: 'bg-sky-500/5',
+        border: 'border-sky-500/20',
+        activeBg: 'bg-sky-500/15 border-sky-500/40',
+        indicator: 'bg-sky-500',
+        iconColor: 'text-sky-500',
+        hover: 'hover:bg-sky-500/10'
+      },
+      {
+        text: 'text-purple-800 dark:text-purple-400 font-bold',
+        bg: 'bg-purple-500/5',
+        border: 'border-purple-500/20',
+        activeBg: 'bg-purple-500/15 border-purple-50 border-purple-500/40',
+        indicator: 'bg-purple-500',
+        iconColor: 'text-purple-500',
+        hover: 'hover:bg-purple-500/10'
+      },
+      {
+        text: 'text-orange-800 dark:text-orange-450 font-bold',
+        bg: 'bg-orange-500/5',
+        border: 'border-orange-500/20',
+        activeBg: 'bg-orange-500/15 border-orange-500/40',
+        indicator: 'bg-orange-500',
+        iconColor: 'text-orange-500',
+        hover: 'hover:bg-orange-500/10'
+      },
+      {
+        text: 'text-teal-800 dark:text-teal-400 font-bold',
+        bg: 'bg-teal-500/5',
+        border: 'border-teal-500/20',
+        activeBg: 'bg-teal-500/15 border-teal-500/40',
+        indicator: 'bg-teal-500',
+        iconColor: 'text-teal-500',
+        hover: 'hover:bg-teal-500/10'
+      }
+    ];
+    return colors[hash % colors.length];
+  };
+
   const renderTopic = (topic: DPSSTopic, depth = 0) => {
     const isPlan = topic.title.trim().toLowerCase().startsWith('🎯') || 
                    topic.title.trim().toLowerCase().startsWith('⚡') || 
                    topic.title.trim().toLowerCase().includes('study plan') || 
                    topic.title.trim().toLowerCase().includes('action plan');
+    const isSelected = selectedTopicId === topic.id;
+    const style = getTopicStyles(topic.id, isSelected);
+    const hasChildren = topic.children && topic.children.length > 0;
+    const isExpanded = !!expandedTopics[topic.id];
+
     return (
-      <div key={topic.id} style={{ marginLeft: `${depth * 15}px` }}>
+      <div key={topic.id} className="relative select-none" style={{ marginLeft: `${depth * 8}px` }}>
         <div 
           onClick={() => {
             setSelectedTopicId(topic.id);
+            if (hasChildren) {
+              setExpandedTopics(prev => ({ ...prev, [topic.id]: !prev[topic.id] }));
+            }
             if (isPlan || window.innerWidth < 768) {
               setIsSidebarOpen(false);
             }
           }} 
-          className={`p-2 my-1 rounded-lg cursor-pointer flex items-center justify-between ${selectedTopicId === topic.id ? 'bg-emerald-100/50' : 'bg-white/5 hover:bg-white/10'}`}
+          className={`group flex items-center justify-between p-2 my-1 rounded-xl cursor-pointer border transition-all ${
+            isSelected 
+              ? `${style.activeBg} ${style.border} ${style.text} shadow-sm scale-[1.01]` 
+              : `bg-white/40 dark:bg-slate-900/10 ${style.border} ${style.text} hover:scale-[1.01] hover:bg-white/70`
+          }`}
         >
-          <span className="font-bold text-[13px] text-slate-700 truncate max-w-[180px]">{topic.title}</span>
-          <div className='flex gap-1 shrink-0'>
-              <button onClick={(e) => { e.stopPropagation(); addTopic(topic.id); }}><Plus size={14} className="text-slate-400 hover:text-green-500"/></button>
-              <button onClick={(e) => { e.stopPropagation(); deleteTopic(topic.id); }}><Trash2 size={14} className="text-slate-400 hover:text-red-500"/></button>
+          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+            {hasChildren ? (
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setExpandedTopics(prev => ({ ...prev, [topic.id]: !prev[topic.id] }));
+                }}
+                className="p-0.5 rounded hover:bg-slate-200/50 dark:hover:bg-slate-800 shrink-0 text-slate-500"
+              >
+                {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+              </button>
+            ) : (
+              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${style.indicator} ml-1.5`} />
+            )}
+            
+            <span className="font-bold text-[12px] truncate max-w-[140px]" title={topic.title}>{topic.title}</span>
+          </div>
+
+          <div className="flex gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button 
+                onClick={(e) => { e.stopPropagation(); addTopic(topic.id); }} 
+                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-500 hover:text-emerald-600 transition-all"
+                title="Add nesting sub-topic"
+              >
+                <Plus size={13} />
+              </button>
+              
+              <button 
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  updateTopic(topic.id, { isArchived: !topic.isArchived });
+                }} 
+                className={`p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-500 hover:text-indigo-600 transition-all ${topic.isArchived ? 'text-indigo-600 font-bold' : ''}`}
+                title={topic.isArchived ? "Unarchive / Restore" : "Move to Folder Archive"}
+              >
+                <Archive size={13} />
+              </button>
+
+              <button 
+                onClick={(e) => { e.stopPropagation(); deleteTopic(topic.id); }} 
+                className="p-1 hover:bg-red-50/50 dark:hover:bg-red-950/20 rounded text-slate-400 hover:text-red-500 transition-all"
+                title="Delete Topic"
+              >
+                <Trash2 size={13} />
+              </button>
           </div>
         </div>
-        {topic.children?.map(child => renderTopic(child, depth + 1))}
+        
+        {hasChildren && isExpanded && (
+          <div className="border-l border-dashed border-slate-250 dark:border-slate-800 ml-2.5 pl-1.5">
+            {topic.children!.map(child => renderTopic(child, depth + 1))}
+          </div>
+        )}
       </div>
     );
   };
@@ -2006,8 +1936,65 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
           )}
         </div>
 
+        {/* Search Bar */}
+        <div className="relative mt-3 mb-2 shrink-0">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search topics..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-9 pr-8 py-2 bg-slate-100 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-medium text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 font-bold text-xs"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+
+        {/* Scrollable Topics Section */}
         <div className="flex-1 overflow-y-auto pr-2 space-y-1 custom-scrollbar">
-            {topics.map(t => renderTopic(t))}
+          {/* Active Topics */}
+          {filteredTopics.length > 0 ? (
+            filteredTopics.map(t => renderTopic(t))
+          ) : (
+            <div className="text-center py-6 text-xs text-slate-400 select-none">
+              {searchTerm ? 'No matching topics found' : 'No active topics yet'}
+            </div>
+          )}
+
+          {/* Folder Archive */}
+          <div className="mt-4 pt-4 border-t border-slate-200/65 dark:border-slate-800/60">
+            <button
+              onClick={() => setIsArchiveFolderOpen(prev => !prev)}
+              className="w-full flex items-center justify-between p-2 rounded-xl bg-indigo-50/50 dark:bg-slate-900/20 text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 border border-indigo-100/40 transition-all select-none cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <Folder size={15} className="text-indigo-500" />
+                <span className="text-[11px] font-black uppercase tracking-wider">Folder Archive</span>
+                <span className="bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 px-1.5 py-0.5 rounded-full text-[9px] font-bold">
+                  {archivedTopics.length}
+                </span>
+              </div>
+              {isArchiveFolderOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            </button>
+
+            {isArchiveFolderOpen && (
+              <div className="mt-2 space-y-1.5 pl-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                {filteredArchivedTopics.length > 0 ? (
+                  filteredArchivedTopics.map(t => renderTopic(t))
+                ) : (
+                  <div className="text-center py-4 text-[10px] text-slate-400 select-none">
+                    {searchTerm ? 'No matching archived topics' : 'Archive is empty'}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -2545,45 +2532,18 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                   const editorTextColor = '#1e293b';
                   const editorHeaderColor = '#0f172a';
                   const editorBorderColor = '#cbd5e1';
-                  const editorCardBgColor = 'rgba(248, 250, 252, 0.9)';
+                  const editorCardBgColor = '#f1f5f9';
                   
                   return (
                     <style dangerouslySetInnerHTML={{ __html: `
                       .editor-content {
-                        color: ${editorTextColor} !important;
+                        color: ${editorTextColor};
                       }
                       
                       .editor-content p, 
                       .editor-content li, 
-                      .editor-content span, 
-                      .editor-content div, 
-                      .editor-content font,
-                      .editor-content td, 
-                      .editor-content th, 
-                      .editor-content blockquote {
+                      .editor-content div {
                         color: ${editorTextColor};
-                      }
-                      
-                      /* Ensure high legibility of text inside dark containers */
-                      .editor-content [class*="bg-slate-9"], .editor-content [class*="bg-slate-9"] *,
-                      .editor-content [class*="bg-zinc-9"], .editor-content [class*="bg-zinc-9"] *,
-                      .editor-content [class*="bg-black"], .editor-content [class*="bg-black"] *,
-                      .editor-content [class*="bg-[#0f"], .editor-content [class*="bg-[#0f"] *,
-                      .editor-content [class*="bg-[#1e"], .editor-content [class*="bg-[#1e"] *,
-                      .editor-content [style*="background-color:#0"], .editor-content [style*="background-color:#0"] *,
-                      .editor-content [style*="background-color: #0"], .editor-content [style*="background-color: #0"] *,
-                      .editor-content [style*="background:#0"], .editor-content [style*="background:#0"] *,
-                      .editor-content [style*="background-color:#1e"], .editor-content [style*="background-color:#1e"] *,
-                      .editor-content [style*="background:#1e"], .editor-content [style*="background:#1e"] *,
-                      .editor-content [style*="background-color: rgb(15"], .editor-content [style*="background-color: rgb(15"] *,
-                      .editor-content [style*="background-color:rgb(15"], .editor-content [style*="background-color:rgb(15"] *,
-                      .editor-content [style*="background-color: rgb(30"], .editor-content [style*="background-color: rgb(30"] *,
-                      .editor-content [style*="background-color:rgb(30"], .editor-content [style*="background-color:rgb(30"] *,
-                      .editor-content [style*="background:rgb(15"], .editor-content [style*="background:rgb(15"] *,
-                      .editor-content [style*="background: rgb(15"], .editor-content [style*="background: rgb(15"] *,
-                      .editor-content [style*="background:rgb(30"], .editor-content [style*="background:rgb(30"] *,
-                      .editor-content [style*="background: rgb(30"], .editor-content [style*="background: rgb(30"] * {
-                        color: #f8fafc !important;
                       }
                       
                       .editor-content h1, 
@@ -2596,80 +2556,91 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                         font-weight: 800 !important;
                       }
                       
-                      /* High contrast, academic-grade tables supporting custom borders */
-                      .editor-content table {
-                        width: 100% !important;
-                        border-collapse: collapse !important;
-                        margin: 24px 0 !important;
-                        background-color: #ffffff !important;
-                        border: 2.5px solid #1e293b;
-                        border-radius: 8px !important;
-                        overflow: hidden !important;
-                        font-family: inherit !important;
-                        box-shadow: 0 4px 15px rgba(15, 23, 42, 0.05) !important;
-                        table-layout: fixed !important;
-                      }
-
-                      .editor-content tr {
-                        border-bottom: 2px solid #cbd5e1 !important;
-                        transition: background-color 0.15s ease !important;
-                      }
-
-                      .editor-content tr:hover {
-                        background-color: #f8fafc !important;
-                      }
-
-                      .editor-content th {
-                        background-color: #f1f5f9;
-                        color: #1e293b;
-                        font-weight: 850 !important;
-                        text-transform: uppercase !important;
-                        letter-spacing: 1px !important;
-                        padding: 12px 14px !important;
-                        border: 2px solid #cbd5e1;
-                        font-size: 11px !important;
-                        text-align: center !important;
-                      }
-
+                      .editor-content th, 
                       .editor-content td {
-                        padding: 12px 14px !important;
-                        border: 2px solid #cbd5e1 !important;
-                        color: #1e293b;
-                        font-size: 13px !important;
-                        line-height: 1.5 !important;
-                        vertical-align: middle !important;
-                        text-align: left;
-                      }
-
-                      /* Align columns appropriately based on data attributes */
-                      .editor-content td[data-col-type="level"],
-                      .editor-content td[data-col-type="numeric"] {
-                        text-align: center !important;
-                        font-weight: 800 !important;
-                      }
-
-                      /* Excel / Word style highlight of focused cell */
-                      .editor-content td:focus, 
-                      .editor-content th:focus {
-                        outline: none !important;
-                        background-color: #f0fdf4 !important;
-                        box-shadow: inset 0 0 0 2.5px #10b981 !important;
-                      }
-
-                      .editor-content th.resizing, 
-                      .editor-content td.resizing {
-                        cursor: col-resize !important;
+                        border: 1px solid ${editorBorderColor} !important;
+                        padding: 10px !important;
+                        color: ${editorTextColor} !important;
                       }
                       
+                      /* Lightbox styling to guarantee that custom templates (study plan, synthesis, QA boards) have a gorgeous light design on any background */
                       .editor-content .synthesis-card-wrapper, 
                       .editor-content .qa-board-wrapper,
                       .editor-content .study-plan-card,
                       .editor-content .action-plan-card {
                         border: 2px solid ${editorBorderColor} !important;
                         background-color: ${editorCardBgColor} !important;
+                        background: ${editorCardBgColor} !important;
                         color: ${editorTextColor} !important;
                         border-radius: 16px !important;
                         padding: 18px !important;
+                        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+                      }
+
+                      .editor-content .synthesis-card-wrapper h1,
+                      .editor-content .synthesis-card-wrapper h2,
+                      .editor-content .synthesis-card-wrapper h3,
+                      .editor-content .qa-board-wrapper h1,
+                      .editor-content .qa-board-wrapper h2,
+                      .editor-content .qa-board-wrapper h3,
+                      .editor-content .study-plan-card h1,
+                      .editor-content .study-plan-card h2,
+                      .editor-content .study-plan-card h3,
+                      .editor-content .action-plan-card h1,
+                      .editor-content .action-plan-card h2,
+                      .editor-content .action-plan-card h3 {
+                        color: ${editorHeaderColor} !important;
+                      }
+
+                      .editor-content .synthesis-card-wrapper p, 
+                      .editor-content .synthesis-card-wrapper li, 
+                      .editor-content .synthesis-card-wrapper div,
+                      .editor-content .qa-board-wrapper p, 
+                      .editor-content .qa-board-wrapper li, 
+                      .editor-content .qa-board-wrapper div,
+                      .editor-content .study-plan-card p, 
+                      .editor-content .study-plan-card li, 
+                      .editor-content .study-plan-card div,
+                      .editor-content .action-plan-card p, 
+                      .editor-content .action-plan-card li, 
+                      .editor-content .action-plan-card div {
+                        color: ${editorTextColor} !important;
+                      }
+
+                      /* Ensure unstyled spans inside template cards are readable dark, while preserving custom highlighted/colored texts */
+                      .editor-content .synthesis-card-wrapper span:not([style*="color"]):not([style*="background-color"]),
+                      .editor-content .qa-board-wrapper span:not([style*="color"]):not([style*="background-color"]),
+                      .editor-content .study-plan-card span:not([style*="color"]):not([style*="background-color"]),
+                      .editor-content .action-plan-card span:not([style*="color"]):not([style*="background-color"]) {
+                        color: ${editorTextColor} !important;
+                      }
+
+                      /* Force elegant light design on template elements with dark classes or hardcoded dark background behaviors */
+                      .editor-content [class*="bg-slate-9"],
+                      .editor-content [class*="bg-zinc-9"],
+                      .editor-content [class*="bg-gray-9"],
+                      .editor-content [class*="bg-neutral-9"],
+                      .editor-content [class*="bg-[#0f"],
+                      .editor-content [class*="bg-[#1e"],
+                      .editor-content [class*="bg-[#11"],
+                      .editor-content [class*="bg-[#0a"],
+                      .editor-content [class*="bg-[#18"],
+                      .editor-content [class*="bg-[#1c"],
+                      .editor-content [class*="bg-black"] {
+                        background-color: ${editorCardBgColor} !important;
+                        background: ${editorCardBgColor} !important;
+                        border: 1.5px solid ${editorBorderColor} !important;
+                        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+                      }
+
+                      .editor-content [class*="bg-slate-9"] p,
+                      .editor-content [class*="bg-slate-9"] div,
+                      .editor-content [class*="bg-slate-9"] span:not([style*="color"]):not([style*="background-color"]),
+                      .editor-content [class*="bg-zinc-9"] p,
+                      .editor-content [class*="bg-[#1e"] p,
+                      .editor-content [class*="bg-[#1e"] div,
+                      .editor-content [class*="bg-[#1e"] span:not([style*="color"]):not([style*="background-color"]) {
+                        color: ${editorTextColor} !important;
                       }
 
                       /* Override stardust styling with a beautiful light starry background */
@@ -2712,58 +2683,6 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                           background-image: none !important;
                           color: #1e293b !important;
                         }
-
-                        /* Target all child structures of .editor-content and replace dark background styles with clean light styles */
-                        .editor-content [class*="bg-"],
-                        .editor-content [style*="background"],
-                        .editor-content div.border-white\\/10 {
-                          background-color: #f8fafc !important;
-                          background: #f8fafc !important;
-                          color: #1e293b !important;
-                          border: 1.5px solid #cbd5e1 !important;
-                          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
-                        }
-
-                        .editor-content td:focus, 
-                        .editor-content th:focus {
-                          background-color: #f0fdf4 !important;
-                          box-shadow: inset 0 0 0 2.5px #10b981 !important;
-                        }
-
-                        .editor-content p, 
-                        .editor-content li, 
-                        .editor-content span, 
-                        .editor-content div, 
-                        .editor-content font,
-                        .editor-content td, 
-                        .editor-content th, 
-                        .editor-content b,
-                        .editor-content strong,
-                        .editor-content i,
-                        .editor-content em,
-                        .editor-content blockquote {
-                          color: #1e293b !important;
-                        }
-
-                        .editor-content h1, 
-                        .editor-content h2, 
-                        .editor-content h3, 
-                        .editor-content h4, 
-                        .editor-content h5, 
-                        .editor-content h6 {
-                          color: #0f172a !important;
-                        }
-
-                        .editor-content [class*="text-slate-1"],
-                        .editor-content [class*="text-slate-2"],
-                        .editor-content [class*="text-slate-3"],
-                        .editor-content [class*="text-indigo-1"],
-                        .editor-content [class*="text-indigo-2"],
-                        .editor-content [class*="text-blue-1"],
-                        .editor-content [class*="text-blue-2"],
-                        .editor-content [class*="text-white"] {
-                          color: #1e293b !important;
-                        }
                       ` : ''}
                     ` }} />
                   );
@@ -2773,7 +2692,6 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                     ref={editorRef}
                     contentEditable={true}
                     onClick={handleEditorClick}
-                    onKeyDown={handleKeyDown}
                     onMouseUp={handleSelection}
                     onKeyUp={handleSelection}
                     onBlur={(e) => {
