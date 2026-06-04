@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Zap, Plus, Trash2, Calendar, AlignLeft, AlignCenter, AlignRight, Highlighter, MousePointer2, Minus, Layout, Square, Quote, Settings2, FileUp, FileDown, Image as ImageIcon, Video, Music, FileText, Loader2, Wand2, Menu, ChevronLeft, GraduationCap, ChevronRight, Table, Grid3X3, Columns, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Palette, Italic, Underline, Strikethrough, Indent, Outdent, List, ListOrdered, CheckSquare, ChevronDown, MoreHorizontal, Download, Maximize2, Minimize2, Search, Archive, Folder } from 'lucide-react';
+import { Zap, Plus, Trash2, Calendar, AlignLeft, AlignCenter, AlignRight, Highlighter, MousePointer2, Minus, Layout, Square, Quote, Settings2, FileUp, FileDown, Image as ImageIcon, Video, Music, FileText, Loader2, Wand2, Menu, ChevronLeft, GraduationCap, ChevronRight, Table, Grid3X3, Columns, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Palette, Italic, Underline, Strikethrough, Indent, Outdent, List, ListOrdered, CheckSquare, ChevronDown, MoreHorizontal, Download, Maximize2, Minimize2, Search, Archive, Folder, Star } from 'lucide-react';
 import { AppData, DPSSTopic } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { callNeuralEngine } from '../services/neuralEngine';
@@ -24,6 +24,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
   const [showMoreTools, setShowMoreTools] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showTableToolsMenu, setShowTableToolsMenu] = useState(false);
   const [isToolbarHidden, setIsToolbarHidden] = useState(() => {
     return localStorage.getItem('self_learning_toolbar_hidden') === 'true';
   });
@@ -177,7 +178,14 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
   }, [topics, selectedTopicId]);
 
   const isResizing = useRef(false);
+  const isResizingTableCol = useRef(false);
+  const [activeTableCell, setActiveTableCell] = useState<HTMLTableCellElement | null>(null);
+  const targetCellRef = useRef<HTMLTableCellElement | null>(null);
+  const initialXRef = useRef(0);
+  const initialWidthRef = useRef(0);
+  const initialNextWidthRef = useRef(0);
   const editorRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const exportPDF = async () => {
     if (!editorRef.current || !selectedTopic) return;
@@ -846,6 +854,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
 
 
   const handleSelection = () => {
+    checkActiveTableCell();
     const selection = window.getSelection();
     if (selection && selection.rangeCount > 0) {
       const range = selection.getRangeAt(0);
@@ -1080,15 +1089,39 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
   };
   
   const [isTableModalOpen, setIsTableModalOpen] = useState(false);
-  const [tableConfig, setTableConfig] = useState({ rows: 5, cols: 2, hasHeader: true, theme: '#10b981', headerTitle: 'New Learning Table' });
+  const [tableConfig, setTableConfig] = useState({ rows: 5, cols: 2, hasHeader: true, theme: '#10b981', headerTitle: 'New Learning Table', gridOpacity: 100, gridStyle: 'theme-solid' });
 
   const insertSmartTable = () => {
-    const { rows, cols, hasHeader, theme, headerTitle } = tableConfig;
-    let html = `<table style="width: 100%; border-collapse: collapse; margin: 20px 0; border: 2px solid ${theme}; font-size: 14px; border-radius: 12px; overflow: hidden; display: table;">`;
+    const { rows, cols, hasHeader, theme, headerTitle, gridOpacity } = tableConfig;
+    const styleType = (tableConfig.gridStyle || 'theme-solid') as 'theme-solid' | 'theme-open' | 'black-solid' | 'black-open';
+    const borderRgba = styleType.startsWith('theme') 
+      ? hexToRgba(theme, gridOpacity) 
+      : `rgba(51, 65, 85, ${gridOpacity / 100})`;
+
+    let tableBorderCss = `border: 2.5px solid ${borderRgba} !important;`;
+    if (styleType.endsWith('-open')) {
+      tableBorderCss = 'border: none !important;';
+    }
+
+    // Outer scrollable container to support phone bar horizontally
+    let html = `<p><br></p><div class="table-scroll-container" style="overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; border-radius: 12px; margin: 8px 0 16px 0; border: ${styleType.endsWith('-open') ? 'none' : `1px solid ${borderRgba}`};">`;
+    html += `<table style="width: 100%; border-collapse: collapse; ${tableBorderCss} font-size: 14px; border-radius: 12px; overflow: hidden; display: table; table-layout: fixed;">`;
     
+    html += '<colgroup>';
+    for (let c = 0; c < cols; c++) {
+      const isFirstCol = c === 0;
+      const colWidth = isFirstCol ? '60px' : `${Math.floor((100 - 10) / (cols - 1 || 1))}%`;
+      html += `<col style="width: ${colWidth};">`;
+    }
+    html += '</colgroup>';
+
     if (hasHeader) {
+      let headerBorderCss = `border: 2px solid ${borderRgba} !important;`;
+      if (styleType.endsWith('-open')) {
+        headerBorderCss = `border: none !important; border-bottom: 2px solid ${borderRgba} !important;`;
+      }
       html += `<thead><tr style="background-color: ${theme}; color: white;">
-        <th colspan="${cols}" style="padding: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; border: 1px solid rgba(255,255,255,0.2);">${headerTitle}</th>
+        <th colspan="${cols}" style="padding: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; ${headerBorderCss}">${headerTitle}</th>
       </tr></thead>`;
     }
 
@@ -1097,15 +1130,21 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
       html += '<tr>';
       for (let c = 0; c < cols; c++) {
         const isFirstCol = c === 0;
-        const cellStyle = `padding: 10px; border: 1px solid ${theme}40; min-height: 24px; transition: background 0.2s;`;
+        let cellBorderCss = `border: 2px solid ${borderRgba} !important;`;
+        if (styleType.endsWith('-open')) {
+          cellBorderCss = `border: none !important; border-bottom: 2px solid ${borderRgba} !important;`;
+          if (c < cols - 1) {
+            cellBorderCss += ` border-right: 2px solid ${borderRgba} !important;`;
+          }
+        }
+        const cellStyle = `padding: 12px; ${cellBorderCss} min-height: 24px; transition: background 0.2s;`;
         const content = isFirstCol ? (r + 1).toString() : '';
         const textAlign = isFirstCol ? 'center' : 'left';
-        const width = isFirstCol ? '40px' : 'auto';
-        html += `<td style="${cellStyle} text-align: ${textAlign}; width: ${width}; font-weight: ${isFirstCol ? '800' : '500'};">${content}</td>`;
+        html += `<td style="${cellStyle} text-align: ${textAlign}; font-weight: ${isFirstCol ? '800' : '500'};">${content}</td>`;
       }
       html += '</tr>';
     }
-    html += '</tbody></table><p><br></p>';
+    html += '</tbody></table></div><p><br></p>';
 
     if (editorRef.current) {
       editorRef.current.focus();
@@ -1123,7 +1162,9 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
     const selection = window.getSelection();
     if (!selection || !selection.anchorNode) return;
     
-    const cell = (selection.anchorNode as HTMLElement).closest?.('td, th') as HTMLTableCellElement;
+    const anchor = selection.anchorNode;
+    const parentEl = anchor.nodeType === 3 ? anchor.parentElement : (anchor as HTMLElement);
+    const cell = parentEl ? (parentEl.closest?.('td, th') as HTMLTableCellElement) : null;
     if (!cell) return;
     
     const row = cell.parentElement as HTMLTableRowElement;
@@ -1505,6 +1546,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
   };
 
   const handleEditorClick = (e: React.MouseEvent) => {
+    checkActiveTableCell();
     const target = e.target as HTMLElement;
     const anchor = target.closest('a');
     if (anchor) {
@@ -1541,6 +1583,509 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                 updateTopic(selectedTopic.id, { content: editorRef.current.innerHTML });
             }
         }
+    }
+  };
+
+  const focusAndSelectCell = (targetCell: HTMLTableCellElement) => {
+    targetCell.focus();
+    const selection = window.getSelection();
+    if (selection) {
+      const range = document.createRange();
+      range.selectNodeContents(targetCell);
+      range.collapse(false); // Place cursor at the end
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+  };
+
+  const ensureTableColgroup = (table: HTMLTableElement) => {
+    let colgroup = table.querySelector('colgroup');
+    if (!colgroup) {
+      let maxCols = 0;
+      Array.from(table.rows).forEach(row => {
+        let cellsCount = 0;
+        Array.from(row.cells).forEach(cell => {
+          cellsCount += parseInt(cell.getAttribute('colspan') || '1', 10);
+        });
+        if (cellsCount > maxCols) {
+          maxCols = cellsCount;
+        }
+      });
+
+      if (maxCols > 0) {
+        colgroup = document.createElement('colgroup');
+        const regularRow = Array.from(table.rows).find(row => {
+          let cCount = 0;
+          Array.from(row.cells).forEach(cell => { cCount += parseInt(cell.getAttribute('colspan') || '1', 10); });
+          return cCount === maxCols;
+        });
+
+        for (let i = 0; i < maxCols; i++) {
+          const col = document.createElement('col');
+          let colWidth = '150px';
+          if (regularRow && regularRow.cells[i]) {
+            colWidth = `${regularRow.cells[i].getBoundingClientRect().width}px`;
+          }
+          col.style.width = colWidth;
+          colgroup.appendChild(col);
+        }
+        table.insertBefore(colgroup, table.firstChild);
+      }
+    }
+
+    Array.from(table.querySelectorAll('td, th')).forEach(cell => {
+      const colSpan = parseInt(cell.getAttribute('colspan') || '1', 10);
+      if (colSpan === 1) {
+        (cell as HTMLElement).style.width = '';
+      }
+    });
+  };
+
+  const getCellResizeTarget = (clientX: number, cell: HTMLTableCellElement, threshold: number = 8) => {
+    const rect = cell.getBoundingClientRect();
+    if (Math.abs(clientX - rect.right) <= threshold) {
+      return cell;
+    }
+    if (Math.abs(clientX - rect.left) <= threshold) {
+      return cell.previousElementSibling as HTMLTableCellElement | null;
+    }
+    return null;
+  };
+
+  const hexToRgba = (hex: string, opacity: number) => {
+    let c = hex.replace('#', '');
+    if (c.length === 3) {
+      c = c.split('').map(x => x + x).join('');
+    }
+    if (c.length === 6) {
+      const r = parseInt(c.substring(0, 2), 16);
+      const g = parseInt(c.substring(2, 4), 16);
+      const b = parseInt(c.substring(4, 6), 16);
+      return `rgba(${r}, ${g}, ${b}, ${opacity / 100})`;
+    }
+    return hex;
+  };
+
+  const checkActiveTableCell = () => {
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      const container = range.commonAncestorContainer;
+      const parentEl = container.nodeType === Node.TEXT_NODE ? container.parentElement : container as HTMLElement;
+      const cell = parentEl?.closest('td, th') as HTMLTableCellElement | null;
+      if (cell && editorRef.current?.contains(cell)) {
+        setActiveTableCell(cell);
+        return;
+      }
+    }
+    setActiveTableCell(null);
+  };
+
+  const addRow = (position: 'above' | 'below') => {
+    if (!activeTableCell) return;
+    const cell = activeTableCell;
+    const row = cell.parentElement as HTMLTableRowElement;
+    const table = row?.closest('table');
+    if (!table) return;
+
+    ensureTableColgroup(table);
+    const colgroup = table.querySelector('colgroup');
+    const colsCount = colgroup ? colgroup.querySelectorAll('col').length : row.cells.length;
+
+    const rowIndex = Array.from(table.rows).indexOf(row);
+    const targetIdx = position === 'above' ? rowIndex : rowIndex + 1;
+    const newRow = table.insertRow(targetIdx);
+
+    for (let c = 0; c < colsCount; c++) {
+      const newCell = newRow.insertCell(-1);
+      const sourceCell = row.cells[c] || row.cells[row.cells.length - 1] || cell;
+      newCell.style.cssText = sourceCell.style.cssText;
+      (newCell as HTMLElement).style.width = ''; // Let colgroup handle width permanently
+
+      if (c === 0 && position === 'below') {
+        const previousRowsCount = Array.from(table.rows).filter(r => !r.closest('thead')).length;
+        newCell.innerHTML = previousRowsCount.toString();
+        (newCell as HTMLElement).style.fontWeight = '800';
+        (newCell as HTMLElement).style.textAlign = 'center';
+      } else {
+        newCell.innerHTML = '&nbsp;';
+      }
+    }
+
+    if (editorRef.current && selectedTopic) {
+      updateTopic(selectedTopic.id, { content: editorRef.current.innerHTML });
+    }
+  };
+
+  const addColumn = (position: 'left' | 'right') => {
+    if (!activeTableCell) return;
+    const cell = activeTableCell;
+    const row = cell.parentElement as HTMLTableRowElement;
+    const table = row?.closest('table');
+    if (!table) return;
+
+    ensureTableColgroup(table);
+    const colgroup = table.querySelector('colgroup');
+    if (!colgroup) return;
+
+    const cellsInRow = Array.from(row.cells);
+    const clickedCellIdx = cellsInRow.indexOf(cell);
+    let colIdx = 0;
+    for (let i = 0; i < clickedCellIdx; i++) {
+      colIdx += parseInt(cellsInRow[i].getAttribute('colspan') || '1', 10);
+    }
+    colIdx += parseInt(cell.getAttribute('colspan') || '1', 10) - 1;
+
+    // Add col in colgroup
+    const colToInsertBefore = colgroup.children[position === 'left' ? colIdx : colIdx + 1];
+    const newCol = document.createElement('col');
+    newCol.style.width = '100px';
+    if (colToInsertBefore) {
+      colgroup.insertBefore(newCol, colToInsertBefore);
+    } else {
+      colgroup.appendChild(newCol);
+    }
+
+    // Add cell in every row inside this table
+    Array.from(table.rows).forEach(r => {
+      // If it's the <thead> header row spanning all cols, adjust colspan
+      const headerCell = r.querySelector('th[colspan]');
+      if (headerCell) {
+        const currentColspan = parseInt(headerCell.getAttribute('colspan') || '1', 10);
+        headerCell.setAttribute('colspan', (currentColspan + 1).toString());
+        return;
+      }
+
+      // Find the cell index corresponding to colIdx
+      let cellIndexToInsert = 0;
+      let accumulatedCols = 0;
+      const rowCells = Array.from(r.cells);
+      for (let i = 0; i < rowCells.length; i++) {
+        const span = parseInt(rowCells[i].getAttribute('colspan') || '1', 10);
+        if (accumulatedCols + span > colIdx) {
+          cellIndexToInsert = position === 'left' ? i : i + 1;
+          break;
+        }
+        accumulatedCols += span;
+        cellIndexToInsert = i + 1;
+      }
+
+      const newCell = r.insertCell(cellIndexToInsert);
+      const sourceCell = rowCells[0] || cell;
+      newCell.style.cssText = sourceCell.style.cssText;
+      (newCell as HTMLElement).style.width = '';
+      newCell.innerHTML = '&nbsp;';
+    });
+
+    if (editorRef.current && selectedTopic) {
+      updateTopic(selectedTopic.id, { content: editorRef.current.innerHTML });
+    }
+  };
+
+  const deleteTableElement = (type: 'row' | 'col') => {
+    if (!activeTableCell) return;
+    const cell = activeTableCell;
+    const row = cell.parentElement as HTMLTableRowElement;
+    const table = row?.closest('table');
+    if (!table) return;
+
+    if (type === 'row') {
+      const rowIndex = Array.from(table.rows).indexOf(row);
+      // Don't delete header row
+      if (row.closest('thead')) return;
+      table.deleteRow(rowIndex);
+      setActiveTableCell(null);
+    } else {
+      ensureTableColgroup(table);
+      const colgroup = table.querySelector('colgroup');
+      if (!colgroup) return;
+
+      const cellsInRow = Array.from(row.cells);
+      const clickedCellIdx = cellsInRow.indexOf(cell);
+      let colIdx = 0;
+      for (let i = 0; i < clickedCellIdx; i++) {
+        colIdx += parseInt(cellsInRow[i].getAttribute('colspan') || '1', 10);
+      }
+      colIdx += parseInt(cell.getAttribute('colspan') || '1', 10) - 1;
+
+      // Delete <col> in colgroup
+      if (colgroup.children[colIdx]) {
+        colgroup.removeChild(colgroup.children[colIdx]);
+      }
+
+      // Delete cell from every row
+      Array.from(table.rows).forEach(r => {
+        const headerCell = r.querySelector('th[colspan]');
+        if (headerCell) {
+          const currentColspan = Math.max(1, parseInt(headerCell.getAttribute('colspan') || '1', 10) - 1);
+          headerCell.setAttribute('colspan', currentColspan.toString());
+          return;
+        }
+
+        let cellIndexToDelete = -1;
+        let accumulatedCols = 0;
+        const rowCells = Array.from(r.cells);
+        for (let i = 0; i < rowCells.length; i++) {
+          const span = parseInt(rowCells[i].getAttribute('colspan') || '1', 10);
+          if (accumulatedCols <= colIdx && colIdx < accumulatedCols + span) {
+            cellIndexToDelete = i;
+            break;
+          }
+          accumulatedCols += span;
+        }
+
+        if (cellIndexToDelete !== -1) {
+          r.deleteCell(cellIndexToDelete);
+        }
+      });
+      setActiveTableCell(null);
+    }
+
+    if (editorRef.current && selectedTopic) {
+      updateTopic(selectedTopic.id, { content: editorRef.current.innerHTML });
+    }
+  };
+
+  const handleEditorKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    setTimeout(checkActiveTableCell, 15);
+    if (e.key === 'Tab') {
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0) return;
+      
+      const activeNode = selection.anchorNode;
+      if (!activeNode) return;
+      
+      const parentEl = (activeNode as any).parentElement || activeNode.parentNode as HTMLElement | null;
+      const activeEl = activeNode.nodeType === Node.ELEMENT_NODE ? (activeNode as HTMLElement) : parentEl;
+      const cell = activeEl?.closest?.('td, th') as HTMLTableCellElement | null;
+      if (cell) {
+        // Prevent browser's default behavior of inserting a tab character or shifting focus out of the editor.
+        e.preventDefault();
+        
+        const row = cell.parentElement as HTMLTableRowElement | null;
+        if (!row) return;
+        const table = row.closest('table') as HTMLTableElement | null;
+        if (!table) return;
+        
+        // Find all cells (td, th) in the table
+        const cells = Array.from(table.querySelectorAll('td, th')) as HTMLTableCellElement[];
+        const currentIndex = cells.indexOf(cell);
+        
+        if (e.shiftKey) {
+          // Navigate to previous cell
+          if (currentIndex > 0) {
+            const prevCell = cells[currentIndex - 1];
+            focusAndSelectCell(prevCell);
+          }
+        } else {
+          // Navigate to next cell or append new row if on final cell
+          if (currentIndex < cells.length - 1) {
+            const nextCell = cells[currentIndex + 1];
+            focusAndSelectCell(nextCell);
+          } else {
+            // Last cell of table! Ensure colgroup is initialized & active style is derived seamlessly
+            ensureTableColgroup(table);
+            const colgroup = table.querySelector('colgroup');
+            const colCount = colgroup ? colgroup.querySelectorAll('col').length : row.cells.length;
+            
+            const newRow = table.insertRow(-1); // Appends at current end
+            const newCells: HTMLTableCellElement[] = [];
+            
+            for (let c = 0; c < colCount; c++) {
+              const newCell = newRow.insertCell(-1);
+              const sourceCell = row.cells[c] || row.cells[row.cells.length - 1] || cell;
+              newCell.style.cssText = sourceCell.style.cssText;
+              newCell.style.width = ''; // Let colgroup handle width permanently!
+              
+              if (c === 0) {
+                const previousRowsCount = Array.from(table.rows).filter(r => !r.closest('thead')).length;
+                newCell.innerHTML = previousRowsCount.toString();
+                newCell.style.fontWeight = '800';
+                newCell.style.textAlign = 'center';
+              } else {
+                newCell.innerHTML = '<br>'; // Placeholder for cursor focus
+              }
+              newCells.push(newCell);
+            }
+            
+            if (newCells.length > 0) {
+              setTimeout(() => {
+                focusAndSelectCell(newCells[0]);
+              }, 10);
+            }
+            
+            if (editorRef.current && selectedTopic) {
+              updateTopic(selectedTopic.id, { content: editorRef.current.innerHTML });
+            }
+          }
+        }
+      }
+    }
+  };
+
+  const handleEditorMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isResizingTableCol.current) return;
+    
+    const target = e.target as HTMLElement;
+    const cell = target.closest('td, th') as HTMLTableCellElement | null;
+    if (cell) {
+      const resizeTarget = getCellResizeTarget(e.clientX, cell, 8);
+      if (resizeTarget) {
+        cell.style.cursor = 'col-resize';
+      } else {
+        cell.style.cursor = '';
+      }
+    }
+  };
+
+  const handleEditorMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    const clickedCell = target.closest('td, th') as HTMLTableCellElement | null;
+    if (!clickedCell) return;
+    
+    const cell = getCellResizeTarget(e.clientX, clickedCell, 8);
+    if (cell) {
+      e.preventDefault();
+      
+      const row = cell.parentElement as HTMLTableRowElement;
+      const table = row?.closest('table');
+      if (!table) return;
+
+      table.style.tableLayout = 'fixed';
+      ensureTableColgroup(table);
+
+      const colgroup = table.querySelector('colgroup');
+      if (!colgroup) return;
+      const cols = Array.from(colgroup.querySelectorAll('col'));
+
+      const cellsInRow = Array.from(row.cells);
+      const clickedCellIdx = cellsInRow.indexOf(cell);
+      let colIdx = 0;
+      for (let i = 0; i < clickedCellIdx; i++) {
+        colIdx += parseInt(cellsInRow[i].getAttribute('colspan') || '1', 10);
+      }
+      colIdx += parseInt(cell.getAttribute('colspan') || '1', 10) - 1;
+
+      const targetCol = cols[colIdx];
+      if (!targetCol) return;
+
+      isResizingTableCol.current = true;
+      targetCellRef.current = cell;
+      initialXRef.current = e.clientX;
+      initialWidthRef.current = targetCol.getBoundingClientRect().width;
+
+      const initialColWidths = cols.map(c => c.getBoundingClientRect().width);
+
+      const handleGlobalMouseMove = (moveEvent: MouseEvent) => {
+        if (isResizingTableCol.current && targetCol) {
+          const deltaX = moveEvent.clientX - initialXRef.current;
+          const newWidth = Math.max(30, initialWidthRef.current + deltaX);
+          
+          targetCol.style.width = `${newWidth}px`;
+
+          let totalTableWidth = 0;
+          cols.forEach((col, idx) => {
+            if (idx === colIdx) {
+              totalTableWidth += newWidth;
+            } else {
+              totalTableWidth += initialColWidths[idx] || col.getBoundingClientRect().width;
+            }
+          });
+          table.style.width = `${totalTableWidth}px`;
+        }
+      };
+
+      const handleGlobalMouseUp = () => {
+        isResizingTableCol.current = false;
+        targetCellRef.current = null;
+        
+        window.removeEventListener('mousemove', handleGlobalMouseMove);
+        window.removeEventListener('mouseup', handleGlobalMouseUp);
+        
+        if (editorRef.current && selectedTopic) {
+          updateTopic(selectedTopic.id, { content: editorRef.current.innerHTML });
+        }
+      };
+      
+      window.addEventListener('mousemove', handleGlobalMouseMove);
+      window.addEventListener('mouseup', handleGlobalMouseUp);
+    }
+  };
+
+  const handleEditorTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length === 0) return;
+    const touch = e.touches[0];
+    const target = touch.target as HTMLElement;
+    const clickedCell = target.closest('td, th') as HTMLTableCellElement | null;
+    if (clickedCell) {
+      const cell = getCellResizeTarget(touch.clientX, clickedCell, 22);
+      if (cell) {
+        e.preventDefault();
+        
+        const row = cell.parentElement as HTMLTableRowElement;
+        const table = row?.closest('table');
+        if (!table) return;
+
+        table.style.tableLayout = 'fixed';
+        ensureTableColgroup(table);
+
+        const colgroup = table.querySelector('colgroup');
+        if (!colgroup) return;
+        const cols = Array.from(colgroup.querySelectorAll('col'));
+
+        const cellsInRow = Array.from(row.cells);
+        const clickedCellIdx = cellsInRow.indexOf(cell);
+        let colIdx = 0;
+        for (let i = 0; i < clickedCellIdx; i++) {
+          colIdx += parseInt(cellsInRow[i].getAttribute('colspan') || '1', 10);
+        }
+        colIdx += parseInt(cell.getAttribute('colspan') || '1', 10) - 1;
+
+        const targetCol = cols[colIdx];
+        if (!targetCol) return;
+
+        isResizingTableCol.current = true;
+        targetCellRef.current = cell;
+        initialXRef.current = touch.clientX;
+        initialWidthRef.current = targetCol.getBoundingClientRect().width;
+
+        const initialColWidths = cols.map(c => c.getBoundingClientRect().width);
+
+        const handleGlobalTouchMove = (moveEvt: TouchEvent) => {
+          if (isResizingTableCol.current && targetCol && moveEvt.touches.length > 0) {
+            const t = moveEvt.touches[0];
+            const deltaX = t.clientX - initialXRef.current;
+            const newWidth = Math.max(30, initialWidthRef.current + deltaX);
+            
+            targetCol.style.width = `${newWidth}px`;
+
+            let totalTableWidth = 0;
+            cols.forEach((col, idx) => {
+              if (idx === colIdx) {
+                totalTableWidth += newWidth;
+              } else {
+                totalTableWidth += initialColWidths[idx] || col.getBoundingClientRect().width;
+              }
+            });
+            table.style.width = `${totalTableWidth}px`;
+          }
+        };
+
+        const handleGlobalTouchEnd = () => {
+          isResizingTableCol.current = false;
+          targetCellRef.current = null;
+          
+          window.removeEventListener('touchmove', handleGlobalTouchMove);
+          window.removeEventListener('touchend', handleGlobalTouchEnd);
+          
+          if (editorRef.current && selectedTopic) {
+            updateTopic(selectedTopic.id, { content: editorRef.current.innerHTML });
+          }
+        };
+
+        window.addEventListener('touchmove', handleGlobalTouchMove, { passive: false });
+        window.addEventListener('touchend', handleGlobalTouchEnd);
+      }
     }
   };
 
@@ -1683,10 +2228,10 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                   e.stopPropagation(); 
                   updateTopic(topic.id, { isArchived: !topic.isArchived });
                 }} 
-                className={`p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-500 hover:text-indigo-600 transition-all ${topic.isArchived ? 'text-indigo-600 font-bold' : ''}`}
-                title={topic.isArchived ? "Unarchive / Restore" : "Move to Folder Archive"}
+                className={`p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-all ${topic.isArchived ? 'text-amber-500' : 'text-slate-400 hover:text-amber-500'}`}
+                title={topic.isArchived ? "Remove from Favorite Stars" : "Add to Favorite Stars"}
               >
-                <Archive size={13} />
+                <Star size={13} fill={topic.isArchived ? "currentColor" : "none"} />
               </button>
 
               <button 
@@ -1901,7 +2446,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
   };
 
   return (
-    <div className="flex flex-col md:flex-row h-full md:h-[calc(100vh-16px)] w-full p-2 gap-0 overflow-hidden relative">
+    <div className="flex flex-col md:flex-row h-full md:h-full w-full p-0 gap-0 overflow-hidden relative">
       {/* Sidebar Panel - Mobile Slide-in Overlay */}
       <div 
         style={{ width: isSidebarOpen ? `${sidebarWidth}px` : '0px' }}
@@ -1991,16 +2536,16 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
             )}
           </div>
 
-          {/* Folder Archive */}
+          {/* Favorite Stars */}
           <div className="pt-4 border-t border-slate-200/65 dark:border-slate-800/60">
             <button
               onClick={() => setIsArchiveFolderOpen(prev => !prev)}
-              className="w-full flex items-center justify-between p-2 rounded-xl bg-indigo-50/50 dark:bg-slate-900/20 text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 border border-indigo-100/40 transition-all select-none cursor-pointer"
+              className="w-full flex items-center justify-between p-2 rounded-xl bg-amber-50/50 dark:bg-slate-900/20 text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/20 border border-amber-100/40 transition-all select-none cursor-pointer"
             >
               <div className="flex items-center gap-2">
-                <Folder size={15} className="text-indigo-500" />
-                <span className="text-[11px] font-black uppercase tracking-wider">Folder Archive</span>
-                <span className="bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 px-1.5 py-0.5 rounded-full text-[9px] font-bold">
+                <Star size={15} className="text-amber-500" fill="currentColor" />
+                <span className="text-[11px] font-black uppercase tracking-wider">Favorite Stars</span>
+                <span className="bg-amber-100 dark:bg-amber-900/40 text-amber-700 px-1.5 py-0.5 rounded-full text-[9px] font-bold">
                   {archivedTopics.length}
                 </span>
               </div>
@@ -2013,7 +2558,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                   filteredArchivedTopics.map(t => renderTopic(t))
                 ) : (
                   <div className="text-center py-4 text-[10px] text-slate-400 select-none">
-                    {searchTerm ? 'No matching archived topics' : 'Archive is empty'}
+                    {searchTerm ? 'No matching favorite topics' : 'Favorite Stars is empty'}
                   </div>
                 )}
               </div>
@@ -2045,7 +2590,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
         {!isSidebarOpen && (
           <button 
             onClick={() => setIsSidebarOpen(true)}
-            className="absolute left-4 top-4 z-[100] p-3 bg-emerald-500 text-white rounded-xl shadow-lg hover:bg-emerald-600 transition-all active:scale-95 flex items-center justify-center"
+            className="absolute left-20 top-4 z-[100] p-3 bg-emerald-500 text-white rounded-xl shadow-lg hover:bg-emerald-600 transition-all active:scale-95 flex items-center justify-center"
           >
             <Menu size={24} />
           </button>
@@ -2083,10 +2628,76 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                 
                 {!isToolbarHidden && (
                   <div className='flex flex-wrap gap-2 p-2 border-b border-white/20 items-center sticky top-0 bg-white/30 backdrop-blur-xl z-20 rounded-xl'>
-                    <div className="flex gap-1 bg-white/40 p-1 rounded-lg shrink-0">
-                      <button className="p-1.5 hover:bg-white rounded transition-colors" title="Italic" onClick={() => document.execCommand('italic')}><Italic size={14} /></button>
-                      <button className="p-1.5 hover:bg-white rounded transition-colors" title="Underline" onClick={() => document.execCommand('underline')}><Underline size={14} /></button>
-                      <button className="p-1.5 hover:bg-white rounded transition-colors" title="Strikethrough" onClick={() => document.execCommand('strikeThrough')}><Strikethrough size={14} /></button>
+                    <div className="flex gap-1 bg-white/40 p-1 rounded-lg shrink-0 items-center">
+                      <select 
+                        onChange={(e) => {
+                          const font = e.target.value;
+                          const selection = window.getSelection();
+                          if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+                            const range = selection.getRangeAt(0);
+                            const span = document.createElement('span');
+                            span.style.fontFamily = font;
+                            try {
+                              span.appendChild(range.extractContents());
+                              range.insertNode(span);
+                              selection.removeAllRanges();
+                              const newRange = document.createRange();
+                              newRange.selectNodeContents(span);
+                              selection.addRange(newRange);
+                            } catch {
+                              document.execCommand('styleWithCSS', false, 'true');
+                              document.execCommand('fontName', false, font);
+                            }
+                            if (editorRef.current && selectedTopic) {
+                              updateTopic(selectedTopic.id, { content: editorRef.current.innerHTML });
+                            }
+                            const el = document.activeElement as HTMLElement;
+                            el?.dispatchEvent(new Event('input', { bubbles: true }));
+                          }
+                        }}
+                        className="bg-white px-2 py-1 rounded text-[10px] font-bold border-none outline-none cursor-pointer hover:bg-slate-50 transition-colors"
+                        title="Font Family"
+                      >
+                        {fontFamilies.map(f => (
+                          <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.name}</option>
+                        ))}
+                      </select>
+
+                      <div className="w-px h-6 bg-black/5 mx-1" />
+
+                      <select 
+                        onChange={(e) => {
+                          const size = e.target.value;
+                          const selection = window.getSelection();
+                          if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+                            const range = selection.getRangeAt(0);
+                            const span = document.createElement('span');
+                            span.style.fontSize = `${size}px`;
+                            try {
+                              span.appendChild(range.extractContents());
+                              range.insertNode(span);
+                              selection.removeAllRanges();
+                              const newRange = document.createRange();
+                              newRange.selectNodeContents(span);
+                              selection.addRange(newRange);
+                            } catch {
+                              document.execCommand('styleWithCSS', false, 'true');
+                              document.execCommand('fontSize', false, '3');
+                            }
+                            if (editorRef.current && selectedTopic) {
+                              updateTopic(selectedTopic.id, { content: editorRef.current.innerHTML });
+                            }
+                            const el = document.activeElement as HTMLElement;
+                            el?.dispatchEvent(new Event('input', { bubbles: true }));
+                          }
+                        }}
+                        className="bg-white px-2 py-1 rounded text-[10px] font-bold border-none outline-none cursor-pointer hover:bg-slate-50 transition-colors w-14"
+                        title="Font Size"
+                      >
+                        {[10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 72].map(s => (
+                          <option key={s} value={s}>{s}px</option>
+                        ))}
+                      </select>
                     </div>
 
                     <div className="h-6 w-px bg-white/30 mx-1" />
@@ -2227,104 +2838,138 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                            <button onClick={() => manageTable('col-right')} className="p-1.5 hover:bg-white rounded text-slate-600" title="Insert Col Right"><ArrowRight size={14} /></button>
                            <div className="w-px h-4 bg-black/10 mx-1 self-center" />
                            <button onClick={() => manageTable('delete-row')} className="p-1.5 hover:bg-red-50 text-red-500 rounded" title="Delete Row"><Trash2 size={14} /></button>
+                           <button onClick={() => manageTable('delete-col')} className="p-1.5 hover:bg-red-50 text-red-500 rounded" title="Delete Column"><Trash2 size={14} className="rotate-90" /></button>
                         </div>
                       </div>
                     )}
 
-                    <div className="h-6 w-px bg-white/30 mx-1" />
-
-                    <div className="flex gap-1 bg-white/40 p-1 rounded-lg shrink-0 overflow-visible z-[150]">
-                      <div className="flex items-center gap-2 relative group/textcolor">
-                        <button className="flex items-center gap-1 p-0.5 hover:bg-white rounded transition-colors" title="Font Color">
-                          <Palette size={14} className="text-slate-600" />
-                          <span className="text-[10px] text-slate-500">▼</span>
-                        </button>
-                        <div className="absolute hidden group-hover/textcolor:grid grid-cols-4 gap-2 top-full right-0 bg-white shadow-xl border border-slate-200 p-2 rounded-xl w-[130px]">
-                          {textColors.map(c => (
-                            <button
-                              key={c.value}
-                              onClick={() => applyTextColor(c.value, true)}
-                              className={`w-5 h-5 rounded-full border-2 transition-all hover:scale-110 shadow-sm mx-auto border-slate-200`}
-                              style={{ backgroundColor: c.value === 'transparent' ? '#f8fafc' : c.value }}
-                              title={c.name}
-                            >
-                              {c.value === 'transparent' && <span className="text-[8px] font-black opacity-30">✕</span>}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="w-px h-4 bg-white/30 self-center mx-1" />
-
-                      <div className="flex items-center gap-2 relative group/color">
-                        <button className="flex items-center gap-1 p-0.5 hover:bg-white rounded transition-colors" title="Highlight Color">
-                          <Highlighter size={14} className={activeColor ? 'text-emerald-500 animate-pulse' : 'text-slate-600'} />
-                          <span className="text-[10px] text-slate-500">▼</span>
-                        </button>
-                        <div className="absolute hidden group-hover/color:grid grid-cols-5 gap-2 top-full right-0 bg-white shadow-xl border border-slate-200 p-2 rounded-xl w-[160px]">
-                          {colors.map(c => (
-                            <button
-                              key={c.value}
-                              onClick={() => {
-                                setActiveColor(activeColor === c.value ? null : c.value);
-                                applyColor(c.value, true); 
-                              }}
-                              className={`w-5 h-5 rounded-full border-2 transition-all hover:scale-110 shadow-sm mx-auto ${activeColor === c.value ? 'border-emerald-500 scale-125' : 'border-slate-200'}`}
-                              style={{ backgroundColor: c.value === 'transparent' ? '#f8fafc' : c.value }}
-                              title={c.name}
-                            >
-                              {c.value === 'transparent' && <span className="text-[8px] font-black opacity-30">✕</span>}
-                            </button>
-                          ))}
-                        </div>
-                        {activeColor && (
-                          <button onClick={() => setActiveColor(null)} className="text-[9px] font-black bg-white/60 hover:bg-white px-1.5 rounded uppercase tracking-tighter text-slate-500">
-                            Stop
+                    <input 
+                      type="file" 
+                      ref={fileInputRef}
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,image/*,audio/*,video/*"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+                        <div className="relative z-[200]">
+                          <button 
+                            onClick={() => setShowExportMenu(!showExportMenu)}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg text-xs font-bold shadow-sm transition-all font-sans"
+                            title="Export notes"
+                          >
+                            <Download size={14} />
+                            Export
+                            <ChevronDown size={12} className={`transition-transform duration-200 ${showExportMenu ? 'rotate-180' : ''}`} />
                           </button>
-                        )}
-                      </div>
-                    </div>
+                          
+                          {showExportMenu && (
+                            <div className="absolute right-0 top-full mt-2 z-[250] w-[180px] bg-white rounded-2xl shadow-2xl border border-slate-200 p-2 flex flex-col gap-1 animate-in slide-in-from-top-2 duration-150">
+                              <button 
+                                onClick={() => { exportWord(); setShowExportMenu(false); }}
+                                className="flex items-center justify-between w-full text-left px-3 py-2 hover:bg-blue-50 text-slate-700 hover:text-blue-700 rounded-xl transition-colors font-bold text-xs"
+                              >
+                                <span className="flex items-center gap-2">
+                                  <FileText size={14} className="text-blue-500" /> MS Word (.doc)
+                                </span>
+                              </button>
+                              <button 
+                                onClick={() => { exportPDF(); setShowExportMenu(false); }}
+                                className="flex items-center justify-between w-full text-left px-3 py-2 hover:bg-red-50 text-slate-700 hover:text-red-700 rounded-xl transition-colors font-bold text-xs"
+                              >
+                                <span className="flex items-center gap-2">
+                                  <FileDown size={14} className="text-red-500" /> PDF Document
+                                </span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
 
-                    <div className="h-6 w-px bg-white/30 mx-1" />
-                    
-                    <div className="flex gap-1 bg-blue-500/10 hover:bg-blue-500/20 px-2 py-1 rounded-lg border border-blue-500/30 transition-all">
-                      <label 
-                        className="p-1 hover:bg-white/50 rounded flex items-center justify-center gap-2 cursor-pointer text-blue-700 font-bold text-xs" 
-                        title="Upload File / Media (PDF, Images, MP3, MP4, Docs)"
-                      >
-                        <FileUp size={16} className="text-blue-600" />
-                        <span>Upload File</span>
-                        <input 
-                          type="file" 
-                          accept=".pdf,.doc,.docx,.xls,.xlsx,image/*,audio/*,video/*"
-                          onChange={handleFileUpload}
-                          className="hidden"
-                        />
-                      </label>
-                    </div>
+                        {/* Table Tools Dropdown */}
+                        <div className="relative z-[200]">
+                          <button 
+                            onClick={() => setShowTableToolsMenu(!showTableToolsMenu)}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg text-xs font-bold shadow-sm transition-all font-sans"
+                            title="Table Tools"
+                          >
+                            <Grid3X3 size={14} className="text-emerald-600" />
+                            Table Tools
+                            <ChevronDown size={12} className={`transition-transform duration-200 ${showTableToolsMenu ? 'rotate-180' : ''}`} />
+                          </button>
+                          
+                          {showTableToolsMenu && (
+                            <div className="absolute right-0 top-full mt-2 z-[250] w-56 bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5 flex flex-col gap-1.5 animate-in slide-in-from-top-2 duration-150">
+                              {activeTableCell ? (
+                                <>
+                                  <div className="px-2 py-1 text-[10px] font-black text-slate-400 uppercase tracking-wider">Word-Style Controls</div>
+                                  <div className="grid grid-cols-2 gap-1">
+                                    <button 
+                                      onClick={() => { addRow('above'); setShowTableToolsMenu(false); }}
+                                      className="flex items-center gap-1.5 p-2 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 rounded-xl transition-colors font-bold text-xs"
+                                      title="Insert Row Above"
+                                    >
+                                      <ArrowUp size={12} className="text-emerald-500" />
+                                      Row Above
+                                    </button>
+                                    <button 
+                                      onClick={() => { addRow('below'); setShowTableToolsMenu(false); }}
+                                      className="flex items-center gap-1.5 p-2 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 rounded-xl transition-colors font-bold text-xs"
+                                      title="Insert Row Below"
+                                    >
+                                      <ArrowDown size={12} className="text-emerald-500" />
+                                      Row Below
+                                    </button>
+                                    <button 
+                                      onClick={() => { addColumn('left'); setShowTableToolsMenu(false); }}
+                                      className="flex items-center gap-1.5 p-2 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 rounded-xl transition-colors font-bold text-xs"
+                                      title="Insert Column Left"
+                                    >
+                                      <ArrowLeft size={12} className="text-emerald-500" />
+                                      Col Left
+                                    </button>
+                                    <button 
+                                      onClick={() => { addColumn('right'); setShowTableToolsMenu(false); }}
+                                      className="flex items-center gap-1.5 p-2 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 rounded-xl transition-colors font-bold text-xs"
+                                      title="Insert Column Right"
+                                    >
+                                      <ArrowRight size={12} className="text-emerald-500" />
+                                      Col Right
+                                    </button>
+                                  </div>
+                                  <div className="h-px bg-slate-100 my-0.5" />
+                                  <div className="grid grid-cols-2 gap-1">
+                                    <button 
+                                      onClick={() => { deleteTableElement('row'); setShowTableToolsMenu(false); }}
+                                      className="flex items-center gap-1.5 p-2 hover:bg-red-50 text-red-600 rounded-xl transition-colors font-bold text-xs"
+                                      title="Delete Row"
+                                    >
+                                      <Trash2 size={12} className="text-red-500" />
+                                      Delete Row
+                                    </button>
+                                    <button 
+                                      onClick={() => { deleteTableElement('col'); setShowTableToolsMenu(false); }}
+                                      className="flex items-center gap-1.5 p-2 hover:bg-red-50 text-red-600 rounded-xl transition-colors font-bold text-xs"
+                                      title="Delete Column"
+                                    >
+                                      <Trash2 size={12} className="text-red-500 rotate-90" />
+                                      Delete Col
+                                    </button>
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="p-3 text-center text-xs text-slate-500 font-bold leading-relaxed">
+                                  <Grid3X3 size={20} className="mx-auto mb-2 text-slate-400" />
+                                  💡 Click inside any table first to add/delete rows & columns!
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
 
-                    <div className="ml-auto flex items-center gap-2 flex-wrap justify-end">
-                        <button 
-                          onClick={() => setShowAIModal(true)}
-                          className="flex items-center gap-2 px-3 py-1.5 bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold hover:bg-emerald-200 shadow-sm transition-colors"
-                        >
-                          <Wand2 size={14} /> AI Tutor
-                        </button>
-                        <button 
-                          onClick={enhanceWithAI} 
-                          onMouseDown={(e) => e.preventDefault()}
-                          disabled={isAILoading} 
-                          className="flex items-center gap-2 px-3 py-1.5 bg-indigo-500 text-white rounded-lg text-xs font-bold hover:bg-indigo-600 shadow-sm transition-colors disabled:opacity-50 font-sans"
-                          title="Highlight/select some text first to only enhance that selection, or do not select anything to enhance the entire note."
-                        >
-                          {isAILoading ? <Loader2 size={14} className="animate-spin" /> : <Wand2 size={14} />}
-                          AI Enhance
-                        </button>
+                        {/* MORE Tools Dropdown (Includes AI Tutor, AI Enhance, Upload File, Synthesis Cards, Q&A Board) */}
                         <div className="relative z-[200]">
                           <button 
                             onClick={() => setShowMoreMenu(!showMoreMenu)}
                             className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg text-xs font-bold shadow-sm transition-all font-sans"
-                            title="More rich layouts & templates"
+                            title="More Actions & Layouts"
                           >
                             <MoreHorizontal size={14} />
                             More
@@ -2332,10 +2977,52 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                           </button>
                           
                           {showMoreMenu && (
-                            <div className="absolute right-0 top-full mt-2 z-[250] w-[210px] bg-white rounded-2xl shadow-2xl border border-slate-200 p-4 flex flex-col gap-4 animate-in slide-in-from-top-2 duration-150">
+                            <div className="absolute right-0 bottom-full mb-2 z-[250] w-[220px] bg-white rounded-2xl shadow-2xl border border-slate-200 p-4 flex flex-col gap-4 animate-in slide-in-from-bottom-2 duration-150">
+                              <div>
+                                <div className="text-[10px] font-black uppercase text-emerald-500 tracking-wider mb-2 flex items-center gap-1.5">
+                                  <Wand2 size={12} className="text-emerald-500" />
+                                  AI Learning Systems
+                                </div>
+                                <div className="flex flex-col gap-1.5">
+                                  <button 
+                                    onClick={() => { setShowAIModal(true); setShowMoreMenu(false); }}
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-emerald-50 text-emerald-700 rounded-xl transition-all font-black text-[11px] uppercase tracking-wider"
+                                  >
+                                    <GraduationCap size={12} className="text-emerald-500" />
+                                    AI Tutor
+                                  </button>
+                                  <button 
+                                    onClick={() => { enhanceWithAI(); setShowMoreMenu(false); }} 
+                                    disabled={isAILoading}
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-indigo-50 text-indigo-700 rounded-xl transition-all font-black text-[11px] uppercase tracking-wider"
+                                  >
+                                    {isAILoading ? <Loader2 size={12} className="animate-spin" /> : <Wand2 size={12} />}
+                                    AI Enhance Note
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div className="h-px bg-slate-100" />
+
+                              <div>
+                                <div className="text-[10px] font-black uppercase text-blue-400 tracking-wider mb-2 flex items-center gap-1.5">
+                                  <FileUp size={12} className="text-blue-500" />
+                                  Media & Files
+                                </div>
+                                <button 
+                                  onClick={() => { fileInputRef.current?.click(); setShowMoreMenu(false); }} 
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-blue-50 text-blue-700 rounded-xl transition-all font-black text-[11px] uppercase tracking-wider"
+                                >
+                                  <FileUp size={12} />
+                                  Upload File
+                                </button>
+                              </div>
+
+                              <div className="h-px bg-slate-100" />
+
                               <div>
                                 <div className="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2 flex items-center gap-1.5">
-                                  <Layout size={12} className="text-blue-500" />
+                                  <Layout size={12} className="text-slate-500" />
                                   Insert Synthesis Card
                                 </div>
                                 <div className="grid grid-cols-5 gap-1.5">
@@ -2343,7 +3030,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                                     { key: 'blue', color: 'bg-blue-500', border: 'border-blue-200', bg: 'bg-blue-50', name: 'Blue' },
                                     { key: 'emerald', color: 'bg-emerald-500', border: 'border-emerald-200', bg: 'bg-emerald-50', name: 'Emerald' },
                                     { key: 'rose', color: 'bg-rose-500', border: 'border-rose-200', bg: 'bg-rose-50', name: 'Rose' },
-                                    { key: 'gold', color: 'bg-yellow-500', border: 'border-yellow-200', bg: 'bg-yellow-50', name: 'Gold' },
+                                    { key: 'gold', color: 'bg-yellow-400', border: 'border-yellow-105', bg: 'bg-yellow-50', name: 'Gold' },
                                     { key: 'violet', color: 'bg-purple-500', border: 'border-purple-200', bg: 'bg-purple-50', name: 'Violet' },
                                     { key: 'orange', color: 'bg-orange-500', border: 'border-orange-200', bg: 'bg-orange-50', name: 'Orange' },
                                     { key: 'teal', color: 'bg-teal-500', border: 'border-teal-200', bg: 'bg-teal-50', name: 'Teal' },
@@ -2378,7 +3065,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                                     { key: 'amber', color: 'bg-amber-500', border: 'border-amber-200', bg: 'bg-amber-50', name: 'Amber' },
                                     { key: 'purple', color: 'bg-purple-500', border: 'border-purple-200', bg: 'bg-purple-50', name: 'Purple' },
                                     { key: 'rose', color: 'bg-rose-500', border: 'border-rose-200', bg: 'bg-rose-50', name: 'Rose' },
-                                    { key: 'sky', color: 'bg-sky-500', border: 'border-sky-200', bg: 'bg-sky-50', name: 'Sky' },
+                                    { key: 'sky', color: 'bg-sky-500', border: 'border-sky-55', name: 'Sky' },
                                     { key: 'teal', color: 'bg-teal-500', border: 'border-teal-200', bg: 'bg-teal-50', name: 'Teal' },
                                     { key: 'orange', color: 'bg-orange-500', border: 'border-orange-200', bg: 'bg-orange-50', name: 'Orange' },
                                     { key: 'cyan', color: 'bg-cyan-500', border: 'border-cyan-200', bg: 'bg-cyan-50', name: 'Cyan' }
@@ -2397,44 +3084,11 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                             </div>
                           )}
                         </div>
-                        <div className="relative z-[200]">
-                          <button 
-                            onClick={() => setShowExportMenu(!showExportMenu)}
-                            className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg text-xs font-bold shadow-sm transition-all font-sans"
-                            title="Export notes"
-                          >
-                            <Download size={14} />
-                            Export
-                            <ChevronDown size={12} className={`transition-transform duration-200 ${showExportMenu ? 'rotate-180' : ''}`} />
-                          </button>
-                          
-                          {showExportMenu && (
-                            <div className="absolute right-0 top-full mt-2 z-[250] w-[180px] bg-white rounded-2xl shadow-2xl border border-slate-200 p-2 flex flex-col gap-1 animate-in slide-in-from-top-2 duration-150">
-                              <button 
-                                onClick={() => { exportWord(); setShowExportMenu(false); }}
-                                className="flex items-center justify-between w-full text-left px-3 py-2 hover:bg-blue-50 text-slate-700 hover:text-blue-700 rounded-xl transition-colors font-bold text-xs"
-                              >
-                                <span className="flex items-center gap-2">
-                                  <FileText size={14} className="text-blue-500" /> MS Word (.doc)
-                                </span>
-                              </button>
-                              <button 
-                                onClick={() => { exportPDF(); setShowExportMenu(false); }}
-                                className="flex items-center justify-between w-full text-left px-3 py-2 hover:bg-red-50 text-slate-700 hover:text-red-700 rounded-xl transition-colors font-bold text-xs"
-                              >
-                                <span className="flex items-center gap-2">
-                                  <FileDown size={14} className="text-red-500" /> PDF Document
-                                </span>
-                              </button>
-                            </div>
-                          )}
-                        </div>
 
                         <button onClick={insertDate} className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-emerald-500 to-orange-500 text-white rounded-lg text-xs font-bold hover:from-emerald-600 hover:to-orange-600 shadow-sm transition-colors">
                           <Calendar size={14} /> Insert Date
                         </button>
                     </div>
-                </div>
                 )}
 
                 {pickerPos && (() => {
@@ -2587,16 +3241,20 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                         font-weight: 800 !important;
                       }
                       
+                      .editor-content table {
+                        border-collapse: collapse !important;
+                        width: 100% !important;
+                        border: 2.5px solid #334155;
+                      }
+
                       .editor-content th, 
                       .editor-content td {
-                        border: 1px solid ${editorBorderColor} !important;
-                        padding: 10px !important;
+                        border: 2px solid #334155;
+                        padding: 12px 14px !important;
                         color: ${editorTextColor} !important;
                       }
                       
-                      /* Lightbox styling to guarantee that custom templates (study plan, synthesis, QA boards) have a gorgeous light design on any background */
-                      .editor-content .synthesis-card-wrapper, 
-                      .editor-content .qa-board-wrapper,
+                      /* Lightbox styling to guarantee that custom templates (study plan, action plan) have a gorgeous light design on any background */
                       .editor-content .study-plan-card,
                       .editor-content .action-plan-card {
                         border: 2px solid ${editorBorderColor} !important;
@@ -2608,12 +3266,15 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
                       }
 
-                      .editor-content .synthesis-card-wrapper h1,
-                      .editor-content .synthesis-card-wrapper h2,
-                      .editor-content .synthesis-card-wrapper h3,
-                      .editor-content .qa-board-wrapper h1,
-                      .editor-content .qa-board-wrapper h2,
-                      .editor-content .qa-board-wrapper h3,
+                      /* Synthesis Cards and QA Boards use the user-selected theme colors for their backgrounds, borders, and main layout natively! */
+                      .editor-content .synthesis-card-wrapper, 
+                      .editor-content .qa-board-wrapper {
+                        border-radius: 20px !important;
+                        padding: 20px !important;
+                        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03) !important;
+                        margin: 18px 0 !important;
+                      }
+
                       .editor-content .study-plan-card h1,
                       .editor-content .study-plan-card h2,
                       .editor-content .study-plan-card h3,
@@ -2623,12 +3284,6 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                         color: ${editorHeaderColor} !important;
                       }
 
-                      .editor-content .synthesis-card-wrapper p, 
-                      .editor-content .synthesis-card-wrapper li, 
-                      .editor-content .synthesis-card-wrapper div,
-                      .editor-content .qa-board-wrapper p, 
-                      .editor-content .qa-board-wrapper li, 
-                      .editor-content .qa-board-wrapper div,
                       .editor-content .study-plan-card p, 
                       .editor-content .study-plan-card li, 
                       .editor-content .study-plan-card div,
@@ -2638,9 +3293,7 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                         color: ${editorTextColor} !important;
                       }
 
-                      /* Ensure unstyled spans inside template cards are readable dark, while preserving custom highlighted/colored texts */
-                      .editor-content .synthesis-card-wrapper span:not([style*="color"]):not([style*="background-color"]),
-                      .editor-content .qa-board-wrapper span:not([style*="color"]):not([style*="background-color"]),
+                      /* Ensure unstyled spans inside template cards are readable, while preserving custom highlighted/colored texts */
                       .editor-content .study-plan-card span:not([style*="color"]):not([style*="background-color"]),
                       .editor-content .action-plan-card span:not([style*="color"]):not([style*="background-color"]) {
                         color: ${editorTextColor} !important;
@@ -2725,6 +3378,10 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                     onClick={handleEditorClick}
                     onMouseUp={handleSelection}
                     onKeyUp={handleSelection}
+                    onKeyDown={handleEditorKeyDown}
+                    onMouseMove={handleEditorMouseMove}
+                    onMouseDown={handleEditorMouseDown}
+                    onTouchStart={handleEditorTouchStart}
                     onBlur={(e) => {
                       updateTopic(selectedTopic.id, { content: e.currentTarget.innerHTML });
                     }}
@@ -2740,6 +3397,8 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                         : selectedPaper.className
                     }`}
                 ></div>
+
+                {/* Table bottom tool container hidden because row/column manage buttons are between Export and Insert Date */}
 
                 {isTableModalOpen && (
                   <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
@@ -2800,8 +3459,8 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
 
                         <div>
                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Theme Color</label>
-                          <div className="flex gap-2">
-                             {['#f97316', '#ef4444', '#10b981', '#3b82f6', '#8b5cf6', '#000000', '#ffffff', '#64748b', '#f43f5e', '#d946ef', '#14b8a6', '#0ea5e9', '#84cc16', '#eab308', '#ec4899'].map(c => (
+                          <div className="flex gap-2 mb-4">
+                             {['#f97316', '#ef4444', '#10b981', '#3b82f6', '#8b5cf6', '#ffffff', '#64748b', '#f43f5e', '#d946ef', '#14b8a6', '#0ea5e9', '#84cc16', '#eab308', '#ec4899'].map(c => (
                                <button 
                                  key={c}
                                  onClick={() => setTableConfig({...tableConfig, theme: c})}
@@ -2809,6 +3468,51 @@ export const SelfLearningTable: React.FC<SelfLearningTableProps> = ({ data, onUp
                                  style={{ backgroundColor: c }}
                                />
                              ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Table & Grid Lines Visibility/Opacity</label>
+                          <div className="flex gap-2">
+                             {[10, 25, 50, 75, 100].map(percentage => (
+                               <button 
+                                 key={percentage}
+                                 onClick={() => setTableConfig({...tableConfig, gridOpacity: percentage})}
+                                 className={`flex-1 py-2 rounded-xl border font-black text-[11px] uppercase tracking-wider transition-all ${tableConfig.gridOpacity === percentage ? 'bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-500/15' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'}`}
+                               >
+                                 {percentage}%
+                               </button>
+                             ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 mt-4">Grid Line Style</label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {[
+                              { id: 'theme-solid', name: 'Whole Color', desc: 'Theme colors the whole table borders' },
+                              { id: 'theme-open', name: 'Color + Blank Line', desc: 'Theme borders with open sides' },
+                              { id: 'black-solid', name: 'Always Black', desc: 'Clear black borders for easy visibility' },
+                              { id: 'black-open', name: 'Black + Blank Line', desc: 'Clear black borders with open sides' }
+                            ].map(style => (
+                              <button 
+                                key={style.id}
+                                type="button"
+                                onClick={() => setTableConfig({...tableConfig, gridStyle: style.id})}
+                                className={`p-3 rounded-2xl border text-left transition-all ${
+                                  (tableConfig.gridStyle || 'theme-solid') === style.id 
+                                    ? 'bg-emerald-500/10 border-emerald-500 text-slate-800' 
+                                    : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                                }`}
+                              >
+                                <div className="text-[11px] font-black uppercase tracking-wide">
+                                  {style.name}
+                                </div>
+                                <div className="text-[9px] font-bold text-slate-400 mt-0.5">
+                                  {style.desc}
+                                </div>
+                              </button>
+                            ))}
                           </div>
                         </div>
                       </div>
